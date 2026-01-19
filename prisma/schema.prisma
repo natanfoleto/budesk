@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ENUMS
+
+enum UserRole {
+  ADMIN
+  GERENTE
+  OPERADOR
+}
+
+enum TransactionType {
+  ENTRADA
+  SAIDA
+}
+
+enum PaymentMethod {
+  DINHEIRO
+  PIX
+  CARTAO
+  BOLETO
+  CHEQUE
+  TRANSFERENCIA
+}
+
+enum AccountStatus {
+  PENDENTE
+  PAGA
+  ATRASADA
+}
+
+enum ServiceStatus {
+  ABERTO
+  EM_ANDAMENTO
+  FINALIZADO
+  CANCELADO
+}
+
+enum VehicleType {
+  CAMINHAO
+  ONIBUS
+  MAQUINA
+  OUTRO
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+}
+
+// USUÁRIOS
+
+model User {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(255)
+  email     String   @unique
+  password  String
+  role      UserRole
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services  Service[]
+  auditLogs AuditLog[]
+  loginLogs LoginLog[]
+
+  @@map("users")
+}
+
+// AUDITORIA GLOBAL
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String?
+  action    AuditAction
+  entity    String
+  entityId  String?
+  oldData   Json?
+  newData   Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// LOGIN LOG
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String
+  success   Boolean
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([createdAt])
+  @@map("login_logs")
+}
+
+// CLIENTES
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+
+  services Service[]
+
+  @@map("clients")
+}
+
+// FORNECEDORES
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+
+  transactions FinancialTransaction[]
+  accounts     AccountPayable[]
+
+  @@map("suppliers")
+}
+
+// FUNCIONÁRIOS
+
+model Employee {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  salary    Decimal  @db.Decimal(10, 2)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  advances     EmployeeAdvance[]
+  transactions FinancialTransaction[]
+
+  @@map("employees")
+}
+
+model EmployeeAdvance {
+  id         String   @id @default(cuid())
+  employeeId String
+  amount     Decimal  @db.Decimal(10, 2)
+  date       DateTime
+  note       String?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@map("employee_advances")
+}
+
+// SERVIÇOS
+
+model Service {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  status      ServiceStatus
+  startDate   DateTime
+  endDate     DateTime?
+  clientId    String?
+  createdById String
+  createdAt   DateTime      @default(now())
+
+  client       Client?                @relation(fields: [clientId], references: [id])
+  createdBy    User                   @relation(fields: [createdById], references: [id])
+  transactions FinancialTransaction[]
+  documents    Document[]
+  vehicleUsage VehicleUsage[]
+
+  @@index([status])
+  @@index([startDate])
+  @@map("services")
+}
+
+// FINANCEIRO / CAIXA
+
+model FinancialTransaction {
+  id            String          @id @default(cuid())
+  description   String
+  type          TransactionType
+  amount        Decimal         @db.Decimal(10, 2)
+  category      String
+  paymentMethod PaymentMethod
+  date          DateTime
+  serviceId     String?
+  employeeId    String?
+  supplierId    String?
+  createdAt     DateTime        @default(now())
+
+  service  Service?  @relation(fields: [serviceId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([type])
+  @@index([date])
+  @@index([category])
+  @@map("financial_transactions")
+}
+
+// CONTAS A PAGAR
+
+model AccountPayable {
+  id          String        @id @default(cuid())
+  description String
+  amount      Decimal       @db.Decimal(10, 2)
+  dueDate     DateTime
+  status      AccountStatus
+  supplierId  String?
+  createdAt   DateTime      @default(now())
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([dueDate])
+  @@index([status])
+  @@map("accounts_payable")
+}
+
+// DOCUMENTOS
+
+model Document {
+  id        String   @id @default(cuid())
+  name      String
+  category  String
+  fileUrl   String
+  serviceId String?
+  createdAt DateTime @default(now())
+
+  service Service? @relation(fields: [serviceId], references: [id])
+
+  @@index([category])
+  @@map("documents")
+}
+
+// FROTA
+
+model Vehicle {
+  id          String      @id @default(cuid())
+  plate       String
+  description String
+  type        VehicleType
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+
+  usages VehicleUsage[]
+
+  @@unique([plate])
+  @@map("vehicles")
+}
+
+model VehicleUsage {
+  id        String  @id @default(cuid())
+  vehicleId String
+  serviceId String
+  cost      Decimal @db.Decimal(10, 2)
+  note      String?
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([vehicleId])
+  @@index([serviceId])
+  @@map("vehicle_usages")
+}
