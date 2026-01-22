@@ -121,9 +121,12 @@ model Client {
   name      String
   phone     String?
   email     String?
+  document  String? // CPF/CNPJ
+  address   String?
   createdAt DateTime @default(now())
 
   services Service[]
+  documents Document[]
 
   @@map("clients")
 }
@@ -135,6 +138,9 @@ model Supplier {
   name      String
   phone     String?
   email     String?
+  document  String? // CNPJ/CPF
+  address   String?
+  category  String?
   createdAt DateTime @default(now())
 
   transactions FinancialTransaction[]
@@ -148,6 +154,9 @@ model Supplier {
 model Employee {
   id        String   @id @default(cuid())
   name      String
+  email     String?
+  phone     String?
+  document  String? // CPF
   role      String
   salary    Decimal  @db.Decimal(10, 2)
   active    Boolean  @default(true)
@@ -244,12 +253,17 @@ model AccountPayable {
 model Document {
   id        String   @id @default(cuid())
   name      String
-  category  String
+  category  String?
   fileUrl   String
+  description String?
   serviceId String?
+  clientId  String?
+  vehicleId String?
   createdAt DateTime @default(now())
 
   service Service? @relation(fields: [serviceId], references: [id])
+  client  Client?  @relation(fields: [clientId], references: [id]) 
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
 
   @@index([category])
   @@map("documents")
@@ -260,12 +274,16 @@ model Document {
 model Vehicle {
   id          String      @id @default(cuid())
   plate       String
-  description String
+  model       String?
+  brand       String?
+  year        Int?
+  description String?
   type        VehicleType
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())
 
   usages VehicleUsage[]
+  documents Document[]
 
   @@unique([plate])
   @@map("vehicles")

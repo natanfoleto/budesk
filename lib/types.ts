@@ -1,35 +1,32 @@
 import {
-    User,
-    Service,
-    FinancialTransaction,
-    Employee,
-    Client,
-    Supplier,
-    Vehicle,
-    Document,
-    AuditLog,
-    UserRole,
-    ServiceStatus,
-    TransactionType
-} from "@prisma/client";
+  AuditLog,
+  Client,
+  Document,
+  Employee,
+  FinancialTransaction,
+  Service,
+  ServiceStatus,
+  Supplier,
+  TransactionType,
+  User,
+  UserRole,
+  Vehicle} from "@prisma/client"
 
 export type {
-    User,
-    Service,
-    FinancialTransaction,
-    Employee,
-    Client,
-    Supplier,
-    Vehicle,
-    Document,
-    AuditLog
-};
+  AuditLog,
+  Client,
+  Document,
+  Employee,
+  FinancialTransaction,
+  Service,
+  Supplier,
+  User,
+  Vehicle}
 
 export {
-    UserRole,
-    ServiceStatus,
-    TransactionType
-};
+  ServiceStatus,
+  TransactionType,
+  UserRole}
 
 export enum VehicleType {
     CARRO = "CARRO",
@@ -48,18 +45,25 @@ export enum AuditAction {
 }
 
 
-export interface ApiResponse<T = any> {
-    success: boolean;
-    data?: T;
-    error?: string;
-    meta?: {
-        page: number;
-        limit: number;
-        total: number;
-    };
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  meta?: {
+    page: number;
+    limit: number;
+    total: number;
+  };
 }
 
-export interface UserSafe extends Omit<User, "password"> { }
+export interface JWTPayload {
+  id: string;
+  email: string;
+  role: UserRole;
+  [key: string]: unknown; // Allow other standard JWT claims (iat, exp, etc)
+}
+
+export type UserSafe = Omit<User, "password">;
 
 export interface LoginResponse {
     user: UserSafe;

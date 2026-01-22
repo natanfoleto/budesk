@@ -1,80 +1,72 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { z } from 'zod';
-import { verifyJWT } from '@/lib/auth';
-import { AccountStatus } from '@prisma/client';
+import { NextRequest, NextResponse } from "next/server"
 
-const createAccountPayableSchema = z.object({
-    description: z.string().min(3),
-    amount: z.number().or(z.string().transform(v => Number(v))),
-    dueDate: z.string().transform((str) => new Date(str)),
-    status: z.nativeEnum(AccountStatus).default(AccountStatus.PENDENTE),
-    supplierId: z.string().optional(),
-});
+import prisma from "@/lib/prisma"
 
-export async function GET(request: Request) {
-    try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') ||
-            (request.headers.get('cookie') || '').split('token=')[1]?.split(';')[0];
+const AUDIT_CREATE = "CREATE"
 
-        if (!token || !await verifyJWT(token)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const status = searchParams.get("status") // PENDENTE, PAGA, ATRASADA
+  const startDate = searchParams.get("startDate")
+  const endDate = searchParams.get("endDate")
 
-        const { searchParams } = new URL(request.url);
-        const status = searchParams.get('status');
-        const limit = Number(searchParams.get('limit')) || 50;
+  try {
+    const where: any = {}
 
-        const where: any = {};
-        if (status) where.status = status;
-
-        const accounts = await prisma.accountPayable.findMany({
-            where,
-            take: limit,
-            orderBy: { dueDate: 'asc' },
-            include: {
-                supplier: { select: { name: true } }
-            }
-        });
-
-        return NextResponse.json({ success: true, data: accounts });
-    } catch (error) {
-        return NextResponse.json({ success: false, error: 'Failed to fetch accounts payable' }, { status: 500 });
+    if (status) {
+      where.status = status
     }
+
+    if (startDate && endDate) {
+      where.dueDate = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      }
+    }
+
+    const accounts = await prisma.accountPayable.findMany({
+      where,
+      orderBy: { dueDate: "asc" },
+      include: {
+        supplier: { select: { name: true } },
+      },
+    })
+
+    return NextResponse.json(accounts)
+  } catch (error) {
+    return NextResponse.json({ error: "Erro ao buscar contas" }, { status: 500 })
+  }
 }
 
-export async function POST(request: Request) {
-    try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') ||
-            (request.headers.get('cookie') || '').split('token=')[1]?.split(';')[0];
-        const payload = token ? await verifyJWT(token) : null;
+export async function POST(request: NextRequest) {
+  const userId = request.headers.get("x-user-id")
 
-        if (!payload) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+  try {
+    const body = await request.json()
+    const { description, amount, dueDate, status, supplierId } = body
 
-        const body = await request.json();
-        const data = createAccountPayableSchema.parse(body);
+    const account = await prisma.accountPayable.create({
+      data: {
+        description,
+        amount,
+        dueDate: new Date(dueDate),
+        status: status || "PENDENTE",
+        supplierId: supplierId || null,
+      },
+    })
 
-        const account = await prisma.accountPayable.create({
-            data: {
-                ...data,
-            }
-        });
+    await prisma.auditLog.create({
+      data: {
+        action: AUDIT_CREATE,
+        entity: "AccountPayable",
+        entityId: account.id,
+        newData: account as any,
+        userId: userId,
+      }
+    })
 
-        // Manual Audit
-        await prisma.auditLog.create({
-            data: {
-                action: 'CREATE',
-                entity: 'AccountPayable',
-                entityId: account.id,
-                newData: account as any,
-                userId: payload.id as string,
-            }
-        });
-
-        return NextResponse.json({ success: true, data: account });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message || 'Failed to create account payable' }, { status: 500 });
-    }
+    return NextResponse.json(account, { status: 201 })
+  } catch (error) {
+    return NextResponse.json({ error: "Erro ao criar conta" }, { status: 500 })
+  }
 }

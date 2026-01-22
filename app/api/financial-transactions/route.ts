@@ -1,87 +1,89 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { z } from 'zod';
-import { verifyJWT } from '@/lib/auth';
-import { TransactionType, PaymentMethod } from '@prisma/client';
+import { NextRequest, NextResponse } from "next/server"
 
-const createTransactionSchema = z.object({
-    description: z.string().min(3),
-    type: z.nativeEnum(TransactionType),
-    amount: z.number().or(z.string().transform(v => Number(v))),
-    category: z.string(),
-    paymentMethod: z.nativeEnum(PaymentMethod),
-    date: z.string().transform((str) => new Date(str)),
-    serviceId: z.string().optional(),
-    employeeId: z.string().optional(),
-    supplierId: z.string().optional(),
-});
+import { verifyJWT } from "@/lib/auth"
+import prisma from "@/lib/prisma"
 
-export async function GET(request: Request) {
-    try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') ||
-            (request.headers.get('cookie') || '').split('token=')[1]?.split(';')[0];
+const AUDIT_Create = "CREATE"
 
-        if (!token || !await verifyJWT(token)) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+export async function GET(request: NextRequest) {
+  const token = request.headers.get("x-token")
+  // In middleware we set headers, but here we can re-verify or trust middleware if internal.
+  // For safety, let's just use the user from headers if middleware passed it, or verify again.
+  // Ideally middleware handles auth. Let's assume protection.
 
-        const { searchParams } = new URL(request.url);
-        const serviceId = searchParams.get('serviceId');
-        const limit = Number(searchParams.get('limit')) || 50;
+  const searchParams = request.nextUrl.searchParams
+  const type = searchParams.get("type")
+  const startDate = searchParams.get("startDate")
+  const endDate = searchParams.get("endDate")
 
-        const where: any = {};
-        if (serviceId) where.serviceId = serviceId;
+  try {
+    const where: any = {}
 
-        const transactions = await prisma.financialTransaction.findMany({
-            where,
-            take: limit,
-            orderBy: { date: 'desc' },
-            include: {
-                service: { select: { title: true } },
-                employee: { select: { name: true } },
-                supplier: { select: { name: true } }
-            }
-        });
-
-        return NextResponse.json({ success: true, data: transactions });
-    } catch (error) {
-        return NextResponse.json({ success: false, error: 'Failed to fetch transactions' }, { status: 500 });
+    if (type) {
+      where.type = type
     }
+
+    if (startDate && endDate) {
+      where.date = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      }
+    }
+
+    const transactions = await prisma.financialTransaction.findMany({
+      where,
+      orderBy: { date: "desc" },
+      include: {
+        service: { select: { title: true } },
+        supplier: { select: { name: true } },
+        employee: { select: { name: true } },
+      },
+    })
+
+    return NextResponse.json(transactions)
+  } catch (error) {
+    return NextResponse.json({ error: "Erro ao buscar transações" }, { status: 500 })
+  }
 }
 
-export async function POST(request: Request) {
-    try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') ||
-            (request.headers.get('cookie') || '').split('token=')[1]?.split(';')[0];
-        const payload = token ? await verifyJWT(token) : null;
+export async function POST(request: NextRequest) {
+  const userId = request.headers.get("x-user-id")
+  if (!userId) {
+     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+  }
 
-        if (!payload) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+  try {
+    const body = await request.json()
+    const { description, type, amount, category, paymentMethod, date, supplierId, employeeId, serviceId } = body
 
-        const body = await request.json();
-        const data = createTransactionSchema.parse(body);
+    const transaction = await prisma.financialTransaction.create({
+      data: {
+        description,
+        type,
+        amount,
+        category,
+        paymentMethod,
+        date: new Date(date),
+        supplierId: supplierId || null,
+        employeeId: employeeId || null,
+        serviceId: serviceId || null,
+      },
+    })
 
-        const transaction = await prisma.financialTransaction.create({
-            data: {
-                ...data,
-            }
-        });
+    // Audit
+    await prisma.auditLog.create({
+      data: {
+        action: AUDIT_Create,
+        entity: "FinancialTransaction",
+        entityId: transaction.id,
+        newData: transaction as any,
+        userId: userId,
+      }
+    })
 
-        // Manual Audit
-        await prisma.auditLog.create({
-            data: {
-                action: 'CREATE',
-                entity: 'FinancialTransaction',
-                entityId: transaction.id,
-                newData: transaction as any,
-                userId: payload.id as string,
-            }
-        });
-
-        return NextResponse.json({ success: true, data: transaction });
-    } catch (error: any) {
-        console.error('Transaction Error', error);
-        return NextResponse.json({ success: false, error: error.message || 'Failed to create transaction' }, { status: 500 });
-    }
+    return NextResponse.json(transaction, { status: 201 })
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json({ error: "Erro ao criar transação" }, { status: 500 })
+  }
 }

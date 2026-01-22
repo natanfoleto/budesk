@@ -1,41 +1,89 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { verifyJWT } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server"
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const token = request.headers.get('Authorization')?.replace('Bearer ', '') ||
-            (request.headers.get('cookie') || '').split('token=')[1]?.split(';')[0];
-        const payload = token ? await verifyJWT(token) : null;
+import prisma from "@/lib/prisma"
 
-        if (!payload) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-        }
+const AUDIT_UPDATE = "UPDATE"
+const AUDIT_DELETE = "DELETE"
 
-        const { id } = await params;
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const userId = request.headers.get("x-user-id")
 
-        const oldData = await prisma.financialTransaction.findUnique({ where: { id } });
+  try {
+    const body = await request.json()
+    const { description, type, amount, category, paymentMethod, date, supplierId, employeeId, serviceId } = body
 
-        if (!oldData) {
-            return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
-        }
+    const oldData = await prisma.financialTransaction.findUnique({ where: { id } })
 
-        await prisma.financialTransaction.delete({
-            where: { id }
-        });
-
-        await prisma.auditLog.create({
-            data: {
-                action: 'DELETE',
-                entity: 'FinancialTransaction',
-                entityId: id,
-                oldData: oldData as any,
-                userId: payload.id as string,
-            }
-        });
-
-        return NextResponse.json({ success: true, message: 'Transaction deleted' });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message || 'Failed to delete transaction' }, { status: 500 });
+    if (!oldData) {
+      return NextResponse.json({ error: "Transação não encontrada" }, { status: 404 })
     }
+
+    const transaction = await prisma.financialTransaction.update({
+      where: { id },
+      data: {
+        description,
+        type,
+        amount,
+        category,
+        paymentMethod,
+        date: new Date(date),
+        supplierId: supplierId || null,
+        employeeId: employeeId || null,
+        serviceId: serviceId || null,
+      },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        action: AUDIT_UPDATE,
+        entity: "FinancialTransaction",
+        entityId: transaction.id,
+        oldData: oldData as any,
+        newData: transaction as any,
+        userId: userId,
+      }
+    })
+
+    return NextResponse.json(transaction)
+  } catch (error) {
+    return NextResponse.json({ error: "Erro ao atualizar transação" }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const userId = request.headers.get("x-user-id")
+
+  try {
+    const oldData = await prisma.financialTransaction.findUnique({ where: { id } })
+
+    if (!oldData) {
+      return NextResponse.json({ error: "Transação não encontrada" }, { status: 404 })
+    }
+
+    await prisma.financialTransaction.delete({
+      where: { id },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        action: AUDIT_DELETE,
+        entity: "FinancialTransaction",
+        entityId: id,
+        oldData: oldData as any,
+        userId: userId,
+      }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: "Erro ao excluir transação" }, { status: 500 })
+  }
 }
