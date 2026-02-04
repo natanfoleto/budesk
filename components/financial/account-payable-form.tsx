@@ -38,11 +38,13 @@ const formSchema = z.object({
 
 type AccountPayableFormData = z.infer<typeof formSchema>
 
+import { AccountPayable } from "@/types/financial"
+
 interface AccountPayableFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: AccountPayableFormData) => void
-  initialData?: Partial<AccountPayableFormData & { id: string; amount: number | string; dueDate: string | Date }>
+  initialData?: AccountPayable | null
   isLoading?: boolean
 }
 

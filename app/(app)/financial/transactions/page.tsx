@@ -7,23 +7,24 @@ import { TransactionForm } from "@/components/financial/transaction-form"
 import { TransactionsTable } from "@/components/financial/transactions-table"
 import { Button } from "@/components/ui/button"
 import { useCreateTransaction, useDeleteTransaction,useTransactions, useUpdateTransaction } from "@/hooks/use-financial"
+import { Transaction } from "@/types/financial"
 
 export default function TransactionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingTransaction, setEditingTransaction] = useState<any>(null)
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   
   const { data: transactions, isLoading } = useTransactions()
   const createMutation = useCreateTransaction()
   const updateMutation = useUpdateTransaction()
   const deleteMutation = useDeleteTransaction()
 
-  const handleCreate = (data: any) => {
+  const handleCreate = (data: Omit<Transaction, "id" | "createdAt" | "updatedAt">) => {
     createMutation.mutate(data, {
       onSuccess: () => setIsFormOpen(false),
     })
   }
 
-  const handleUpdate = (data: any) => {
+  const handleUpdate = (data: Partial<Transaction>) => {
     if (editingTransaction) {
       updateMutation.mutate({ id: editingTransaction.id, data }, {
         onSuccess: () => {
@@ -45,7 +46,7 @@ export default function TransactionsPage() {
     setIsFormOpen(true)
   }
 
-  const openEdit = (transaction: any) => {
+  const openEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction)
     setIsFormOpen(true)
   }

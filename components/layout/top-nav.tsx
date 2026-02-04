@@ -3,6 +3,7 @@
 import { Bell, User } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -27,6 +28,7 @@ export function TopNav() {
       <div className="flex-1" />
       
       <div className="flex items-center gap-4">
+        <ModeToggle />
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
         </Button>

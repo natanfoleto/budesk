@@ -1,6 +1,6 @@
 "use client"
 
-import { Edit2, Trash2 } from "lucide-react"
+import { Edit, Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,10 +13,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { Transaction } from "@/types/financial"
 
 interface TransactionsTableProps {
-  transactions: any[]
-  onEdit: (transaction: any) => void
+  transactions: Transaction[]
+  onEdit: (transaction: Transaction) => void
   onDelete: (id: string) => void
 }
 
@@ -42,7 +43,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
               </TableCell>
             </TableRow>
           ) : (
-            transactions.map((transaction) => (
+            transactions.map((transaction: Transaction) => (
               <TableRow key={transaction.id}>
                 <TableCell>{formatDate(transaction.date)}</TableCell>
                 <TableCell>{transaction.description}</TableCell>
@@ -61,11 +62,11 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => onEdit(transaction)}>
-                      <Edit2 className="h-4 w-4" />
+                    <Button variant="outline" size="icon" onClick={() => onEdit(transaction)}>
+                      <Edit className="h-4 w-4 text-muted-foreground" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onDelete(transaction.id)}>
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                    <Button variant="outline" size="icon" onClick={() => onDelete(transaction.id)}>
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </div>
                 </TableCell>

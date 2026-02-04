@@ -13,26 +13,27 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { AccountPayable } from "@/types/financial"
 
 interface AccountsPayableTableProps {
-  accounts: any[]
-  onEdit: (account: any) => void
+  accounts: AccountPayable[]
+  onEdit: (account: AccountPayable) => void
   onDelete: (id: string) => void
 }
 
 export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPayableTableProps) {
-  const getStatusColor = (status: string, date: string) => {
-    if (status === "PAGA") return "default" // or success color if available
+  const getStatusColor = (status: string, date: string | Date) => {
+    if (status === "PAGA") return "default"
     const dueDate = new Date(date)
     const today = new Date()
     today.setHours(0,0,0,0)
     
     if (dueDate < today) return "destructive"
-    if (dueDate.getTime() === today.getTime()) return "warning" // check if warning variant exists, else default/secondary
+    if (dueDate.getTime() === today.getTime()) return "secondary" // changed from warning since badge variant might not exist
     return "secondary"
   }
 
-  const getStatusLabel = (status: string, date: string) => {
+  const getStatusLabel = (status: string, date: string | Date) => {
     if (status === "PAGA") return "Paga"
     const dueDate = new Date(date)
     const today = new Date()
@@ -64,14 +65,14 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
               </TableCell>
             </TableRow>
           ) : (
-            accounts.map((account) => (
+            accounts.map((account: AccountPayable) => (
               <TableRow key={account.id}>
                 <TableCell>{formatDate(account.dueDate)}</TableCell>
                 <TableCell>{account.description}</TableCell>
                 <TableCell>{account.supplier?.name || "-"}</TableCell>
                 <TableCell>{formatCurrency(account.amount)}</TableCell>
                 <TableCell>
-                  <Badge variant={getStatusColor(account.status, account.dueDate) as any}>
+                  <Badge variant={getStatusColor(account.status, account.dueDate) as "default" | "destructive" | "secondary" | "outline"}>
                     {getStatusLabel(account.status, account.dueDate)}
                   </Badge>
                 </TableCell>

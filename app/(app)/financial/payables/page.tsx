@@ -7,23 +7,24 @@ import { AccountPayableForm } from "@/components/financial/account-payable-form"
 import { AccountsPayableTable } from "@/components/financial/accounts-payable-table"
 import { Button } from "@/components/ui/button"
 import { useAccountsPayable, useCreateAccountPayable, useDeleteAccountPayable,useUpdateAccountPayable } from "@/hooks/use-financial"
+import { AccountPayable } from "@/types/financial"
 
 export default function PayablesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingAccount, setEditingAccount] = useState<any>(null)
+  const [editingAccount, setEditingAccount] = useState<AccountPayable | null>(null)
   
   const { data: accounts, isLoading } = useAccountsPayable()
   const createMutation = useCreateAccountPayable()
   const updateMutation = useUpdateAccountPayable()
   const deleteMutation = useDeleteAccountPayable()
 
-  const handleCreate = (data: any) => {
+  const handleCreate = (data: Omit<AccountPayable, "id" | "createdAt" | "updatedAt">) => {
     createMutation.mutate(data, {
       onSuccess: () => setIsFormOpen(false),
     })
   }
 
-  const handleUpdate = (data: any) => {
+  const handleUpdate = (data: Partial<AccountPayable>) => {
     if (editingAccount) {
       updateMutation.mutate({ id: editingAccount.id, data }, {
         onSuccess: () => {
@@ -45,7 +46,7 @@ export default function PayablesPage() {
     setIsFormOpen(true)
   }
 
-  const openEdit = (account: any) => {
+  const openEdit = (account: AccountPayable) => {
     setEditingAccount(account)
     setIsFormOpen(true)
   }

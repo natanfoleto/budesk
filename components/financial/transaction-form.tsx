@@ -40,11 +40,13 @@ const formSchema = z.object({
 
 type TransactionFormData = z.infer<typeof formSchema>
 
+import { Transaction } from "@/types/financial"
+
 interface TransactionFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: TransactionFormData) => void
-  initialData?: Partial<TransactionFormData & { id: string; amount: number | string; date: string | Date }>
+  initialData?: Transaction | null
   isLoading?: boolean
 }
 
