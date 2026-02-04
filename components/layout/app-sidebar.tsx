@@ -34,9 +34,14 @@ const menuItems = [
     icon: Receipt,
   },
   {
+    title: "Funcionários",
+    href: "/employees",
+    icon: Users,
+  },
+  {
     title: "Clientes",
     href: "/clients",
-    icon: Users,
+    icon: Users, // Using same icon or maybe UserCog? Let's use Users for now as generic. Or Briefcase? Prompt didn't specify. I'll stick to Users or similar.
   },
   {
     title: "Fornecedores",

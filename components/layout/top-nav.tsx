@@ -27,11 +27,12 @@ export function TopNav() {
     <div className="flex h-16 items-center justify-between border-b bg-background px-6">
       <div className="flex-1" />
       
-      <div className="flex items-center gap-4">
-        <ModeToggle />
+      <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
         </Button>
+
+        <ModeToggle />
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -39,6 +40,7 @@ export function TopNav() {
               <User className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
+
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
             <DropdownMenuSeparator />

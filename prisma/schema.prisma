@@ -55,6 +55,20 @@ enum AuditAction {
   LOGIN
 }
 
+enum ShirtSize {
+  P
+  M
+  G
+  GG
+  XGG
+}
+
+enum ContractStatus {
+  ACTIVE
+  FINISHED
+  TERMINATED
+}
+
 // USUÁRIOS
 
 model User {
@@ -156,14 +170,27 @@ model Employee {
   name      String
   email     String?
   phone     String?
-  document  String? // CPF
-  role      String
+  document  String?  @unique // CPF
+  rg        String?
+  birthDate DateTime?
+  gender    String?
+  shirtSize ShirtSize?
+  pantsSize String?
+  shoeSize  String?
+  role      String?
   salary    Decimal  @db.Decimal(10, 2)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  standardEntryTime String? // "08:00"
+  standardExitTime  String? // "17:00"
 
-  advances     EmployeeAdvance[]
-  transactions FinancialTransaction[]
+  advances          EmployeeAdvance[]
+  transactions      FinancialTransaction[]
+  employmentRecords EmploymentRecord[]
+  contracts         EmployeeContract[]
+  timeRecords       TimeRecord[]
 
   @@map("employees")
 }
@@ -174,11 +201,71 @@ model EmployeeAdvance {
   amount     Decimal  @db.Decimal(10, 2)
   date       DateTime
   note       String?
+  payrollReference String?
+  transactionId    String? @unique
 
-  employee Employee @relation(fields: [employeeId], references: [id])
+  transaction FinancialTransaction? @relation(fields: [transactionId], references: [id])
+  employee    Employee              @relation(fields: [employeeId], references: [id])
 
   @@index([employeeId])
   @@map("employee_advances")
+}
+
+model EmploymentRecord {
+  id              String    @id @default(cuid())
+  employeeId      String
+  admissionDate   DateTime
+  terminationDate DateTime?
+  jobTitle        String
+  baseSalary      Decimal   @db.Decimal(10, 2)
+  contractType    String
+  weeklyWorkload  Int?
+  workRegime      String?
+  isActive        Boolean   @default(true)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+
+  @@map("employment_records")
+}
+
+model EmployeeContract {
+  id            String         @id @default(cuid())
+  employeeId    String
+  type          String
+  startDate     DateTime
+  endDate       DateTime?
+  value         Decimal        @db.Decimal(10, 2)
+  status        ContractStatus @default(ACTIVE)
+  description   String?
+  fileUrl       String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  employee      Employee       @relation(fields: [employeeId], references: [id])
+
+  @@map("employee_contracts")
+}
+
+model TimeRecord {
+  id            String   @id @default(cuid())
+  employeeId    String
+  date          DateTime
+  entryTime     DateTime
+  exitTime      DateTime?
+  workedHours   Decimal? @db.Decimal(4, 2)
+  overtimeHours Decimal? @db.Decimal(4, 2)
+  absent        Boolean  @default(false)
+  justification String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  employee      Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId, date])
+  @@map("time_records")
 }
 
 // SERVIÇOS
@@ -223,6 +310,7 @@ model FinancialTransaction {
   service  Service?  @relation(fields: [serviceId], references: [id])
   employee Employee? @relation(fields: [employeeId], references: [id])
   supplier Supplier? @relation(fields: [supplierId], references: [id])
+  advance  EmployeeAdvance?
 
   @@index([type])
   @@index([date])

@@ -64,7 +64,7 @@ export default function TransactionsPage() {
         <div>Carregando...</div>
       ) : (
         <TransactionsTable
-          transactions={transactions}
+          transactions={transactions || []}
           onEdit={openEdit}
           onDelete={handleDelete}
         />

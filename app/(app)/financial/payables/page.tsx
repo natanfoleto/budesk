@@ -64,7 +64,7 @@ export default function PayablesPage() {
         <div>Carregando...</div>
       ) : (
         <AccountsPayableTable
-          accounts={accounts}
+          accounts={accounts || []}
           onEdit={openEdit}
           onDelete={handleDelete}
         />

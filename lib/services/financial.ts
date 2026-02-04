@@ -1,28 +1,8 @@
-export interface Transaction {
-  id: string
-  description: string
-  type: "ENTRADA" | "SAIDA"
-  amount: number | string
-  category: string
-  paymentMethod: string
-  date: string
-  supplier?: { name: string }
-  employee?: { name: string }
-  service?: { title: string }
-}
-
-export interface AccountPayable {
-  id: string
-  description: string
-  amount: number | string
-  dueDate: string
-  status: "PENDENTE" | "PAGA" | "ATRASADA"
-  supplier?: { name: string }
-}
+import { AccountPayable, Transaction } from "@/types/financial"
 
 const BASE_URL = "/api"
 
-export const getTransactions = async (filters: any) => {
+export const getTransactions = async (filters: any): Promise<Transaction[]> => {
   const params = new URLSearchParams(filters)
   const res = await fetch(`${BASE_URL}/financial-transactions?${params}`)
   if (!res.ok) throw new Error("Erro ao buscar transações")
@@ -57,7 +37,7 @@ export const deleteTransaction = async (id: string) => {
   return res.json()
 }
 
-export const getAccountsPayable = async (filters: any) => {
+export const getAccountsPayable = async (filters: any): Promise<AccountPayable[]> => {
   const params = new URLSearchParams(filters)
   const res = await fetch(`${BASE_URL}/accounts-payable?${params}`)
   if (!res.ok) throw new Error("Erro ao buscar contas")

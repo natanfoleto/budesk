@@ -1,6 +1,6 @@
 "use client"
 
-import { Edit2, Trash2 } from "lucide-react"
+import { Edit, Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -78,11 +78,11 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => onEdit(account)}>
-                      <Edit2 className="h-4 w-4" />
+                    <Button variant="outline" size="icon" onClick={() => onEdit(account)}>
+                      <Edit className="h-4 w-4 text-muted-foreground" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onDelete(account.id)}>
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                    <Button variant="outline" size="icon" onClick={() => onDelete(account.id)}>
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </div>
                 </TableCell>

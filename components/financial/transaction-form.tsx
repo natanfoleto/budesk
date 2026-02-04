@@ -70,7 +70,7 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
         amount: Number(initialData.amount) || 0,
         type: initialData.type || "SAIDA",
         category: initialData.category || "",
-        paymentMethod: initialData.paymentMethod || "PIX",
+        paymentMethod: (initialData.paymentMethod as any) || "PIX",
         date: initialData.date ? new Date(initialData.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
       })
     } else {

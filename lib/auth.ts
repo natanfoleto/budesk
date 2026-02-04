@@ -1,6 +1,6 @@
 import { jwtVerify,SignJWT } from "jose"
 
-import { JWTPayload } from "./types"
+import { JWTPayload } from "@/types/auth"
 
 const SECRET_KEY = process.env.JWT_SECRET || "supersecretkeyshouldbechangedsomeday"
 const key = new TextEncoder().encode(SECRET_KEY)
