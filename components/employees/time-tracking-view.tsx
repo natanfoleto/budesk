@@ -1,5 +1,6 @@
 "use client"
 
+import { TimeRecord } from "@prisma/client"
 import { Plus } from "lucide-react"
 import { useState } from "react"
 
@@ -14,9 +15,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useCreateTimeRecord, useTimeRecords } from "@/hooks/use-employees"
-import { TimeRecordFormData } from "@/types/employee"
-import { TimeRecord } from "@prisma/client"
 import { formatDate } from "@/lib/utils"
+import { TimeRecordFormData } from "@/types/employee"
 
 interface TimeTrackingViewProps {
   employeeId: string
@@ -43,7 +43,7 @@ export function TimeTrackingView({ employeeId }: TimeTrackingViewProps) {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
-          <Plus className="mr-2 h-4 w-4" /> Registrar Ponto
+          <Plus className="h-4 w-4" /> Registrar Ponto
         </Button>
       </div>
 

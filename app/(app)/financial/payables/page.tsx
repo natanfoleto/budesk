@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus, Loader2 } from "lucide-react"
+import { Loader2,Plus } from "lucide-react"
 import { useState } from "react"
 
 import { AccountPayableForm } from "@/components/financial/account-payable-form"
@@ -56,7 +56,7 @@ export default function PayablesPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Contas a Pagar</h2>
         <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Nova Conta
+          <Plus className="h-4 w-4" /> Nova Conta
         </Button>
       </div>
 

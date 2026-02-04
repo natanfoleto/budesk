@@ -176,7 +176,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         <TabsContent value="vinculos" className="space-y-4">
           <div className="flex justify-end">
             <Button onClick={() => setIsRecordFormOpen(true)} className="cursor-pointer">
-              <Plus className="mr-2 h-4 w-4" /> Novo Vínculo
+              <Plus className="h-4 w-4" /> Novo Vínculo
             </Button>
           </div>
           {records?.map((record: EmploymentRecord) => (
@@ -201,7 +201,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         <TabsContent value="contratos" className="space-y-4">
           <div className="flex justify-end">
             <Button onClick={() => setIsContractFormOpen(true)} className="cursor-pointer">
-              <Plus className="mr-2 h-4 w-4" /> Novo Contrato
+              <Plus className="h-4 w-4" /> Novo Contrato
             </Button>
           </div>
           {contracts?.map((contract: EmployeeContract) => (
@@ -225,7 +225,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         <TabsContent value="adiantamentos" className="space-y-4">
           <div className="flex justify-end">
             <Button onClick={() => setIsAdvanceFormOpen(true)} className="cursor-pointer">
-              <Plus className="mr-2 h-4 w-4" /> Novo Adiantamento
+              <Plus className="h-4 w-4" /> Novo Adiantamento
             </Button>
           </div>
           {advances?.map((advance: EmployeeAdvance & { transaction?: FinancialTransaction }) => (

@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
+
+import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
 
 const AUDIT_Create = "CREATE"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const employees = await prisma.employee.findMany({
       orderBy: { name: "asc" },
     })
     return NextResponse.json(employees)
   } catch (error) {
+    console.log(error)
+    
     return NextResponse.json({ error: "Erro ao buscar funcionários" }, { status: 500 })
   }
 }
@@ -17,7 +21,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const userId = request.headers.get("x-user-id")
   if (!userId) {
-     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
   }
 
   try {
@@ -46,14 +50,12 @@ export async function POST(request: NextRequest) {
     })
 
     // Audit
-    await prisma.auditLog.create({
-      data: {
-        action: AUDIT_Create,
-        entity: "Employee",
-        entityId: employee.id,
-        newData: employee as any,
-        userId: userId,
-      }
+    await createAuditLog({
+      action: AUDIT_Create,
+      entity: "Employee",
+      entityId: employee.id,
+      newData: employee,
+      userId: userId,
     })
 
     return NextResponse.json(employee, { status: 201 })

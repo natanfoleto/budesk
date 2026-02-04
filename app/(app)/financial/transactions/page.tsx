@@ -56,7 +56,7 @@ export default function TransactionsPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Caixa</h2>
         <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Nova Transação
+          <Plus className="h-4 w-4" /> Nova Transação
         </Button>
       </div>
 

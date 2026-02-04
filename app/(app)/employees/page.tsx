@@ -1,10 +1,11 @@
 "use client"
 
-import { Plus, Loader2 } from "lucide-react"
+import { Loader2,Plus } from "lucide-react"
 import { useState } from "react"
 
 import { EmployeeForm } from "@/components/employees/employee-form"
 import { EmployeesTable } from "@/components/employees/employees-table"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { useCreateEmployee, useDeleteEmployee, useEmployees } from "@/hooks/use-employees"
 import { EmployeeFormData } from "@/types/employee"
@@ -16,15 +17,22 @@ export default function EmployeesPage() {
   const createMutation = useCreateEmployee()
   const deleteMutation = useDeleteEmployee()
 
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
   const handleCreate = (data: EmployeeFormData) => {
     createMutation.mutate(data, {
       onSuccess: () => setIsFormOpen(false),
     })
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este funcionário?")) {
-      deleteMutation.mutate(id)
+  const handleDeleteClick = (id: string) => {
+    setDeleteId(id)
+  }
+
+  const handleConfirmDelete = () => {
+    if (deleteId) {
+      deleteMutation.mutate(deleteId)
+      setDeleteId(null)
     }
   }
 
@@ -37,7 +45,7 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Funcionários</h2>
         <Button onClick={openCreate} className="cursor-pointer">
-          <Plus className="mr-2 h-4 w-4" /> Novo Funcionário
+          <Plus className="h-4 w-4" /> Novo Funcionário
         </Button>
       </div>
 
@@ -48,7 +56,7 @@ export default function EmployeesPage() {
       ) : (
         <EmployeesTable
           employees={employees || []}
-          onDelete={handleDelete}
+          onDelete={handleDeleteClick}
         />
       )}
 
@@ -58,6 +66,24 @@ export default function EmployeesPage() {
         onSubmit={handleCreate}
         isLoading={createMutation.isPending}
       />
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. Isso excluirá permanentemente o funcionário
+              e removerá seus dados dos nossos servidores.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

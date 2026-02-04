@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+
+import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
 
 const AUDIT_Update = "UPDATE"
@@ -24,6 +26,8 @@ export async function GET(
 
     return NextResponse.json(employee)
   } catch (error) {
+    console.log(error)
+    
     return NextResponse.json({ error: "Erro ao buscar funcionário" }, { status: 500 })
   }
 }
@@ -34,7 +38,7 @@ export async function PUT(
 ) {
   const userId = request.headers.get("x-user-id")
   if (!userId) {
-     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
   }
 
   const { id } = await params
@@ -68,19 +72,19 @@ export async function PUT(
     })
 
     // Audit
-    await prisma.auditLog.create({
-      data: {
-        action: AUDIT_Update,
-        entity: "Employee",
-        entityId: id,
-        oldData: oldData as any,
-        newData: employee as any,
-        userId: userId,
-      }
+    await createAuditLog({
+      action: AUDIT_Update,
+      entity: "Employee",
+      entityId: id,
+      oldData: oldData,
+      newData: employee,
+      userId: userId,
     })
 
     return NextResponse.json(employee)
   } catch (error) {
+    console.log(error)
+    
     return NextResponse.json({ error: "Erro ao atualizar funcionário" }, { status: 500 })
   }
 }
@@ -91,7 +95,7 @@ export async function DELETE(
 ) {
   const userId = request.headers.get("x-user-id")
   if (!userId) {
-     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
   }
 
   const { id } = await params
@@ -108,23 +112,24 @@ export async function DELETE(
     // Actually, prompt doesn't say "Allow soft delete only".
     // We'll trust Prisma to block if there are relations like advances.
     
-    const employee = await prisma.employee.delete({
+    await prisma.employee.delete({
       where: { id }
     })
 
     // Audit
-    await prisma.auditLog.create({
-      data: {
-        action: AUDIT_Delete,
-        entity: "Employee",
-        entityId: id,
-        oldData: oldData as any,
-        userId: userId,
-      }
+    await createAuditLog({
+      action: AUDIT_Delete,
+      entity: "Employee",
+      entityId: id,
+      oldData: oldData,
+      userId: userId, // Assuming userId is available in scope or passed correctly
+      newData:  undefined 
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    console.log(error)
+    
     return NextResponse.json({ error: "Erro ao excluir funcionário. Verifique se existem registros vinculados." }, { status: 500 })
   }
 }
