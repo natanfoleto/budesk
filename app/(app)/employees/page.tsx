@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus } from "lucide-react"
+import { Plus, Loader2 } from "lucide-react"
 import { useState } from "react"
 
 import { EmployeeForm } from "@/components/employees/employee-form"
@@ -42,7 +42,9 @@ export default function EmployeesPage() {
       </div>
 
       {isLoading ? (
-        <div>Carregando...</div>
+        <div className="flex justify-center items-center h-full w-full py-10">
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        </div>
       ) : (
         <EmployeesTable
           employees={employees || []}

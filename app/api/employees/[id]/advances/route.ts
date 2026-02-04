@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+
 import prisma from "@/lib/prisma"
 
 const AUDIT_Create = "CREATE"
@@ -16,6 +17,7 @@ export async function GET(
     })
     return NextResponse.json(advances)
   } catch (error) {
+    console.error(error)
     return NextResponse.json({ error: "Erro ao buscar adiantamentos" }, { status: 500 })
   }
 }
@@ -26,37 +28,36 @@ export async function POST(
 ) {
   const userId = request.headers.get("x-user-id")
   if (!userId) {
-     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
   }
   const { id } = await params
 
   try {
     const body = await request.json()
-    const { amount, date, note, payrollReference, paymentMethod } = body // paymentMethod needed for transaction
+    const { valueInCents, date, note, payrollReference, paymentMethod } = body
 
     // Transaction Data
     const transactionData = {
       description: `Adiantamento Salarial - ${payrollReference || date}`,
-      type: "SAIDA" as const, // Force enum type
-      amount: amount,
+      type: "SAIDA" as const,
+      valueInCents: valueInCents,
       category: "Adiantamento Salarial",
-      paymentMethod: paymentMethod || "TRANSFERENCIA", // Default
+      paymentMethod: paymentMethod || "TRANSFERENCIA",
       date: new Date(date),
-      employeeId: id, // Link to employee in transaction metadata
+      employeeId: id,
     }
 
-    // Use transaction to ensure both create or both fail
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create Financial Transaction
       const transaction = await tx.financialTransaction.create({
         data: transactionData
       })
 
-      // 2. Create Advance Record linked to Transaction
+      // 2. Create Advance Record (amount is Decimal, so divide by 100)
       const advance = await tx.employeeAdvance.create({
         data: {
           employeeId: id,
-          amount,
+          amount: valueInCents / 100.0,
           date: new Date(date),
           note,
           payrollReference,
@@ -67,8 +68,8 @@ export async function POST(
       return { advance, transaction }
     })
 
-     // Audit
-     await prisma.auditLog.create({
+    // Audit
+    await prisma.auditLog.create({
       data: {
         action: AUDIT_Create,
         entity: "EmployeeAdvance",

@@ -29,14 +29,14 @@ const menuItems = [
     ],
   },
   {
-    title: "Serviços",
-    href: "/services",
-    icon: Receipt,
-  },
-  {
     title: "Funcionários",
     href: "/employees",
     icon: Users,
+  },
+  {
+    title: "Serviços",
+    href: "/services",
+    icon: Receipt,
   },
   {
     title: "Clientes",

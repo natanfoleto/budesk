@@ -54,13 +54,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { description, type, amount, category, paymentMethod, date, supplierId, employeeId, serviceId } = body
+    const { description, type, valueInCents, category, paymentMethod, date, supplierId, employeeId, serviceId } = body
 
     const transaction = await prisma.financialTransaction.create({
       data: {
         description,
         type,
-        amount,
+        valueInCents,
         category,
         paymentMethod,
         date: new Date(date),

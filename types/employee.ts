@@ -21,7 +21,7 @@ export interface EmployeeFormData {
   email?: string;
   phone?: string;
   role: string;
-  salary: number;
+  salaryInCents: number;
   shirtSize?: string;
   pantsSize?: string;
   shoeSize?: string;
@@ -50,7 +50,7 @@ export interface ContractFormData {
 }
 
 export interface AdvanceFormData {
-  amount: number;
+  valueInCents: number;
   date: string;
   note?: string;
   payrollReference?: string;

@@ -21,18 +21,18 @@ export async function GET(request: NextRequest) {
       },
       select: {
         type: true,
-        amount: true,
+        valueInCents: true,
         category: true,
       },
     })
 
     const income = transactions
       .filter((t) => t.type === "ENTRADA")
-      .reduce((sum, t) => sum + Number(t.amount), 0)
+      .reduce((sum, t) => sum + Number(t.valueInCents), 0)
 
     const expense = transactions
       .filter((t) => t.type === "SAIDA")
-      .reduce((sum, t) => sum + Number(t.amount), 0)
+      .reduce((sum, t) => sum + Number(t.valueInCents), 0)
 
     const balance = income - expense
 
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const expensesByCategory = transactions
       .filter((t) => t.type === "SAIDA")
       .reduce((acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + Number(t.amount)
+        acc[t.category] = (acc[t.category] || 0) + Number(t.valueInCents)
         return acc
       }, {} as Record<string, number>)
 
@@ -77,11 +77,11 @@ export async function GET(request: NextRequest) {
       },
       payables: {
         overdue: overdue.length,
-        overdueAmount: overdue.reduce((sum, p) => sum + Number(p.amount), 0),
+        overdueAmount: overdue.reduce((sum, p) => sum + Number(p.valueInCents), 0),
         dueToday: dueToday.length,
-        dueTodayAmount: dueToday.reduce((sum, p) => sum + Number(p.amount), 0),
+        dueTodayAmount: dueToday.reduce((sum, p) => sum + Number(p.valueInCents), 0),
         dueTomorrow: dueTomorrow.length,
-        dueTomorrowAmount: dueTomorrow.reduce((sum, p) => sum + Number(p.amount), 0),
+        dueTomorrowAmount: dueTomorrow.reduce((sum, p) => sum + Number(p.valueInCents), 0),
       },
       expensesByCategory: Object.entries(expensesByCategory).map(
         ([category, amount]) => ({ category, amount })

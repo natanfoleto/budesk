@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCentsToReal, formatDate } from "@/lib/utils"
 import { Transaction } from "@/types/financial"
 
 interface TransactionsTableProps {
@@ -58,7 +58,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
                   </Badge>
                 </TableCell>
                 <TableCell className={transaction.type === "ENTRADA" ? "text-green-600" : "text-red-600"}>
-                  {formatCurrency(transaction.amount)}
+                  {formatCentsToReal(transaction.valueInCents)}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">

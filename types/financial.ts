@@ -5,10 +5,10 @@ export type PaymentMethod = "DINHEIRO" | "PIX" | "CARTAO" | "BOLETO" | "CHEQUE" 
 export interface Transaction {
   id: string
   description: string
-  amount: number | string // Allow string for inputs or loose API returns, though number is preferred
+  valueInCents: number
   type: TransactionType
   category: string
-  paymentMethod: PaymentMethod | string // Allow string if API return isn't strict yet
+  paymentMethod: PaymentMethod | string
   date: string | Date
   createdAt?: string | Date
   updatedAt?: string | Date
@@ -22,7 +22,7 @@ export type AccountStatus = "PENDENTE" | "PAGA" | "ATRASADA"
 export interface AccountPayable {
   id: string
   description: string
-  amount: number | string
+  valueInCents: number
   dueDate: string | Date
   status: AccountStatus
   supplier?: {

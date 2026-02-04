@@ -1,6 +1,12 @@
 "use client"
 
-import { ArrowLeft, Plus } from "lucide-react"
+import { 
+  EmployeeAdvance,
+  EmployeeContract,
+  EmploymentRecord,
+  FinancialTransaction
+} from "@prisma/client"
+import { ArrowLeft, Loader2,Plus } from "lucide-react"
 import Link from "next/link"
 import { use, useState } from "react"
 
@@ -34,19 +40,13 @@ import {
   useEmploymentRecords,
   useUpdateEmployee,
 } from "@/hooks/use-employees"
+import { formatCentsToReal,formatCurrency, formatDate } from "@/lib/utils"
 import { 
   AdvanceFormData,
   ContractFormData, 
   EmployeeFormData, 
   EmploymentRecordFormData, 
 } from "@/types/employee"
-import { 
-  EmployeeAdvance,
-  EmployeeContract,
-  EmploymentRecord,
-  FinancialTransaction
-} from "@prisma/client"
-import { formatCurrency, formatDate } from "@/lib/utils"
 
 export default function EmployeeProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -71,7 +71,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
   // Edit Employee
   const [isEditFormOpen, setIsEditFormOpen] = useState(false)
 
-  if (isLoading) return <div className="p-8">Carregando...</div>
+  if (isLoading) return (
+    <div className="flex justify-center items-center h-full w-full py-10">
+      <Loader2 className="size-4 animate-spin text-muted-foreground" />
+    </div>
+  )
   if (!employee) return <div className="p-8">Funcionário não encontrado</div>
 
   const handleUpdateEmployee = (data: Partial<EmployeeFormData>) => {
@@ -147,7 +151,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                   <span className="font-semibold">Cargo Atual:</span> {employee.role}
                 </div>
                 <div>
-                  <span className="font-semibold">Salário Base:</span> {formatCurrency(Number(employee.salary))}
+                  <span className="font-semibold">Salário Base:</span> {formatCentsToReal(employee.salaryInCents)}
                 </div>
               </div>
               

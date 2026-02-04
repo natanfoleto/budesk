@@ -1,5 +1,6 @@
 "use client"
 
+import { Employee } from "@prisma/client"
 import { Edit, Trash2 } from "lucide-react"
 import Link from "next/link"
 
@@ -13,8 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Employee } from "@prisma/client"
-import { formatCurrency } from "@/lib/utils"
+import { formatCentsToReal } from "@/lib/utils"
 
 interface EmployeesTableProps {
   employees: Employee[]
@@ -52,7 +52,7 @@ export function EmployeesTable({ employees, onDelete }: EmployeesTableProps) {
                 </TableCell>
                 <TableCell>{employee.role || "-"}</TableCell>
                 <TableCell>{employee.document || "-"}</TableCell>
-                <TableCell>{formatCurrency(Number(employee.salary))}</TableCell>
+                <TableCell>{formatCentsToReal(employee.salaryInCents)}</TableCell>
                 <TableCell>
                   <Badge variant={employee.active ? "default" : "secondary"}>
                     {employee.active ? "Ativo" : "Inativo"}

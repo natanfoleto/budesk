@@ -177,8 +177,8 @@ model Employee {
   shirtSize ShirtSize?
   pantsSize String?
   shoeSize  String?
-  role      String?
-  salary    Decimal  @db.Decimal(10, 2)
+  role          String?
+  salaryInCents Int      @map("salary_in_cents")
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -298,7 +298,7 @@ model FinancialTransaction {
   id            String          @id @default(cuid())
   description   String
   type          TransactionType
-  amount        Decimal         @db.Decimal(10, 2)
+  valueInCents  Int             @map("value_in_cents")
   category      String
   paymentMethod PaymentMethod
   date          DateTime
@@ -321,11 +321,11 @@ model FinancialTransaction {
 // CONTAS A PAGAR
 
 model AccountPayable {
-  id          String        @id @default(cuid())
-  description String
-  amount      Decimal       @db.Decimal(10, 2)
-  dueDate     DateTime
-  status      AccountStatus
+  id           String        @id @default(cuid())
+  description  String
+  valueInCents Int           @map("value_in_cents")
+  dueDate      DateTime
+  status       AccountStatus
   supplierId  String?
   createdAt   DateTime      @default(now())
 

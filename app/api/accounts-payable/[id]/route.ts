@@ -14,7 +14,7 @@ export async function PUT(
 
   try {
     const body = await request.json()
-    const { description, amount, dueDate, status, supplierId } = body
+    const { description, valueInCents, dueDate, status, supplierId } = body
 
     const oldData = await prisma.accountPayable.findUnique({ where: { id } })
 
@@ -26,7 +26,7 @@ export async function PUT(
       where: { id },
       data: {
         description,
-        amount,
+        valueInCents,
         dueDate: new Date(dueDate),
         status,
         supplierId: supplierId || null,

@@ -28,10 +28,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { formatCentsToReal } from "@/lib/utils"
+import { Transaction } from "@/types/financial"
 
 const formSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),
-  amount: z.number().min(0.01, "Valor inválido"),
+  valueInCents: z.number().min(1, "Valor obrigatório"),
   type: z.enum(["ENTRADA", "SAIDA"]),
   category: z.string().min(1, "Categoria obrigatória"),
   paymentMethod: z.enum(["DINHEIRO", "PIX", "CARTAO", "BOLETO", "CHEQUE", "TRANSFERENCIA"]),
@@ -39,8 +41,6 @@ const formSchema = z.object({
 })
 
 type TransactionFormData = z.infer<typeof formSchema>
-
-import { Transaction } from "@/types/financial"
 
 interface TransactionFormProps {
   open: boolean
@@ -55,7 +55,7 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
-      amount: 0,
+      valueInCents: 0,
       type: "SAIDA",
       category: "",
       paymentMethod: "PIX",
@@ -67,7 +67,7 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
     if (initialData) {
       form.reset({
         description: initialData.description || "",
-        amount: Number(initialData.amount) || 0,
+        valueInCents: initialData.valueInCents || 0,
         type: initialData.type || "SAIDA",
         category: initialData.category || "",
         paymentMethod: (initialData.paymentMethod as any) || "PIX",
@@ -76,7 +76,7 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
     } else {
       form.reset({
         description: "",
-        amount: 0,
+        valueInCents: 0,
         type: "SAIDA",
         category: "",
         paymentMethod: "PIX",
@@ -113,17 +113,19 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
             
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                name="amount"
+                name="valueInCents"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Valor</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
-                        step="0.01" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        placeholder="R$ 0,00"
+                        value={formatCentsToReal(field.value)}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value))
+                        }}
                       />
                     </FormControl>
                     <FormMessage />

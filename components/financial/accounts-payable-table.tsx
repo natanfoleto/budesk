@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCentsToReal, formatDate } from "@/lib/utils"
 import { AccountPayable } from "@/types/financial"
 
 interface AccountsPayableTableProps {
@@ -70,7 +70,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                 <TableCell>{formatDate(account.dueDate)}</TableCell>
                 <TableCell>{account.description}</TableCell>
                 <TableCell>{account.supplier?.name || "-"}</TableCell>
-                <TableCell>{formatCurrency(account.amount)}</TableCell>
+                <TableCell>{formatCentsToReal(account.valueInCents)}</TableCell>
                 <TableCell>
                   <Badge variant={getStatusColor(account.status, account.dueDate) as "default" | "destructive" | "secondary" | "outline"}>
                     {getStatusLabel(account.status, account.dueDate)}

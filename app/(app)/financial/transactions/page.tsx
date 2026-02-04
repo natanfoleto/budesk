@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus } from "lucide-react"
+import { Loader2,Plus } from "lucide-react"
 import { useState } from "react"
 
 import { TransactionForm } from "@/components/financial/transaction-form"
@@ -61,7 +61,9 @@ export default function TransactionsPage() {
       </div>
 
       {isLoading ? (
-        <div>Carregando...</div>
+        <div className="flex justify-center items-center h-full w-full py-10">
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        </div>
       ) : (
         <TransactionsTable
           transactions={transactions || []}

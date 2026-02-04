@@ -43,12 +43,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { description, amount, dueDate, status, supplierId } = body
+    const { description, valueInCents, dueDate, status, supplierId } = body
 
     const account = await prisma.accountPayable.create({
       data: {
         description,
-        amount,
+        valueInCents,
         dueDate: new Date(dueDate),
         status: status || "PENDENTE",
         supplierId: supplierId || null,

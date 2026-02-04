@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { EmployeeWithDetails } from "@/types/employee"
+import { formatCentsToReal, maskCPF, maskPhone } from "@/lib/utils"
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome obrigatório"),
@@ -36,7 +37,7 @@ const formSchema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
   role: z.string().min(1, "Cargo obrigatório"),
-  salary: z.coerce.number().min(0, "Salário inválido"),
+  salaryInCents: z.coerce.number().min(0, "Salário inválido"),
   shirtSize: z.string().optional(),
   pantsSize: z.string().optional(),
   shoeSize: z.string().optional(),
@@ -61,7 +62,7 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
       email: "",
       phone: "",
       role: "",
-      salary: 0,
+      salaryInCents: 0,
       shirtSize: "",
       pantsSize: "",
       shoeSize: "",
@@ -76,7 +77,7 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
         email: initialData.email || "",
         phone: initialData.phone || "",
         role: initialData.role || "",
-        salary: Number(initialData.salary) || 0,
+        salaryInCents: Number(initialData.salaryInCents) || 0,
         shirtSize: initialData.shirtSize || "",
         pantsSize: initialData.pantsSize || "",
         shoeSize: initialData.shoeSize || "",
@@ -88,7 +89,7 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
         email: "",
         phone: "",
         role: "",
-        salary: 0,
+        salaryInCents: 0,
         shirtSize: "",
         pantsSize: "",
         shoeSize: "",
@@ -129,7 +130,12 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
                   <FormItem>
                     <FormLabel>CPF</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="000.000.000-00" />
+                      <Input 
+                        {...field} 
+                        placeholder="000.000.000-00"
+                        maxLength={14}
+                        onChange={(e) => field.onChange(maskCPF(e.target.value))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -152,17 +158,19 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
                 )}
               />
               <FormField
-                name="salary"
+                name="salaryInCents"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Salário Base (Atual)</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
-                        step="0.01" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        placeholder="R$ 0,00"
+                        value={formatCentsToReal(field.value)}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value))
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -192,7 +200,12 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input 
+                        {...field} 
+                        placeholder="(00) 00000-0000"
+                        maxLength={15}
+                        onChange={(e) => field.onChange(maskPhone(e.target.value))}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

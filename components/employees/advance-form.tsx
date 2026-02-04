@@ -29,9 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { formatCentsToReal } from "@/lib/utils"
 
 const formSchema = z.object({
-  amount: z.coerce.number().min(0.01, "Valor inválido"),
+  valueInCents: z.coerce.number().min(0.01, "Valor inválido"),
   date: z.string(),
   note: z.string().optional(),
   payrollReference: z.string().optional(), // MM/YYYY
@@ -51,7 +52,7 @@ export function AdvanceForm({ open, onOpenChange, onSubmit, isLoading }: Advance
   const form = useForm<AdvanceFormData>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
-      amount: 0,
+      valueInCents: 0,
       date: new Date().toISOString().split("T")[0],
       note: "",
       payrollReference: "",
@@ -82,17 +83,19 @@ export function AdvanceForm({ open, onOpenChange, onSubmit, isLoading }: Advance
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                name="amount"
+                name="valueInCents"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Valor do Adiantamento</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
-                        step="0.01"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        placeholder="R$ 0,00"
+                        value={formatCentsToReal(field.value)}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value))
+                        }}
                       />
                     </FormControl>
                     <FormMessage />

@@ -28,17 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { AccountPayable } from "@/types/financial"
+import { formatCentsToReal } from "@/lib/utils"
 
 const formSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),
-  amount: z.number().min(0.01, "Valor inválido"),
+  valueInCents: z.number().min(1, "Valor obrigatório"),
   dueDate: z.string(),
   status: z.enum(["PENDENTE", "PAGA", "ATRASADA"]),
 })
 
 type AccountPayableFormData = z.infer<typeof formSchema>
-
-import { AccountPayable } from "@/types/financial"
 
 interface AccountPayableFormProps {
   open: boolean
@@ -53,7 +53,7 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
-      amount: 0,
+      valueInCents: 0,
       dueDate: new Date().toISOString().split("T")[0],
       status: "PENDENTE",
     },
@@ -63,14 +63,14 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
     if (initialData) {
       form.reset({
         description: initialData.description || "",
-        amount: Number(initialData.amount) || 0,
+        valueInCents: initialData.valueInCents || 0,
         dueDate: initialData.dueDate ? new Date(initialData.dueDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
         status: initialData.status || "PENDENTE",
       })
     } else {
       form.reset({
         description: "",
-        amount: 0,
+        valueInCents: 0,
         dueDate: new Date().toISOString().split("T")[0],
         status: "PENDENTE",
       })
@@ -105,17 +105,19 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
             
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                name="amount"
+                name="valueInCents"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Valor</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
-                        step="0.01" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        placeholder="R$ 0,00"
+                        value={formatCentsToReal(field.value)}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value))
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
