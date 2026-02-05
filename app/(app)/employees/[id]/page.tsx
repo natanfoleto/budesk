@@ -14,6 +14,7 @@ import { AdvanceForm } from "@/components/employees/advance-form"
 import { ContractForm } from "@/components/employees/contract-form"
 import { EmployeeForm } from "@/components/employees/employee-form"
 import { EmploymentRecordForm } from "@/components/employees/employment-record-form"
+import { SecureActionDialog } from "@/components/employees/secure-action-dialog"
 import { TimeTrackingView } from "@/components/employees/time-tracking-view"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ import {
   useCreateEmployeeContract, 
   useCreateEmploymentRecord,
   useDeleteEmployeeAdvance,
+  useDeleteEmployeeContract,
   useDeleteEmploymentRecord,
   useEmployee,
   useEmployeeAdvances,
@@ -42,6 +44,7 @@ import {
   useEmploymentRecords,
   useUpdateEmployee,
   useUpdateEmployeeAdvance,
+  useUpdateEmployeeContract,
   useUpdateEmploymentRecord,
 } from "@/hooks/use-employees"
 import { formatCentsToReal,formatCurrency, formatDate } from "@/lib/utils"
@@ -68,7 +71,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
   // Contracts
   const { data: contracts } = useEmployeeContracts(id)
   const createContractMutation = useCreateEmployeeContract()
+  const updateContractMutation = useUpdateEmployeeContract()
+  const deleteContractMutation = useDeleteEmployeeContract()
   const [isContractFormOpen, setIsContractFormOpen] = useState(false)
+  const [selectedContract, setSelectedContract] = useState<EmployeeContract | null>(null)
 
   // Advances
   const { data: advances } = useEmployeeAdvances(id)
@@ -80,6 +86,39 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
   // Edit Employee
   const [isEditFormOpen, setIsEditFormOpen] = useState(false)
+
+  // Secure Dialog State
+  const [secureDialog, setSecureDialog] = useState<{
+    isOpen: boolean
+    title: string
+    description: string
+    action: () => Promise<void>
+    type: "delete" | "update"
+      }>({
+        isOpen: false,
+        title: "",
+        description: "",
+        action: async () => {},
+        type: "delete",
+      })
+
+  // Helper to open secure dialog
+  const openSecureAction = (
+    title: string, 
+    description: string, 
+    type: "delete" | "update", 
+    action: () => Promise<any>
+  ) => {
+    setSecureDialog({
+      isOpen: true,
+      title,
+      description,
+      type,
+      action: async () => {
+        await action()
+      }
+    })
+  }
 
   if (isLoading) return (
     <div className="flex justify-center items-center h-full w-full py-10">
@@ -97,11 +136,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
   // --- Record Handlers ---
   const handleRecordSubmit = (data: EmploymentRecordFormData) => {
     if (selectedRecord) {
-      updateRecordMutation.mutate({ employeeId: id, recordId: selectedRecord.id, data }, {
-        onSuccess: () => {
-          setIsRecordFormOpen(false)
-          setSelectedRecord(null)
-        }
+      openSecureAction("Atualizar Vínculo", "Deseja confirmar a atualização deste vínculo?", "update", async () => {
+        await updateRecordMutation.mutateAsync({ employeeId: id, recordId: selectedRecord.id, data })
+        setIsRecordFormOpen(false)
+        setSelectedRecord(null)
       })
     } else {
       createRecordMutation.mutate({ employeeId: id, data }, {
@@ -112,14 +150,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
   const handleRecordDelete = () => {
     if (selectedRecord) {
-      if (confirm("Tem certeza que deseja excluir este vínculo?")) {
-        deleteRecordMutation.mutate({ employeeId: id, recordId: selectedRecord.id }, {
-          onSuccess: () => {
-            setIsRecordFormOpen(false)
-            setSelectedRecord(null)
-          }
-        })
-      }
+      openSecureAction("Excluir Vínculo", "Esta ação não pode ser desfeita. Isso excluirá permanentemente o vínculo empregatício.", "delete", async () => {
+        await deleteRecordMutation.mutateAsync({ employeeId: id, recordId: selectedRecord.id })
+        setIsRecordFormOpen(false)
+        setSelectedRecord(null)
+      })
     }
   }
 
@@ -133,20 +168,47 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
   }
 
   // --- Contract Handlers ---
-  const handleCreateContract = (data: ContractFormData) => {
-    createContractMutation.mutate({ employeeId: id, data }, {
-      onSuccess: () => setIsContractFormOpen(false)
-    })
+  // --- Contract Handlers ---
+  const handleContractSubmit = (data: ContractFormData) => {
+    if (selectedContract) {
+      openSecureAction("Atualizar Contrato", "Deseja confirmar a atualização deste contrato?", "update", async () => {
+        await updateContractMutation.mutateAsync({ employeeId: id, contractId: selectedContract.id, data })
+        setIsContractFormOpen(false)
+        setSelectedContract(null)
+      })
+    } else {
+      createContractMutation.mutate({ employeeId: id, data }, {
+        onSuccess: () => setIsContractFormOpen(false)
+      })
+    }
+  }
+
+  const handleContractDelete = () => {
+    if (selectedContract) {
+      openSecureAction("Excluir Contrato", "Esta ação não pode ser desfeita.", "delete", async () => {
+        await deleteContractMutation.mutateAsync({ employeeId: id, contractId: selectedContract.id })
+        setIsContractFormOpen(false)
+        setSelectedContract(null)
+      })
+    }
+  }
+
+  const openContractForm = (contract?: EmployeeContract) => {
+    if (contract) {
+      setSelectedContract(contract)
+    } else {
+      setSelectedContract(null)
+    }
+    setIsContractFormOpen(true)
   }
 
   // --- Advance Handlers ---
   const handleAdvanceSubmit = (data: AdvanceFormData) => {
     if (selectedAdvance) {
-      updateAdvanceMutation.mutate({ employeeId: id, advanceId: selectedAdvance.id, data }, {
-        onSuccess: () => {
-          setIsAdvanceFormOpen(false)
-          setSelectedAdvance(null)
-        }
+      openSecureAction("Atualizar Adiantamento", "Deseja confirmar a alteração deste adiantamento?", "update", async () => {
+        await updateAdvanceMutation.mutateAsync({ employeeId: id, advanceId: selectedAdvance.id, data })
+        setIsAdvanceFormOpen(false)
+        setSelectedAdvance(null)
       })
     } else {
       createAdvanceMutation.mutate({ employeeId: id, data }, {
@@ -157,18 +219,11 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
   const handleAdvanceDelete = () => {
     if (selectedAdvance) {
-      // Using a custom confirmation dialog would be better, but standard confirm is functional for now as per user preference (Wait, usually user prefers Shadcn, but let's stick to simple logic first or ensure we use the alert dialog if implemented? The prompt mentioned replacing confirm() with AlertDialog, so I should be careful. 
-      // Re-reading task 0c3aa912... user wanted to replace confirm() with Shadcn AlertDialog. 
-      // For now I'll use window.confirm but note to self that I might need to upgrade this later if strictly enforcing that rule.
-      // Actually, let's keep it simple and stable.
-      if (confirm("Tem certeza? Esta ação removerá também a transação financeira associada.")) {
-        deleteAdvanceMutation.mutate({ employeeId: id, advanceId: selectedAdvance.id }, {
-          onSuccess: () => {
-            setIsAdvanceFormOpen(false)
-            setSelectedAdvance(null)
-          }
-        })
-      }
+      openSecureAction("Excluir Adiantamento", "Esta ação também excluirá a transação financeira associada.", "delete", async () => {
+        await deleteAdvanceMutation.mutateAsync({ employeeId: id, advanceId: selectedAdvance.id })
+        setIsAdvanceFormOpen(false)
+        setSelectedAdvance(null)
+      })
     }
   }
 
@@ -198,6 +253,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
       </div>
 
       <Tabs defaultValue="dados" className="space-y-4">
+        {/* ... Tab triggers remain same ... */}
         <TabsList className="cursor-pointer w-full">
           <TabsTrigger value="dados" className="cursor-pointer">Dados Pessoais</TabsTrigger>
           <TabsTrigger value="vinculos" className="cursor-pointer">Vínculos</TabsTrigger>
@@ -285,21 +341,27 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
         <TabsContent value="contratos" className="space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => setIsContractFormOpen(true)} className="cursor-pointer">
+            <Button onClick={() => openContractForm()} className="cursor-pointer">
               <Plus className="h-4 w-4" /> Novo Contrato
             </Button>
           </div>
           {contracts?.map((contract: EmployeeContract) => (
-            <Card key={contract.id}>
+            <Card 
+              key={contract.id}
+              className="cursor-pointer hover:bg-accent/50 transition-colors"
+              onClick={() => openContractForm(contract)}
+            >
               <CardHeader>
                 <div className="flex justify-between">
                   <CardTitle>{contract.type}</CardTitle>
-                  <Badge variant={contract.status === "ACTIVE" ? "default" : "secondary"}>{contract.status}</Badge>
+                  <Badge variant={contract.status === "ACTIVE" ? "default" : "secondary"}>
+                    {contract.status === "ACTIVE" ? "Ativo" : contract.status}
+                  </Badge>
                 </div>
                 <CardDescription>Início: {formatDate(contract.startDate)}</CardDescription>
               </CardHeader>
               <CardContent>
-                <p>Valor: {formatCurrency(contract.value as unknown as number)}</p>
+                <p>Valor: {formatCentsToReal(contract.valueInCents)}</p>
                 {contract.endDate && <p>Fim: {formatDate(contract.endDate)}</p>}
                 {contract.description && <p className="mt-2 text-sm text-muted-foreground">{contract.description}</p>}
               </CardContent>
@@ -358,15 +420,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         onSubmit={handleRecordSubmit}
         onDelete={handleRecordDelete}
         initialData={selectedRecord ? {
-          admissionDate: selectedRecord.admissionDate.toISOString().split("T")[0],
-          terminationDate: selectedRecord.terminationDate ? selectedRecord.terminationDate.toISOString().split("T")[0] : undefined,
+          admissionDate: new Date(selectedRecord.admissionDate).toISOString().split("T")[0],
+          terminationDate: selectedRecord.terminationDate ? new Date(selectedRecord.terminationDate).toISOString().split("T")[0] : undefined,
           jobTitle: selectedRecord.jobTitle,
-          baseSalary: Number(selectedRecord.baseSalary) * 100, // Convert to cents for form (actually form expects cents? No, form input is currency masked -> logic in form handles it? 
-          // WAIT. formatCentsToReal expects cents. Form inputs are controlled as Number.
-          // In EmploymentRecordForm, I see: value={formatCentsToReal(field.value)}
-          // So the initial value passed to form should be in cents.
-          // Database 'baseSalary' is Decimal (e.g. 1500.00). 
-          // So I need to multiply by 100.
+          baseSalary: Number(selectedRecord.baseSalary) * 100,
           contractType: selectedRecord.contractType,
           weeklyWorkload: selectedRecord.weeklyWorkload || 0,
           workRegime: selectedRecord.workRegime || "",
@@ -379,8 +436,18 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
       <ContractForm
         open={isContractFormOpen}
         onOpenChange={setIsContractFormOpen}
-        onSubmit={handleCreateContract}
-        isLoading={createContractMutation.isPending}
+        onSubmit={handleContractSubmit}
+        onDelete={handleContractDelete}
+        initialData={selectedContract ? {
+          type: selectedContract.type,
+          startDate: new Date(selectedContract.startDate).toISOString().split("T")[0],
+          endDate: selectedContract.endDate ? new Date(selectedContract.endDate).toISOString().split("T")[0] : undefined,
+          valueInCents: selectedContract.valueInCents,
+          status: selectedContract.status,
+          description: selectedContract.description || "",
+          fileUrl: selectedContract.fileUrl || "",
+        } : undefined}
+        isLoading={createContractMutation.isPending || updateContractMutation.isPending || deleteContractMutation.isPending}
       />
 
       <AdvanceForm
@@ -389,13 +456,22 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         onSubmit={handleAdvanceSubmit}
         onDelete={handleAdvanceDelete}
         initialData={selectedAdvance ? {
-          valueInCents: Number(selectedAdvance.amount) * 100, // Decimal to Cents
+          valueInCents: Number(selectedAdvance.amount) * 100,
           date: new Date(selectedAdvance.date).toISOString().split("T")[0],
           note: selectedAdvance.note || "",
           payrollReference: selectedAdvance.payrollReference || "",
           paymentMethod: selectedAdvance.transaction?.paymentMethod as any || "TRANSFERENCIA",
         } : undefined}
         isLoading={createAdvanceMutation.isPending || updateAdvanceMutation.isPending || deleteAdvanceMutation.isPending}
+      />
+
+      <SecureActionDialog 
+        open={secureDialog.isOpen} 
+        onOpenChange={(open) => setSecureDialog({ ...secureDialog, isOpen: open })}
+        onConfirm={secureDialog.action}
+        title={secureDialog.title}
+        description={secureDialog.description}
+        actionType={secureDialog.type}
       />
     </div>
   )

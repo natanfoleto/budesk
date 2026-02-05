@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Trash } from "lucide-react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 
@@ -39,13 +40,15 @@ interface TimeRecordFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: TimeRecordFormData) => void
+  onDelete?: () => void
+  initialData?: TimeRecordFormData
   isLoading?: boolean
 }
 
-export function TimeRecordForm({ open, onOpenChange, onSubmit, isLoading }: TimeRecordFormProps) {
+export function TimeRecordForm({ open, onOpenChange, onSubmit, onDelete, initialData, isLoading }: TimeRecordFormProps) {
   const form = useForm<TimeRecordFormData>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: {
+    defaultValues: initialData || {
       date: new Date().toISOString().split("T")[0],
       entryTime: "08:00",
       exitTime: "17:00",
@@ -54,10 +57,13 @@ export function TimeRecordForm({ open, onOpenChange, onSubmit, isLoading }: Time
     },
   })
 
-  // Hack combine date + time for ISO string if API expects full DateTime,
-  // But our API expects separate `date`, `entryTime` (DateTime), `exitTime` (DateTime).
-  // The API logic `new Date(entryTime)` works if entryTime is "YYYY-MM-DDTHH:mm".
-  // So we should construct the DateTime string before submitting.
+  // Basic reset pattern when opening to ensure defaultValues or initialData are applied if form reuses component
+  // Same caveat as ContractForm, we assume component remounts or parent forces key update if needed.
+  // Actually, standard useForm defaultValues only applies on mount.
+  // If we want to support switching from Create to Edit on the same mounted form instance, we should use useEffect.
+  // But given the dialog usage, it usually unmounts. However, let's look at the parent. 
+  // Parent uses `open={isFormOpen}` which usually mounting/unmounting conditional rendering or just CSS hidden?
+  // Radix Dialog unmounts content by default.
 
   const handleSubmit = (values: TimeRecordFormData) => {
     // Construct full ISO strings for API
@@ -75,7 +81,7 @@ export function TimeRecordForm({ open, onOpenChange, onSubmit, isLoading }: Time
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="min-w-1/2">
         <DialogHeader>
-          <DialogTitle>Registrar Ponto Manual</DialogTitle>
+          <DialogTitle>{initialData ? "Editar Ponto" : "Registrar Ponto Manual"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -202,9 +208,22 @@ export function TimeRecordForm({ open, onOpenChange, onSubmit, isLoading }: Time
               </div>
             </div>
 
-            <Button type="submit" className="w-full cursor-pointer" disabled={isLoading}>
-              {isLoading ? "Salvando..." : "Registrar"}
-            </Button>
+            <div className="flex justify-between gap-4">
+              {initialData && onDelete && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={onDelete}
+                  disabled={isLoading}
+                  className="cursor-pointer"
+                >
+                  <Trash className="h-4 w-4" /> Excluir
+                </Button>
+              )}
+              <Button type="submit" className="flex-1 cursor-pointer ml-auto" disabled={isLoading}>
+                {isLoading ? "Salvando..." : "Registrar"}
+              </Button>
+            </div>
           </form>
         </Form>
       </DialogContent>

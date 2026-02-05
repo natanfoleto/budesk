@@ -244,3 +244,83 @@ export const useDeleteEmployeeAdvance = () => {
     onError: () => toast.error("Erro ao excluir adiantamento"),
   })
 }
+
+export const useUpdateEmployeeContract = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ employeeId, contractId, data }: { employeeId: string; contractId: string; data: ContractFormData }) => {
+      return fetch(`/api/employees/${employeeId}/contracts/${contractId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to update")
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employee-contracts", variables.employeeId] })
+      toast.success("Contrato atualizado!")
+    },
+    onError: () => toast.error("Erro ao atualizar contrato"),
+  })
+}
+
+export const useDeleteEmployeeContract = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ employeeId, contractId }: { employeeId: string; contractId: string }) => {
+      return fetch(`/api/employees/${employeeId}/contracts/${contractId}`, {
+        method: "DELETE",
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to delete")
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employee-contracts", variables.employeeId] })
+      toast.success("Contrato excluído!")
+    },
+    onError: () => toast.error("Erro ao excluir contrato"),
+  })
+}
+
+export const useUpdateTimeRecord = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ employeeId, recordId, data }: { employeeId: string; recordId: string; data: TimeRecordFormData }) => {
+      return fetch(`/api/employees/${employeeId}/time-tracking/${recordId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to update")
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["time-records", variables.employeeId] })
+      toast.success("Ponto atualizado!")
+    },
+    onError: () => toast.error("Erro ao atualizar ponto"),
+  })
+}
+
+export const useDeleteTimeRecord = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ employeeId, recordId }: { employeeId: string; recordId: string }) => {
+      return fetch(`/api/employees/${employeeId}/time-tracking/${recordId}`, {
+        method: "DELETE",
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to delete")
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["time-records", variables.employeeId] })
+      toast.success("Ponto excluído!")
+    },
+    onError: () => toast.error("Erro ao excluir ponto"),
+  })
+}

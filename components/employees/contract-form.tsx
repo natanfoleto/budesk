@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Trash } from "lucide-react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 
@@ -46,13 +47,15 @@ interface ContractFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: ContractFormData) => void
+  onDelete?: () => void
+  initialData?: ContractFormData
   isLoading?: boolean
 }
 
-export function ContractForm({ open, onOpenChange, onSubmit, isLoading }: ContractFormProps) {
+export function ContractForm({ open, onOpenChange, onSubmit, onDelete, initialData, isLoading }: ContractFormProps) {
   const form = useForm<ContractFormData>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: {
+    defaultValues: initialData || {
       type: "",
       startDate: new Date().toISOString().split("T")[0],
       valueInCents: 0,
@@ -62,6 +65,11 @@ export function ContractForm({ open, onOpenChange, onSubmit, isLoading }: Contra
     },
   })
 
+  // Basic reset pattern when opening with new data
+  // Note: For a robust implementation, we might use useEffect to reset form when initialData changes
+  // to support switching between "New" and "Edit" while dialog is transitioning or reusing component.
+  // Given the usage pattern (dialog opens/closes), this might be sufficient if component unmounts or parent handles keys.
+  
   const handleSubmit = (values: ContractFormData) => {
     onSubmit(values)
   }
@@ -70,7 +78,7 @@ export function ContractForm({ open, onOpenChange, onSubmit, isLoading }: Contra
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="min-w-1/2">
         <DialogHeader>
-          <DialogTitle>Novo Contrato</DialogTitle>
+          <DialogTitle>{initialData ? "Editar Contrato" : "Novo Contrato"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -176,9 +184,22 @@ export function ContractForm({ open, onOpenChange, onSubmit, isLoading }: Contra
               )}
             />
 
-            <Button type="submit" className="w-full cursor-pointer" disabled={isLoading}>
-              {isLoading ? "Salvando..." : "Salvar"}
-            </Button>
+            <div className="flex justify-between gap-4">
+              {initialData && onDelete && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={onDelete}
+                  disabled={isLoading}
+                  className="cursor-pointer"
+                >
+                  <Trash className="h-4 w-4" /> Excluir
+                </Button>
+              )}
+              <Button type="submit" className="flex-1 cursor-pointer ml-auto" disabled={isLoading}>
+                {isLoading ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
           </form>
         </Form>
       </DialogContent>
