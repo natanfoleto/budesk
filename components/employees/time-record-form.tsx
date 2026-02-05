@@ -73,7 +73,7 @@ export function TimeRecordForm({ open, onOpenChange, onSubmit, isLoading }: Time
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-1/2">
         <DialogHeader>
           <DialogTitle>Registrar Ponto Manual</DialogTitle>
         </DialogHeader>
@@ -126,7 +126,7 @@ export function TimeRecordForm({ open, onOpenChange, onSubmit, isLoading }: Time
               name="absent"
               control={form.control}
               render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormItem className="flex flex-row items-center space-x-1 space-y-0 rounded-md border p-4">
                   <FormControl>
                     <Checkbox
                       checked={field.value}

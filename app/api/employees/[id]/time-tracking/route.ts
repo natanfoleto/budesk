@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+
+import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
-import { differenceInMinutes } from "date-fns" // Assuming date-fns is available or use native Math
 
 const AUDIT_Create = "CREATE"
 
@@ -22,6 +23,8 @@ export async function GET(
     })
     return NextResponse.json(records)
   } catch (error) {
+    console.log(error)
+    
     return NextResponse.json({ error: "Erro ao buscar registros de ponto" }, { status: 500 })
   }
 }
@@ -32,7 +35,7 @@ export async function POST(
 ) {
   const userId = request.headers.get("x-user-id")
   if (!userId) {
-     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
   }
   const { id } = await params
 
@@ -97,15 +100,13 @@ export async function POST(
       }
     })
 
-     // Audit
-     await prisma.auditLog.create({
-      data: {
-        action: AUDIT_Create,
-        entity: "TimeRecord",
-        entityId: record.id,
-        newData: record as any,
-        userId: userId,
-      }
+    // Audit
+    await createAuditLog({
+      action: AUDIT_Create,
+      entity: "TimeRecord",
+      entityId: record.id,
+      newData: record as any,
+      userId: userId,
     })
 
     return NextResponse.json(record, { status: 201 })

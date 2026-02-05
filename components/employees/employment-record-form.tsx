@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { formatCentsToReal } from "@/lib/utils"
 
 const formSchema = z.object({
   admissionDate: z.string(),
@@ -41,31 +43,59 @@ interface EmploymentRecordFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: EmploymentRecordFormData) => void
+  onDelete?: () => void
+  initialData?: EmploymentRecordFormData
   isLoading?: boolean
 }
 
-export function EmploymentRecordForm({ open, onOpenChange, onSubmit, isLoading }: EmploymentRecordFormProps) {
+export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, initialData, isLoading }: EmploymentRecordFormProps) {
   const form = useForm<EmploymentRecordFormData>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
       admissionDate: new Date().toISOString().split("T")[0],
       jobTitle: "",
       baseSalary: 0,
-      contractType: "CLT",
+      contractType: "",
+      weeklyWorkload: 0,
+      workRegime: "",
       isActive: true,
       notes: "",
     },
   })
 
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        ...initialData,
+        admissionDate: initialData.admissionDate ? new Date(initialData.admissionDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+        terminationDate: initialData.terminationDate ? new Date(initialData.terminationDate).toISOString().split("T")[0] : undefined,
+      })
+    } else {
+      form.reset({
+        admissionDate: new Date().toISOString().split("T")[0],
+        jobTitle: "",
+        baseSalary: 0,
+        contractType: "",
+        weeklyWorkload: 0,
+        workRegime: "",
+        isActive: true,
+        notes: "",
+      })
+    }
+  }, [initialData, form])
+
   const handleSubmit = (values: EmploymentRecordFormData) => {
-    onSubmit(values)
+    onSubmit({
+      ...values,
+      baseSalary: Number(values.baseSalary) / 100,
+    })
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[700px]">
+      <DialogContent className="min-w-1/2">
         <DialogHeader>
-          <DialogTitle>Novo Vínculo Empregatício</DialogTitle>
+          <DialogTitle>{initialData ? "Editar Vínculo" : "Novo Vínculo Empregatício"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -120,10 +150,12 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, isLoading }
                     <FormLabel>Salário Base</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
-                        step="0.01" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        placeholder="R$ 0,00"
+                        value={formatCentsToReal(field.value)}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value))
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -146,7 +178,7 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, isLoading }
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 <FormField
                   name="weeklyWorkload"
                   control={form.control}
@@ -154,8 +186,8 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, isLoading }
                     <FormItem>
                       <FormLabel>Carga Horária (Semanal)</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         />
@@ -164,6 +196,9 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, isLoading }
                     </FormItem>
                   )}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
                 <FormField
                   name="workRegime"
                   control={form.control}
@@ -214,9 +249,22 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, isLoading }
               )}
             />
 
-            <Button type="submit" className="w-full cursor-pointer" disabled={isLoading}>
-              {isLoading ? "Salvando..." : "Salvar"}
-            </Button>
+            <div className="flex gap-2">
+              {initialData && onDelete && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  className="w-1/3 cursor-pointer" 
+                  onClick={onDelete}
+                  disabled={isLoading}
+                >
+                  Excluir
+                </Button>
+              )}
+              <Button type="submit" className="flex-1 cursor-pointer" disabled={isLoading}>
+                {isLoading ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
           </form>
         </Form>
       </DialogContent>

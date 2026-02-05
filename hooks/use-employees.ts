@@ -160,3 +160,87 @@ export const useCreateTimeRecord = () => {
     onError: () => toast.error("Erro ao registrar ponto"),
   })
 }
+
+// Update/Delete Hooks
+
+export const useUpdateEmploymentRecord = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ employeeId, recordId, data }: { employeeId: string; recordId: string; data: EmploymentRecordFormData }) => {
+      return fetch(`/api/employees/${employeeId}/records/${recordId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to update")
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employment-records", variables.employeeId] })
+      toast.success("Vínculo atualizado!")
+    },
+    onError: () => toast.error("Erro ao atualizar vínculo"),
+  })
+}
+
+export const useDeleteEmploymentRecord = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ employeeId, recordId }: { employeeId: string; recordId: string }) => {
+      return fetch(`/api/employees/${employeeId}/records/${recordId}`, {
+        method: "DELETE",
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to delete")
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employment-records", variables.employeeId] })
+      toast.success("Vínculo excluído!")
+    },
+    onError: () => toast.error("Erro ao excluir vínculo"),
+  })
+}
+
+export const useUpdateEmployeeAdvance = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ employeeId, advanceId, data }: { employeeId: string; advanceId: string; data: AdvanceFormData }) => {
+      return fetch(`/api/employees/${employeeId}/advances/${advanceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to update")
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employee-advances", variables.employeeId] })
+      queryClient.invalidateQueries({ queryKey: ["transactions"] })
+      toast.success("Adiantamento atualizado!")
+    },
+    onError: () => toast.error("Erro ao atualizar adiantamento"),
+  })
+}
+
+export const useDeleteEmployeeAdvance = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ employeeId, advanceId }: { employeeId: string; advanceId: string }) => {
+      return fetch(`/api/employees/${employeeId}/advances/${advanceId}`, {
+        method: "DELETE",
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to delete")
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employee-advances", variables.employeeId] })
+      queryClient.invalidateQueries({ queryKey: ["transactions"] })
+      toast.success("Adiantamento excluído e estornado!")
+    },
+    onError: () => toast.error("Erro ao excluir adiantamento"),
+  })
+}

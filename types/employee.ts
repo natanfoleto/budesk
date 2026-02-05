@@ -43,7 +43,7 @@ export interface ContractFormData {
   type: string;
   startDate: string;
   endDate?: string;
-  value: number;
+  valueInCents: number;
   status: "ACTIVE" | "FINISHED" | "TERMINATED";
   description?: string;
   fileUrl?: string;

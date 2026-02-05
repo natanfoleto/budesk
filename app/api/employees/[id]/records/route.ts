@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+
+import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
 
 const AUDIT_Update = "UPDATE"
@@ -15,6 +17,7 @@ export async function GET(
     })
     return NextResponse.json(records)
   } catch (error) {
+    console.error(error)
     return NextResponse.json({ error: "Erro ao buscar registros" }, { status: 500 })
   }
 }
@@ -25,7 +28,7 @@ export async function POST(
 ) {
   const userId = request.headers.get("x-user-id")
   if (!userId) {
-     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
   }
   const { id } = await params
 
@@ -51,19 +54,18 @@ export async function POST(
       }
     })
 
-     // Audit
-     await prisma.auditLog.create({
-      data: {
-        action: AUDIT_Update, // Updating employee by adding record
-        entity: "EmploymentRecord",
-        entityId: record.id,
-        newData: record as any,
-        userId: userId,
-      }
+    // Audit
+    await createAuditLog({
+      action: AUDIT_Update,
+      entity: "EmploymentRecord",
+      entityId: record.id,
+      newData: record as any,
+      userId: userId,
     })
 
     return NextResponse.json(record, { status: 201 })
   } catch (error) {
+    console.error(error)
     return NextResponse.json({ error: "Erro ao criar registro" }, { status: 500 })
   }
 }

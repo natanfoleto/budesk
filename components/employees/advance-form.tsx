@@ -1,11 +1,10 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { AlertCircle } from "lucide-react"
+import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -45,10 +44,12 @@ interface AdvanceFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: AdvanceFormData) => void
+  onDelete?: () => void
+  initialData?: AdvanceFormData
   isLoading?: boolean
 }
 
-export function AdvanceForm({ open, onOpenChange, onSubmit, isLoading }: AdvanceFormProps) {
+export function AdvanceForm({ open, onOpenChange, onSubmit, onDelete, initialData, isLoading }: AdvanceFormProps) {
   const form = useForm<AdvanceFormData>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
@@ -60,24 +61,33 @@ export function AdvanceForm({ open, onOpenChange, onSubmit, isLoading }: Advance
     },
   })
 
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        ...initialData,
+        date: initialData.date ? new Date(initialData.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      })
+    } else {
+      form.reset({
+        valueInCents: 0,
+        date: new Date().toISOString().split("T")[0],
+        note: "",
+        payrollReference: "",
+        paymentMethod: "TRANSFERENCIA",
+      })
+    }
+  }, [initialData, form])
+
   const handleSubmit = (values: AdvanceFormData) => {
     onSubmit(values)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-1/2">
         <DialogHeader>
-          <DialogTitle>Novo Adiantamento</DialogTitle>
+          <DialogTitle>{initialData ? "Editar Adiantamento" : "Novo Adiantamento"}</DialogTitle>
         </DialogHeader>
-        
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Atenção Financeira</AlertTitle>
-          <AlertDescription>
-            Este registro criará automaticamente uma transação de SAÍDA no módulo Financeiro.
-          </AlertDescription>
-        </Alert>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -139,7 +149,7 @@ export function AdvanceForm({ open, onOpenChange, onSubmit, isLoading }: Advance
                     <FormLabel>Meio de Pagamento</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="cursor-pointer">
+                        <SelectTrigger className="cursor-pointer w-full">
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>
@@ -170,9 +180,22 @@ export function AdvanceForm({ open, onOpenChange, onSubmit, isLoading }: Advance
               )}
             />
 
-            <Button type="submit" className="w-full cursor-pointer" disabled={isLoading}>
-              {isLoading ? "Confirmar Adiantamento e Saída de Caixa" : "Salvar"}
-            </Button>
+            <div className="flex gap-2">
+              {initialData && onDelete && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  className="w-1/3 cursor-pointer" 
+                  onClick={onDelete}
+                  disabled={isLoading}
+                >
+                  Excluir e Estornar
+                </Button>
+              )}
+              <Button type="submit" className="flex-1 cursor-pointer" disabled={isLoading}>
+                {isLoading ? (initialData ? "Atualizando..." : "Confirmar Adiantamento e Saída de Caixa") : "Salvar"}
+              </Button>
+            </div>
           </form>
         </Form>
       </DialogContent>

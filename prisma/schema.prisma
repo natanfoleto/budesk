@@ -237,7 +237,7 @@ model EmployeeContract {
   type          String
   startDate     DateTime
   endDate       DateTime?
-  value         Decimal        @db.Decimal(10, 2)
+  valueInCents  Int            @map("value_in_cents")
   status        ContractStatus @default(ACTIVE)
   description   String?
   fileUrl       String?

@@ -28,8 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { EmployeeWithDetails } from "@/types/employee"
 import { formatCentsToReal, maskCPF, maskPhone } from "@/lib/utils"
+import { EmployeeWithDetails } from "@/types/employee"
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome obrigatório"),
@@ -103,7 +103,7 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[700px]">
+      <DialogContent className="min-w-1/2">
         <DialogHeader>
           <DialogTitle>{initialData ? "Editar Funcionário" : "Novo Funcionário"}</DialogTitle>
         </DialogHeader>

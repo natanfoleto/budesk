@@ -28,12 +28,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { formatCentsToReal } from "@/lib/utils"
 
 const formSchema = z.object({
-  type: z.string().min(1, "Tipo obrigatório"),
+  type: z.string().min(1, "Tipo é obrigatório"),
   startDate: z.string(),
   endDate: z.string().optional(),
-  value: z.coerce.number().min(0, "Valor inválido"),
+  valueInCents: z.coerce.number().min(1, "Valor inválido"),
   status: z.enum(["ACTIVE", "FINISHED", "TERMINATED"]),
   description: z.string().optional(),
   fileUrl: z.string().optional(),
@@ -52,11 +53,12 @@ export function ContractForm({ open, onOpenChange, onSubmit, isLoading }: Contra
   const form = useForm<ContractFormData>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
-      type: "Prestação de Serviços",
+      type: "",
       startDate: new Date().toISOString().split("T")[0],
-      value: 0,
+      valueInCents: 0,
       status: "ACTIVE",
       description: "",
+      fileUrl: "",
     },
   })
 
@@ -66,7 +68,7 @@ export function ContractForm({ open, onOpenChange, onSubmit, isLoading }: Contra
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-1/2">
         <DialogHeader>
           <DialogTitle>Novo Contrato</DialogTitle>
         </DialogHeader>
@@ -117,17 +119,19 @@ export function ContractForm({ open, onOpenChange, onSubmit, isLoading }: Contra
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                name="value"
+                name="valueInCents"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Valor do Contrato</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
-                        step="0.01"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        placeholder="R$ 0,00"
+                        value={formatCentsToReal(field.value)}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value))
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -142,7 +146,7 @@ export function ContractForm({ open, onOpenChange, onSubmit, isLoading }: Contra
                     <FormLabel>Status</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="cursor-pointer">
+                        <SelectTrigger className="cursor-pointer w-full">
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>

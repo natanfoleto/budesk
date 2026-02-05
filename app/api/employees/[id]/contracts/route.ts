@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+
+import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
 
 const AUDIT_Create = "CREATE"
@@ -15,6 +17,7 @@ export async function GET(
     })
     return NextResponse.json(contracts)
   } catch (error) {
+    console.log(error)
     return NextResponse.json({ error: "Erro ao buscar contratos" }, { status: 500 })
   }
 }
@@ -25,15 +28,13 @@ export async function POST(
 ) {
   const userId = request.headers.get("x-user-id")
   if (!userId) {
-     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
   }
   const { id } = await params
 
   try {
     const body = await request.json()
-    const { 
-      type, startDate, endDate, value, status, description, fileUrl 
-    } = body
+    const { type, startDate, endDate, valueInCents, status, description, fileUrl } = body
 
     const contract = await prisma.employeeContract.create({
       data: {
@@ -41,26 +42,25 @@ export async function POST(
         type,
         startDate: new Date(startDate),
         endDate: endDate ? new Date(endDate) : null,
-        value,
+        valueInCents,
         status: status || "ACTIVE",
         description,
-        fileUrl
-      }
+        fileUrl,
+      },
     })
 
-     // Audit
-     await prisma.auditLog.create({
-      data: {
-        action: AUDIT_Create,
-        entity: "EmployeeContract",
-        entityId: contract.id,
-        newData: contract as any,
-        userId: userId,
-      }
+    // Audit
+    await createAuditLog({
+      action: AUDIT_Create,
+      entity: "EmployeeContract",
+      entityId: contract.id,
+      newData: contract as any,
+      userId: userId,
     })
 
     return NextResponse.json(contract, { status: 201 })
   } catch (error) {
+    console.log(error)
     return NextResponse.json({ error: "Erro ao criar contrato" }, { status: 500 })
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
 
 const AUDIT_Create = "CREATE"
@@ -69,14 +70,12 @@ export async function POST(
     })
 
     // Audit
-    await prisma.auditLog.create({
-      data: {
-        action: AUDIT_Create,
-        entity: "EmployeeAdvance",
-        entityId: result.advance.id,
-        newData: result as any,
-        userId: userId,
-      }
+    await createAuditLog({
+      action: AUDIT_Create,
+      entity: "EmployeeAdvance",
+      entityId: result.advance.id,
+      newData: result as any, // Using 'as any' to match the loosely typed helper expectation or ensure compatibility
+      userId: userId,
     })
 
     return NextResponse.json(result.advance, { status: 201 })
