@@ -82,7 +82,7 @@ export default function AuditDetailPage() {
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-3xl font-bold tracking-tight">Detalhes da Auditoria</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Detalhes da Auditoria</h2>
       </div>
       <Separator />
 

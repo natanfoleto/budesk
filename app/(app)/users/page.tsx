@@ -15,7 +15,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { User } from "@/types/user"
 
 import { UserFormDialog } from "./_components/user-form-dialog"
@@ -85,7 +84,6 @@ export default function UsersPage() {
           <Plus className="mr-2 h-4 w-4" /> Novo Usuário
         </Button>
       </div>
-      <Separator />
       
       <UsersTable 
         users={data}

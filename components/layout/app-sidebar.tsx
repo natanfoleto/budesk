@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { useUser } from "@/hooks/use-user"
 import { cn } from "@/lib/utils"
 
 const menuItems = [
@@ -48,7 +49,7 @@ const menuItems = [
   {
     title: "Clientes",
     href: "/clients",
-    icon: Users, // Using same icon or maybe UserCog? Let's use Users for now as generic. Or Briefcase? Prompt didn't specify. I'll stick to Users or similar.
+    icon: Users, 
   },
   {
     title: "Fornecedores",
@@ -63,20 +64,19 @@ const menuItems = [
 ]
 
 interface AppSidebarProps {
-  userRole?: string
+  userRole?: string 
 }
 
-export function AppSidebar({ userRole }: AppSidebarProps) {
+export function AppSidebar({ userRole: initialRole }: AppSidebarProps) {
   const pathname = usePathname()
+  const { data: user } = useUser()
   
+  // Use role from hook if available, otherwise fallback to prop or undefined
+  const role = user?.role || initialRole
+
   // Filter menu items based on role
   const filteredMenuItems = menuItems.filter(_item => {
-    if (userRole === "EMPLOYEE") {
-      // Employee only sees Time Tracking (which we'll assume is "Registrar Ponto" - linking to time tracking page)
-      // The prompt says: "EMPLOYEE apenas: Registrar Ponto"
-      // I'll filter out everything else. I'll need to inject a specific item or filter existing ones.
-      // Current menu has "Funcionários" which leads to list.
-      // I will create a custom filtered list for employees.
+    if (role === "EMPLOYEE") {
       return false 
     }
     return true
@@ -85,24 +85,14 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
   // Start with default menu logic
   let finalMenu = filteredMenuItems
 
-  if (userRole === "EMPLOYEE") {
+  if (role === "EMPLOYEE") {
     finalMenu = [
       {
         title: "Registrar Ponto",
-        href: "/employees/time-tracking-view", // Verify this route exists or matches purpose.
-        // Actually, the previous file viewed was `components/employees/time-tracking-view.tsx` used in `[id]/page.tsx`
-        // There isn't a standalone page for current user time tracking yet based on my knowledge, usually it's under their profile.
-        // I will point to `/employees/me/time-tracking` or just `/employees` if that's where they go?
-        // Prompt: "EMPLOYEE apenas: Registrar Ponto"
-        // I'll set href to `/time-tracking` and let the user know if page is missing or I need to create it.
-        // Wait, `time-tracking-view` component exists.
-        // I'll point to `/dashboard` for now as placeholder or `/time-tracking`.
-        // Let's use `/time-tracking` and I might need to create that page if not exists.
-        icon: Clock, // Using Receipt as placeholder or better Clock?
+        href: "/employees/time-tracking-view", 
+        icon: Clock, 
       }
     ]
-    // Changing icon to locally imported from lucide if needed, but Receipt is imported.
-    // Let's import Clock.
   }
 
   return (
@@ -165,7 +155,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
           ))}
 
           {/* ROOT User Section */}
-          {userRole === "ROOT" && (
+          {role === "ROOT" && (
             <>
               <div className="my-4 border-t" />
               <li className="px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
@@ -195,7 +185,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  <FileText className="h-4 w-4" /> {/* Using FileText as generic for Audit */}
+                  <FileText className="h-4 w-4" />
                   Auditoria
                 </Link>
               </li>
@@ -209,8 +199,7 @@ export function AppSidebar({ userRole }: AppSidebarProps) {
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  {/* Need Settings icon, assuming imported or use generic */}
-                  <Users className="h-4 w-4" /> {/* Placeholder icon for settings if not imported, wait... */}
+                  <Users className="h-4 w-4" />
                    Configurações
                 </Link>
               </li>

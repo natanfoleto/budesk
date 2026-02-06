@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
-import { Separator } from "@/components/ui/separator"
-
 import { AuditTable } from "./_components/audit-table"
 
 // Type definition matches local usage in AuditTable, ideally should be shared
@@ -47,7 +45,6 @@ export default function AuditPage() {
           Visualize o histórico de ações e alterações no sistema.
         </p>
       </div>
-      <Separator />
       
       <AuditTable logs={data} />
     </div>
