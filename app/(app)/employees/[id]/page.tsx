@@ -247,7 +247,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
 
         <h2 className="text-2xl font-bold tracking-tight">{employee.name}</h2>
         
-        <Badge variant={employee.active ? "default" : "destructive"}>
+        <Badge className="ml-auto" variant={employee.active ? "default" : "destructive"}>
           {employee.active ? "Ativo" : "Inativo"}
         </Badge>
       </div>

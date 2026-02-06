@@ -9,9 +9,9 @@ datasource db {
 // ENUMS
 
 enum UserRole {
+  ROOT
   ADMIN
-  GERENTE
-  OPERADOR
+  EMPLOYEE
 }
 
 enum TransactionType {

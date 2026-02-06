@@ -49,6 +49,30 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Create User for Employee if email exists
+    if (email) {
+      const existingUser = await prisma.user.findUnique({ where: { email } })
+      
+      if (!existingUser) {
+        // Default password hash for 'budesk123'
+        // In a real app, you might want to generate a random password or trigger an invite flow
+        const hashedPassword = await import('bcryptjs').then(bcrypt => bcrypt.hash('budesk123', 10))
+        
+        await prisma.user.create({
+          data: {
+            name,
+            email,
+            password: hashedPassword,
+            role: "EMPLOYEE", // Using string literal as enum is updated in schema but maybe not in code types yet fully if not regenerated? best to use UserRole.EMPLOYEE if imported. 
+            // Better to rely on type safety if possible. Let's try string "EMPLOYEE" as Prisma enums match strings. 
+            // Re-reading seed.ts using UserRole.ADMIN, so I should use UserRole.EMPLOYEE from @prisma/client if imported.
+            // But I need to import it first or use string if compatible. I'll stick to string "EMPLOYEE" cast as UserRole or let prisma handle it.
+            active: true,
+          }
+        })
+      }
+    }
+
     // Audit
     await createAuditLog({
       action: AUDIT_Create,

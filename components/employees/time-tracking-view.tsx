@@ -116,28 +116,22 @@ export function TimeTrackingView({ employeeId }: TimeTrackingViewProps) {
         </Button>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Entrada</TableHead>
-              <TableHead>Saída</TableHead>
-              <TableHead>Horas Trab.</TableHead>
-              <TableHead>Extras</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[100px]">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {!records || records.length === 0 ? (
+      {records && records.length > 0 && (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={7} className="text-center h-24">
-                  Nenhum registro encontrado.
-                </TableCell>
+                <TableHead>Data</TableHead>
+                <TableHead>Entrada</TableHead>
+                <TableHead>Saída</TableHead>
+                <TableHead>Horas Trab.</TableHead>
+                <TableHead>Extras</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
-            ) : (
-              records.map((record: TimeRecord) => (
+            </TableHeader>
+            <TableBody>
+              {records.map((record: TimeRecord) => (
                 <TableRow key={record.id}>
                   <TableCell>{formatDate(record.date)}</TableCell>
                   <TableCell>{formatTime(record.entryTime)}</TableCell>
@@ -153,11 +147,11 @@ export function TimeTrackingView({ employeeId }: TimeTrackingViewProps) {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <TimeRecordForm
         open={isFormOpen}
