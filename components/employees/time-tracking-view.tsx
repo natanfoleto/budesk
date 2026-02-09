@@ -56,7 +56,7 @@ export function TimeTrackingView({ employeeId }: TimeTrackingViewProps) {
     title: string, 
     description: string, 
     type: "delete" | "update", 
-    action: () => Promise<any>
+    action: () => Promise<void>
   ) => {
     setSecureDialog({
       isOpen: true,
@@ -136,8 +136,8 @@ export function TimeTrackingView({ employeeId }: TimeTrackingViewProps) {
                   <TableCell>{formatDate(record.date)}</TableCell>
                   <TableCell>{formatTime(record.entryTime)}</TableCell>
                   <TableCell>{formatTime(record.exitTime)}</TableCell>
-                  <TableCell>{record.workedHours ? `${Number(record.workedHours).toFixed(2)}h` : "-"}</TableCell>
-                  <TableCell>{record.overtimeHours ? `${Number(record.overtimeHours).toFixed(2)}h` : "-"}</TableCell>
+                  <TableCell>{record.workedHours ? `${Number(record.workedHours).toFixed(2)}h` : ""}</TableCell>
+                  <TableCell>{record.overtimeHours ? `${Number(record.overtimeHours).toFixed(2)}h` : ""}</TableCell>
                   <TableCell className="max-w-[150px] truncate" title={record.absent ? "Falta" : record.justification || "Normal"}>
                     {record.absent ? <span className="text-red-500 font-medium">Falta</span> : (record.justification || "Normal")}
                   </TableCell>

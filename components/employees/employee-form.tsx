@@ -37,7 +37,7 @@ const formSchema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
   role: z.string().min(1, "Cargo obrigatório"),
-  salaryInCents: z.coerce.number().min(0, "Salário inválido"),
+  salaryInCents: z.number().min(0, "Salário inválido"),
   shirtSize: z.string().optional(),
   pantsSize: z.string().optional(),
   shoeSize: z.string().optional(),
@@ -55,7 +55,7 @@ interface EmployeeFormProps {
 
 export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoading }: EmployeeFormProps) {
   const form = useForm<EmployeeFormData>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       document: "",

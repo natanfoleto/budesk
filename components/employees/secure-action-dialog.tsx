@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertTriangle, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -87,17 +87,13 @@ export function SecureActionDialog({
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+          <AlertDialogTitle>
             {title}
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-2" asChild>
             <div className="text-muted-foreground text-sm">
               <p>
                 {description || "Esta ação é sensível e requer confirmação."}
-              </p>
-              <p className="rounded-md bg-amber-500/10 p-2 text-xs text-amber-600 dark:text-amber-400 font-medium">
-                Aviso: Esta transação (alteração ou exclusão) está sendo gravada para fins de auditoria.
               </p>
             </div>
           </AlertDialogDescription>

@@ -31,7 +31,7 @@ import {
 import { formatCentsToReal } from "@/lib/utils"
 
 const formSchema = z.object({
-  valueInCents: z.coerce.number().min(0.01, "Valor inválido"),
+  valueInCents: z.number().min(0.01, "Valor inválido"),
   date: z.string(),
   note: z.string().optional(),
   payrollReference: z.string().optional(), // MM/YYYY
@@ -51,7 +51,7 @@ interface AdvanceFormProps {
 
 export function AdvanceForm({ open, onOpenChange, onSubmit, onDelete, initialData, isLoading }: AdvanceFormProps) {
   const form = useForm<AdvanceFormData>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema),
     defaultValues: {
       valueInCents: 0,
       date: new Date().toISOString().split("T")[0],

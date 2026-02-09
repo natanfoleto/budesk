@@ -50,8 +50,8 @@ export function EmployeesTable({ employees, onDelete }: EmployeesTableProps) {
                     {employee.name}
                   </Link>
                 </TableCell>
-                <TableCell>{employee.role || "-"}</TableCell>
-                <TableCell>{employee.document || "-"}</TableCell>
+                <TableCell>{employee.role}</TableCell>
+                <TableCell>{employee.document}</TableCell>
                 <TableCell>{formatCentsToReal(employee.salaryInCents)}</TableCell>
                 <TableCell>
                   <Badge variant={employee.active ? "default" : "secondary"}>

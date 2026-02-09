@@ -28,10 +28,10 @@ const formSchema = z.object({
   date: z.string(),
   entryTime: z.string().min(1, "Horário de entrada obrigatório"),
   exitTime: z.string().optional(),
-  absent: z.boolean().default(false),
+  absent: z.boolean(),
   justification: z.string().optional(),
-  manualWorkedHours: z.coerce.number().optional(),
-  manualOvertime: z.coerce.number().optional(),
+  manualWorkedHours: z.number().optional(),
+  manualOvertime: z.number().optional(),
 })
 
 type TimeRecordFormData = z.infer<typeof formSchema>
@@ -47,7 +47,7 @@ interface TimeRecordFormProps {
 
 export function TimeRecordForm({ open, onOpenChange, onSubmit, onDelete, initialData, isLoading }: TimeRecordFormProps) {
   const form = useForm<TimeRecordFormData>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema),
     defaultValues: initialData || {
       date: new Date().toISOString().split("T")[0],
       entryTime: "08:00",

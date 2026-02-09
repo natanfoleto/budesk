@@ -35,7 +35,7 @@ const formSchema = z.object({
   type: z.string().min(1, "Tipo é obrigatório"),
   startDate: z.string(),
   endDate: z.string().optional(),
-  valueInCents: z.coerce.number().min(1, "Valor inválido"),
+  valueInCents: z.number().min(1, "Valor inválido"),
   status: z.enum(["ACTIVE", "FINISHED", "TERMINATED"]),
   description: z.string().optional(),
   fileUrl: z.string().optional(),
@@ -54,7 +54,7 @@ interface ContractFormProps {
 
 export function ContractForm({ open, onOpenChange, onSubmit, onDelete, initialData, isLoading }: ContractFormProps) {
   const form = useForm<ContractFormData>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema),
     defaultValues: initialData || {
       type: "",
       startDate: new Date().toISOString().split("T")[0],

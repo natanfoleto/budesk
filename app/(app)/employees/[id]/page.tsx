@@ -107,7 +107,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     title: string, 
     description: string, 
     type: "delete" | "update", 
-    action: () => Promise<any>
+    action: () => Promise<void>
   ) => {
     setSecureDialog({
       isOpen: true,
@@ -273,16 +273,16 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="font-semibold">CPF:</span> {employee.document || "-"}
+                  <span className="font-semibold">CPF:</span> {employee.document}
                 </div>
                 <div>
-                  <span className="font-semibold">RG:</span> {employee.rg || "-"}
+                  <span className="font-semibold">RG:</span> {employee.rg}
                 </div>
                 <div>
-                  <span className="font-semibold">Email:</span> {employee.email || "-"}
+                  <span className="font-semibold">Email:</span> {employee.email}
                 </div>
                 <div>
-                  <span className="font-semibold">Telefone:</span> {employee.phone || "-"}
+                  <span className="font-semibold">Telefone:</span> {employee.phone}
                 </div>
                 <div>
                   <span className="font-semibold">Cargo Atual:</span> {employee.role}
@@ -295,9 +295,9 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
               <div className="mt-4 border-t pt-4">
                 <h4 className="mb-2 font-semibold">Tamanhos</h4>
                 <div className="grid grid-cols-3 gap-4">
-                  <div>Camisa: {employee.shirtSize || "-"}</div>
-                  <div>Calça: {employee.pantsSize || "-"}</div>
-                  <div>Calçado: {employee.shoeSize || "-"}</div>
+                  <div>Camisa: {employee.shirtSize}</div>
+                  <div>Calça: {employee.pantsSize}</div>
+                  <div>Calçado: {employee.shoeSize}</div>
                 </div>
               </div>
 
@@ -460,7 +460,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           date: new Date(selectedAdvance.date).toISOString().split("T")[0],
           note: selectedAdvance.note || "",
           payrollReference: selectedAdvance.payrollReference || "",
-          paymentMethod: selectedAdvance.transaction?.paymentMethod as any || "TRANSFERENCIA",
+          paymentMethod: selectedAdvance.transaction?.paymentMethod ? (selectedAdvance.transaction.paymentMethod as AdvanceFormData["paymentMethod"]) : "TRANSFERENCIA",
         } : undefined}
         isLoading={createAdvanceMutation.isPending || updateAdvanceMutation.isPending || deleteAdvanceMutation.isPending}
       />

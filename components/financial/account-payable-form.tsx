@@ -28,8 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { AccountPayable } from "@/types/financial"
 import { formatCentsToReal } from "@/lib/utils"
+import { AccountPayable } from "@/types/financial"
 
 const formSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),

@@ -29,11 +29,11 @@ const formSchema = z.object({
   admissionDate: z.string(),
   terminationDate: z.string().optional(),
   jobTitle: z.string().min(1, "Cargo obrigatório"),
-  baseSalary: z.coerce.number().min(0, "Salário inválido"),
+  baseSalary: z.number().min(0, "Salário inválido"),
   contractType: z.string().min(1, "Tipo de contrato obrigatório"),
-  weeklyWorkload: z.coerce.number().optional(),
+  weeklyWorkload: z.number().optional(),
   workRegime: z.string().optional(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean(),
   notes: z.string().optional(),
 })
 
@@ -50,7 +50,7 @@ interface EmploymentRecordFormProps {
 
 export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, initialData, isLoading }: EmploymentRecordFormProps) {
   const form = useForm<EmploymentRecordFormData>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema),
     defaultValues: {
       admissionDate: new Date().toISOString().split("T")[0],
       jobTitle: "",
