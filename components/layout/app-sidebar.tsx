@@ -42,6 +42,11 @@ const menuItems = [
     icon: Users,
   },
   {
+    title: "Frota",
+    href: "/fleet",
+    icon: Truck,
+  },
+  {
     title: "Serviços",
     href: "/services",
     icon: Receipt,
