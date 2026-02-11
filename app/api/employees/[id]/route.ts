@@ -103,17 +103,41 @@ export async function DELETE(
   try {
     const oldData = await prisma.employee.findUnique({ where: { id } })
 
-    // Check if can delete (has transactions? contracts?)
-    // Usually we just soft delete (active = false) but if DELETE is requested we explicitly try.
-    // However, FK constraints might fail. 
-    // The prompt says "Allow deleting...".
-    // For now, let's try strict delete and let Prisma fail if constraint.
-    
-    // Actually, prompt doesn't say "Allow soft delete only".
-    // We'll trust Prisma to block if there are relations like advances.
-    
-    await prisma.employee.delete({
-      where: { id }
+    if (!oldData) {
+      return NextResponse.json({ error: "Funcionário não encontrado" }, { status: 404 })
+    }
+
+    // Delete everything in a transaction to ensure integrity
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete advances (depends on employee)
+      await tx.employeeAdvance.deleteMany({
+        where: { employeeId: id }
+      })
+
+      // 2. Delete time records (depends on employee)
+      await tx.timeRecord.deleteMany({
+        where: { employeeId: id }
+      })
+
+      // 3. Delete employment records (depends on employee)
+      await tx.employmentRecord.deleteMany({
+        where: { employeeId: id }
+      })
+
+      // 4. Delete contracts (depends on employee)
+      await tx.employeeContract.deleteMany({
+        where: { employeeId: id }
+      })
+
+      // 5. Delete financial transactions linked to this employee
+      await tx.financialTransaction.deleteMany({
+        where: { employeeId: id }
+      })
+
+      // 6. Finally delete the employee
+      await tx.employee.delete({
+        where: { id }
+      })
     })
 
     // Audit
@@ -122,14 +146,13 @@ export async function DELETE(
       entity: "Employee",
       entityId: id,
       oldData: oldData,
-      userId: userId, // Assuming userId is available in scope or passed correctly
-      newData:  undefined 
+      userId: userId,
+      newData: undefined 
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.log(error)
-    
-    return NextResponse.json({ error: "Erro ao excluir funcionário. Verifique se existem registros vinculados." }, { status: 500 })
+    return NextResponse.json({ error: "Erro ao excluir funcionário." }, { status: 500 })
   }
 }
