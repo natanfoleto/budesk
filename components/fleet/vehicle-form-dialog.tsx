@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2 } from "lucide-react"
 import { useEffect } from "react"
-import { useForm, type Resolver } from "react-hook-form"
+import { type Resolver,useForm } from "react-hook-form"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Vehicle, VehicleType } from "@/types/vehicle"
+import { Vehicle, VehicleType, VehicleTypeLabels } from "@/types/vehicle"
 
 import { VehicleFormData, vehicleSchema } from "./vehicle-schema"
 
@@ -157,14 +157,14 @@ export function VehicleFormDialog({
                       value={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Selecione o tipo" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {Object.values(VehicleType).map((type) => (
                           <SelectItem key={type} value={type}>
-                            {type}
+                            {VehicleTypeLabels[type]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -205,45 +205,25 @@ export function VehicleFormDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="year"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ano</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        {...field} 
-                        value={field.value || ""} 
-                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
-                        placeholder="Ex: 2023" 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="active"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-xs">
-                    <div className="space-y-0.5">
-                      <FormLabel>Ativo</FormLabel>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-           
+            <FormField
+              control={form.control}
+              name="year"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ano</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      {...field} 
+                      value={field.value || ""} 
+                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="Ex: 2023" 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -255,6 +235,24 @@ export function VehicleFormDialog({
                     <Input {...field} placeholder="Informações adicionais" />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="active"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-xs">
+                  <div className="space-y-0.5">
+                    <FormLabel>Ativo</FormLabel>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />

@@ -8,11 +8,12 @@ const AUDIT_DELETE = "DELETE"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const vehicle = await prisma.vehicle.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!vehicle) {
@@ -28,7 +29,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = request.headers.get("x-user-id")
   if (!userId) {
@@ -36,13 +37,14 @@ export async function PUT(
   }
 
   try {
+    const { id } = await params
     const body = await request.json()
     const { 
       plate, model, brand, year, description, type, active
     } = body
 
     const currentVehicle = await prisma.vehicle.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!currentVehicle) {
@@ -60,7 +62,7 @@ export async function PUT(
     }
 
     const vehicle = await prisma.vehicle.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         plate,
         model,
@@ -90,7 +92,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = request.headers.get("x-user-id")
   if (!userId) {
@@ -98,8 +100,9 @@ export async function DELETE(
   }
 
   try {
+    const { id } = await params
     const currentVehicle = await prisma.vehicle.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!currentVehicle) {
@@ -107,13 +110,13 @@ export async function DELETE(
     }
 
     await prisma.vehicle.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createAuditLog({
       action: AUDIT_DELETE,
       entity: "Vehicle",
-      entityId: params.id,
+      entityId: id,
       oldData: currentVehicle,
       userId: userId,
     })

@@ -32,9 +32,15 @@ export default function FinancialDashboardPage() {
             <div className={`text-2xl font-bold ${data.summary.balance >= 0 ? "text-green-600" : "text-red-600"}`}>
               {formatCurrency(data.summary.balance)}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Entradas: {formatCurrency(data.summary.income)} | Saídas: {formatCurrency(data.summary.expense)}
-            </p>
+
+            <div className="space-y-0.5 mt-1">
+              <p className="text-xs text-muted-foreground">
+                Entradas: {formatCurrency(data.summary.income)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Saídas: {formatCurrency(data.summary.expense)}
+              </p>
+            </div>
           </CardContent>
         </Card>
         
