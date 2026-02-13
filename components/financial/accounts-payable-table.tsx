@@ -23,7 +23,7 @@ interface AccountsPayableTableProps {
 
 export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPayableTableProps) {
   const getStatusColor = (status: string, date: string | Date) => {
-    if (status === "PAGA") return "default"
+    if (status === "PAGA") return "success"
     const dueDate = new Date(date)
     const today = new Date()
     today.setHours(0,0,0,0)
@@ -69,10 +69,10 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
               <TableRow key={account.id}>
                 <TableCell>{formatDate(account.dueDate)}</TableCell>
                 <TableCell>{account.description}</TableCell>
-                <TableCell>{account.supplier?.name || "-"}</TableCell>
+                <TableCell>{account.supplier?.name}</TableCell>
                 <TableCell>{formatCentsToReal(account.valueInCents)}</TableCell>
                 <TableCell>
-                  <Badge variant={getStatusColor(account.status, account.dueDate) as "default" | "destructive" | "secondary" | "outline"}>
+                  <Badge variant={getStatusColor(account.status, account.dueDate) as "default" | "destructive" | "secondary" | "outline" | "success"}>
                     {getStatusLabel(account.status, account.dueDate)}
                   </Badge>
                 </TableCell>

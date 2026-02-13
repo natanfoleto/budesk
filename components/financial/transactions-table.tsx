@@ -54,12 +54,14 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
                   <Badge
                     variant={transaction.type === "ENTRADA" ? "default" : "destructive"}
                   >
-                    {transaction.type}
+                    {transaction.type === "SAIDA" ? "SAÍDA" : transaction.type}
                   </Badge>
                 </TableCell>
-                <TableCell className={transaction.type === "ENTRADA" ? "text-green-600" : "text-red-600"}>
+
+                <TableCell className={transaction.type === "ENTRADA" ? "text-green-600" : "text-red-400"}>
                   {formatCentsToReal(transaction.valueInCents)}
                 </TableCell>
+                
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" size="icon" onClick={() => onEdit(transaction)}>
