@@ -115,14 +115,17 @@ export function AppSidebar({ userRole: initialRole }: AppSidebarProps) {
             <li key={item.title}>
               {item.children ? (
                 <Collapsible defaultOpen={item.children.some(child => child.href === pathname)}>
-                  <CollapsibleTrigger className="cursor-pointer flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground [&[data-state=open]>svg]:rotate-90">
+                  <CollapsibleTrigger 
+                    aria-controls={`collapsible-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
+                    className="cursor-pointer flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground [&[data-state=open]>svg]:rotate-90"
+                  >
                     <div className="flex items-center gap-2">
                       <item.icon className="h-4 w-4" />
                       {item.title}
                     </div>
                     <ChevronRight className="h-4 w-4 transition-transform duration-200" />
                   </CollapsibleTrigger>
-                  <CollapsibleContent>
+                  <CollapsibleContent id={`collapsible-${item.title.toLowerCase().replace(/\s+/g, "-")}`}>
                     <ul className="ml-6 mt-1 space-y-1">
                       {item.children.map((child) => (
                         <li key={child.href}>

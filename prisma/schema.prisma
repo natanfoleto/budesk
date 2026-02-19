@@ -248,6 +248,9 @@ model EmploymentRecord {
   weeklyWorkload  Int?
   workRegime      String?
   isActive        Boolean   @default(true)
+  hasMedicalExam        Boolean   @default(false)
+  hasSignedRegistration Boolean   @default(false)
+  hasSignedEpiReceipt   Boolean   @default(false)
   notes           String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

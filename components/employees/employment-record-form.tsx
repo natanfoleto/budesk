@@ -34,6 +34,9 @@ const formSchema = z.object({
   weeklyWorkload: z.number().optional(),
   workRegime: z.string().optional(),
   isActive: z.boolean(),
+  hasMedicalExam: z.boolean(),
+  hasSignedRegistration: z.boolean(),
+  hasSignedEpiReceipt: z.boolean(),
   notes: z.string().optional(),
 })
 
@@ -59,6 +62,9 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
       weeklyWorkload: 0,
       workRegime: "",
       isActive: true,
+      hasMedicalExam: false,
+      hasSignedRegistration: false,
+      hasSignedEpiReceipt: false,
       notes: "",
     },
   })
@@ -69,6 +75,9 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
         ...initialData,
         admissionDate: initialData.admissionDate ? new Date(initialData.admissionDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
         terminationDate: initialData.terminationDate ? new Date(initialData.terminationDate).toISOString().split("T")[0] : undefined,
+        hasMedicalExam: initialData.hasMedicalExam || false,
+        hasSignedRegistration: initialData.hasSignedRegistration || false,
+        hasSignedEpiReceipt: initialData.hasSignedEpiReceipt || false,
       })
     } else {
       form.reset({
@@ -79,6 +88,9 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
         weeklyWorkload: 0,
         workRegime: "",
         isActive: true,
+        hasMedicalExam: false,
+        hasSignedRegistration: false,
+        hasSignedEpiReceipt: false,
         notes: "",
       })
     }
@@ -229,25 +241,87 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
               )}
             />
 
-            <FormField
-              name="isActive"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Vínculo Ativo
-                    </FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                name="hasMedicalExam"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-1 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Exame Médico
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="hasSignedRegistration"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-1 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Ficha Registro
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="hasSignedEpiReceipt"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-1 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Ficha EPI
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1">
+              <FormField
+                name="isActive"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-1 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Vínculo Ativo
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="flex gap-2">
               {initialData && onDelete && (

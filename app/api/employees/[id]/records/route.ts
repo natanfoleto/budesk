@@ -36,7 +36,8 @@ export async function POST(
     const body = await request.json()
     const { 
       admissionDate, terminationDate, jobTitle, baseSalary,
-      contractType, weeklyWorkload, workRegime, isActive, notes 
+      contractType, weeklyWorkload, workRegime, isActive, notes,
+      hasMedicalExam, hasSignedRegistration, hasSignedEpiReceipt
     } = body
 
     const record = await prisma.employmentRecord.create({
@@ -50,6 +51,9 @@ export async function POST(
         weeklyWorkload: weeklyWorkload ? parseInt(weeklyWorkload) : null,
         workRegime,
         isActive: isActive !== undefined ? isActive : true,
+        hasMedicalExam,
+        hasSignedRegistration,
+        hasSignedEpiReceipt,
         notes
       }
     })
