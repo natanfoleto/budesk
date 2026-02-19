@@ -1,6 +1,7 @@
 "use client"
 
 import { Edit, Trash2 } from "lucide-react"
+import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,11 +17,10 @@ import { Vehicle, VehicleTypeLabels } from "@/types/vehicle"
 
 interface VehiclesTableProps {
   vehicles: Vehicle[]
-  onEdit: (vehicle: Vehicle) => void
   onDelete: (id: string) => void
 }
 
-export function VehiclesTable({ vehicles, onEdit, onDelete }: VehiclesTableProps) {
+export function VehiclesTable({ vehicles, onDelete }: VehiclesTableProps) {
   return (
     <div className="rounded-md border">
       <Table>
@@ -45,7 +45,11 @@ export function VehiclesTable({ vehicles, onEdit, onDelete }: VehiclesTableProps
           ) : (
             vehicles.map((vehicle) => (
               <TableRow key={vehicle.id}>
-                <TableCell className="font-medium">{vehicle.plate}</TableCell>
+                <TableCell className="font-medium">
+                  <Link href={`/fleet/${vehicle.id}`} className="hover:underline text-primary">
+                    {vehicle.plate}
+                  </Link>
+                </TableCell>
                 <TableCell>{vehicle.model}</TableCell>
                 <TableCell>{vehicle.brand}</TableCell>
                 <TableCell>{vehicle.year}</TableCell>
@@ -59,13 +63,11 @@ export function VehiclesTable({ vehicles, onEdit, onDelete }: VehiclesTableProps
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => onEdit(vehicle)}
-                    >
-                      <Edit className="h-4 w-4 text-muted-foreground" />
-                    </Button>
+                    <Link href={`/fleet/${vehicle.id}`}>
+                      <Button variant="outline" size="icon">
+                        <Edit className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </Link>
                     <Button
                       variant="outline"
                       size="icon"

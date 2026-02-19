@@ -38,7 +38,9 @@ interface VehicleFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialData?: Vehicle | null
-  onSuccess: () => void
+  onSuccess?: () => void
+  onSubmit?: (data: VehicleFormData) => void
+  isLoading?: boolean
 }
 
 export function VehicleFormDialog({
@@ -46,6 +48,8 @@ export function VehicleFormDialog({
   onOpenChange,
   initialData,
   onSuccess,
+  onSubmit, // New prop
+  isLoading: externalIsLoading, // New prop
 }: VehicleFormDialogProps) {
   const form = useForm<VehicleFormData>({
     resolver: zodResolver(vehicleSchema) as Resolver<VehicleFormData>,
@@ -53,7 +57,7 @@ export function VehicleFormDialog({
       plate: "",
       model: "",
       brand: "",
-      year: undefined, // Changed from null to undefined for react-hook-form compatibility
+      year: undefined,
       description: "",
       type: VehicleType.CAMINHAO,
       active: true,
@@ -61,7 +65,9 @@ export function VehicleFormDialog({
     mode: "onChange",
   })
 
-  const isLoading = form.formState.isSubmitting
+  // Use external isLoading if provided, otherwise fallback to form state (though form state won't be true if we don't await onSubmit)
+  // If onSubmit is async and passed to handleSubmit, form.formState.isSubmitting will be true.
+  const isLoading = externalIsLoading || form.formState.isSubmitting
 
   useEffect(() => {
     if (initialData) {
@@ -87,35 +93,49 @@ export function VehicleFormDialog({
     }
   }, [initialData, form, open])
 
-  const onSubmit = async (data: VehicleFormData) => {
-    try {
-      const url = initialData
-        ? `/api/vehicles/${initialData.id}`
-        : "/api/vehicles"
-      const method = initialData ? "PUT" : "POST"
+  const handleSubmit = async (data: VehicleFormData) => {
+    if (onSubmit) {
+      // Use the provided submit handler (Employee pattern)
+      await onSubmit(data)
+      // We assume parent handles success/error/closing or we do it here if parent returns promise?
+      // EmployeeForm: `onSubmit(values)` -> parent calls mutation -> mutation.onSuccess calls `setIsEditFormOpen(false)`
+      // So here we should just call onSubmit. 
+      // But we also support legacy usage with `onSuccess` if `onSubmit` is not provided?
+      // For now, let's look at how EmployeeForm does it. 
+      // EmployeeForm: `const handleSubmit = (values: EmployeeFormData) => { onSubmit(values) }`
+      // It doesn't await. Using mutation.isPending for loading state.
+    } else {
+      // Legacy internal fetch logic (keep for compatibility if needed, but we are supposed to refactor)
+      // I'll keep it for now as fallback to avoid breaking other pages (FleetPage)
+      try {
+        const url = initialData
+          ? `/api/vehicles/${initialData.id}`
+          : "/api/vehicles"
+        const method = initialData ? "PUT" : "POST"
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
+        const response = await fetch(url, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
 
-      const result = await response.json()
+        const result = await response.json()
 
-      if (!response.ok) {
-        throw new Error(result.error || "Erro ao salvar veículo")
+        if (!response.ok) {
+          throw new Error(result.error || "Erro ao salvar veículo")
+        }
+
+        toast.success(
+          initialData ? "Veículo atualizado com sucesso" : "Veículo criado com sucesso"
+        )
+        if (onSuccess) onSuccess()
+        onOpenChange(false)
+      } catch (error) {
+        console.error(error)
+        toast.error(error instanceof Error ? error.message : "Erro desconhecido")
       }
-
-      toast.success(
-        initialData ? "Veículo atualizado com sucesso" : "Veículo criado com sucesso"
-      )
-      onSuccess()
-      onOpenChange(false)
-    } catch (error) {
-      console.error(error)
-      toast.error(error instanceof Error ? error.message : "Erro desconhecido")
     }
   }
 
@@ -129,7 +149,7 @@ export function VehicleFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}

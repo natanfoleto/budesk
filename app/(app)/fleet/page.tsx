@@ -24,7 +24,7 @@ export default function FleetPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null)
+
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -33,7 +33,7 @@ export default function FleetPage() {
     try {
       const response = await fetch("/api/vehicles")
       if (response.ok) {
-        const data = await response.json()
+        const data: Vehicle[] = await response.json()
         setVehicles(data)
       }
     } catch (error) {
@@ -48,13 +48,8 @@ export default function FleetPage() {
     fetchVehicles()
   }, [])
 
-  const handleEdit = (vehicle: Vehicle) => {
-    setEditingVehicle(vehicle)
-    setIsFormOpen(true)
-  }
-
   const handleCreate = () => {
-    setEditingVehicle(null)
+
     setIsFormOpen(true)
   }
 
@@ -120,7 +115,7 @@ export default function FleetPage() {
       ) : (
         <VehiclesTable
           vehicles={filteredVehicles}
-          onEdit={handleEdit}
+
           onDelete={handleDeleteClick}
         />
       )}
@@ -128,7 +123,7 @@ export default function FleetPage() {
       <VehicleFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
-        initialData={editingVehicle}
+        initialData={null}
         onSuccess={handleSuccess}
       />
 

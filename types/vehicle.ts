@@ -88,3 +88,42 @@ export interface Vehicle {
   active: boolean
   createdAt: string | Date
 }
+
+export interface VehicleFormData {
+  plate: string
+  model?: string
+  brand?: string
+  year?: number | null
+  description?: string
+  type: VehicleType
+  active: boolean
+}
+
+export interface Maintenance {
+  id: string
+  vehicleId: string
+  type: string
+  category: string
+  description: string
+  priority: string
+  scheduledDate: string | Date
+  completedDate?: string | Date | null
+  status: string
+  estimatedCost: number
+  finalCost?: number | null
+  currentKm?: number | null
+  isRecurrent: boolean
+  isPaid: boolean
+  intervalKm?: number | null
+  intervalDays?: number | null
+  supplierId?: string | null
+  costCenter?: string | null
+  invoiceNumber?: string | null
+  approvalResponsible?: string | null
+  operationalImpact?: string | null
+  downtimeDays?: number | null
+  internalNotes?: string | null
+  attachments?: string | null
+  createdAt: string | Date
+  updatedAt: string | Date
+}
