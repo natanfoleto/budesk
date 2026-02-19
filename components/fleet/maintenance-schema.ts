@@ -37,19 +37,19 @@ export const maintenanceSchema = z.object({
   
   estimatedCost: z.number().min(0, "Custo estimado inválido"),
   finalCost: z.number().min(0, "Custo final inválido").optional().nullable(),
-  costCenter: z.string().optional(),
-  supplierId: z.string().optional(),
-  invoiceNumber: z.string().optional(),
+  costCenter: z.string().optional().transform(e => e === "" ? undefined : e),
+  supplierId: z.string().optional().transform(e => e === "" ? undefined : e),
+  invoiceNumber: z.string().optional().transform(e => e === "" ? undefined : e),
   
   status: z.nativeEnum(MaintenanceStatus),
   isPaid: z.boolean().default(false),
   paymentMethod: z.nativeEnum(PaymentMethod).optional(),
   
-  internalNotes: z.string().optional(),
-  approvalResponsible: z.string().optional(),
-  operationalImpact: z.string().optional(),
+  internalNotes: z.string().optional().transform(e => e === "" ? undefined : e),
+  approvalResponsible: z.string().optional().transform(e => e === "" ? undefined : e),
+  operationalImpact: z.string().optional().transform(e => e === "" ? undefined : e),
   downtimeDays: z.number().min(0).optional().nullable(),
-  attachments: z.string().optional(), // For now, just a text field for URLs or notes
+  attachments: z.string().optional().transform(e => e === "" ? undefined : e), // For now, just a text field for URLs or notes
 })
 
 export type MaintenanceFormData = z.infer<typeof maintenanceSchema>

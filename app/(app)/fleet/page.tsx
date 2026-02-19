@@ -109,8 +109,8 @@ export default function FleetPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex justify-center items-center h-full w-full py-10">
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <VehiclesTable

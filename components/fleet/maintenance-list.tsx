@@ -211,20 +211,19 @@ export function MaintenanceList({
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         onClick={() => onEdit(m)}
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-4 w-4 text-muted-foreground" />
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         onClick={() => handleDelete(m.id)}
                         disabled={isDeleting === m.id}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </div>
                   </TableCell>
