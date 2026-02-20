@@ -120,14 +120,21 @@ export default function VehicleDetailsPage({ params }: { params: Promise<{ id: s
 
   if (isVehicleLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex justify-center items-center h-full w-full py-10">
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   if (!vehicle) {
-    return <div>Veículo não encontrado</div>
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
+        <p className="text-lg font-medium">Veículo não encontrado</p>
+        <Link href="/fleet" className="text-primary hover:underline">
+          Voltar para listagem de veículos
+        </Link>
+      </div>
+    )
   }
 
   return (
@@ -234,7 +241,7 @@ export default function VehicleDetailsPage({ params }: { params: Promise<{ id: s
         vehicleId={id}
         open={isMaintenanceFormOpen}
         onOpenChange={setIsMaintenanceFormOpen}
-        initialData={editingMaintenance}
+        initialData={editingMaintenance || undefined}
         onSubmit={handleMaintenanceSubmit}
         isLoading={createMaintenanceMutation.isPending || updateMaintenanceMutation.isPending}
         onSuccess={() => {}} // No-op

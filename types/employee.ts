@@ -36,6 +36,9 @@ export interface EmploymentRecordFormData {
   weeklyWorkload?: number;
   workRegime?: string;
   isActive: boolean;
+  hasMedicalExam: boolean;
+  hasSignedRegistration: boolean;
+  hasSignedEpiReceipt: boolean;
   notes?: string;
 }
 

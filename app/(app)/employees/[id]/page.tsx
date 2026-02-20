@@ -125,7 +125,16 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
       <Loader2 className="size-4 animate-spin text-muted-foreground" />
     </div>
   )
-  if (!employee) return <div className="p-8">Funcionário não encontrado</div>
+  if (!employee) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
+        <p className="text-lg font-medium">Funcionário não encontrado</p>
+        <Link href="/employees" className="text-primary hover:underline">
+          Voltar para listagem de funcionários
+        </Link>
+      </div>
+    )
+  }
 
   const handleUpdateEmployee = (data: Partial<EmployeeFormData>) => {
     updateMutation.mutate({ id, data }, {
@@ -428,6 +437,9 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           weeklyWorkload: selectedRecord.weeklyWorkload || 0,
           workRegime: selectedRecord.workRegime || "",
           isActive: selectedRecord.isActive,
+          hasMedicalExam: selectedRecord.hasMedicalExam,
+          hasSignedRegistration: selectedRecord.hasSignedRegistration,
+          hasSignedEpiReceipt: selectedRecord.hasSignedEpiReceipt,
           notes: selectedRecord.notes || "",
         } : undefined}
         isLoading={createRecordMutation.isPending || updateRecordMutation.isPending || deleteRecordMutation.isPending}

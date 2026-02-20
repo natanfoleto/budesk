@@ -167,7 +167,7 @@ export function MaintenanceForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {initialData ? "Editar Manutenção" : "Nova Manutenção"}
@@ -425,8 +425,8 @@ export function MaintenanceForm({
                       <FormLabel>Forma de Pagamento</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        value={field.value}
-                        defaultValue={field.value}
+                        value={field.value || undefined}
+                        defaultValue={field.value || undefined}
                       >
                         <FormControl>
                           <SelectTrigger className="w-full">
