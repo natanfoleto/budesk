@@ -4,7 +4,6 @@ import {
   EmployeeContract,
   EmploymentRecord,
   FinancialTransaction,
-  TimeRecord,
 } from "@prisma/client"
 
 export interface EmployeeWithDetails extends Employee {
@@ -12,7 +11,6 @@ export interface EmployeeWithDetails extends Employee {
   transactions?: FinancialTransaction[];
   employmentRecords?: EmploymentRecord[];
   contracts?: EmployeeContract[];
-  timeRecords?: TimeRecord[];
 }
 
 export interface EmployeeFormData {
@@ -60,12 +58,3 @@ export interface AdvanceFormData {
   paymentMethod: "DINHEIRO" | "PIX" | "CARTAO" | "BOLETO" | "CHEQUE" | "TRANSFERENCIA";
 }
 
-export interface TimeRecordFormData {
-  date: string;
-  entryTime: string;
-  exitTime?: string;
-  absent: boolean;
-  justification?: string;
-  manualWorkedHours?: number;
-  manualOvertime?: number;
-}

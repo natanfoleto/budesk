@@ -114,8 +114,8 @@ export async function DELETE(
         where: { employeeId: id }
       })
 
-      // 2. Delete time records (depends on employee)
-      await tx.timeRecord.deleteMany({
+      // 2. Delete attendance records (depends on employee)
+      await tx.attendanceRecord.deleteMany({
         where: { employeeId: id }
       })
 

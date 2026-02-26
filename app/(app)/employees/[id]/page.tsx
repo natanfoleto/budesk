@@ -15,7 +15,6 @@ import { ContractForm } from "@/components/employees/contract-form"
 import { EmployeeForm } from "@/components/employees/employee-form"
 import { EmploymentRecordForm } from "@/components/employees/employment-record-form"
 import { SecureActionDialog } from "@/components/employees/secure-action-dialog"
-import { TimeTrackingView } from "@/components/employees/time-tracking-view"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -411,7 +410,21 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         </TabsContent>
 
         <TabsContent value="ponto">
-          <TimeTrackingView employeeId={id} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Controle de Ponto</CardTitle>
+              <CardDescription>
+                A gestão de frequência e ponto agora é unificada no módulo de Recursos Humanos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href={`/rh/attendance?employeeId=${id}`}>
+                <Button className="cursor-pointer">
+                  Acessar Frequência no RH
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

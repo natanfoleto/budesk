@@ -42,6 +42,18 @@ const menuItems = [
     icon: Users,
   },
   {
+    title: "RH",
+    icon: Users,
+    children: [
+      { title: "Visão Geral", href: "/rh" },
+      { title: "Pagamentos", href: "/rh/payments" },
+      { title: "Férias", href: "/rh/vacations" },
+      { title: "13º Salário", href: "/rh/thirteenth" },
+      { title: "Frequência", href: "/rh/attendance" },
+      { title: "Relatórios", href: "/rh/reports" },
+    ],
+  },
+  {
     title: "Frota",
     href: "/fleet",
     icon: Truck,

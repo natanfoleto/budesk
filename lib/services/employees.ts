@@ -1,11 +1,11 @@
+import { Employee } from "@prisma/client"
+
 import {
   AdvanceFormData,
   ContractFormData,
   EmployeeFormData,
   EmployeeWithDetails,
-  EmploymentRecordFormData,
-  TimeRecordFormData} from "@/types/employee"
-import { Employee } from "@prisma/client"
+  EmploymentRecordFormData} from "@/types/employee"
 
 const BASE_URL = "/api"
 
@@ -99,18 +99,3 @@ export const createEmployeeAdvance = async (employeeId: string, data: AdvanceFor
   return res.json()
 }
 
-export const getTimeRecords = async (employeeId: string) => {
-  const res = await fetch(`${BASE_URL}/employees/${employeeId}/time-tracking`)
-  if (!res.ok) throw new Error("Erro ao buscar registros de ponto")
-  return res.json()
-}
-
-export const createTimeRecord = async (employeeId: string, data: TimeRecordFormData) => {
-  const res = await fetch(`${BASE_URL}/employees/${employeeId}/time-tracking`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) throw new Error("Erro ao criar registro de ponto")
-  return res.json()
-}
