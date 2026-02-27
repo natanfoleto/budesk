@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useEmployees } from "@/hooks/use-employees"
+import { formatCentsToReal } from "@/lib/utils"
 import { RHPayment, RHPaymentFormData } from "@/types/rh"
 
 const schema = z.object({
@@ -161,7 +162,7 @@ export function PaymentForm({
                     <FormLabel>Funcionário</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Selecione um funcionário" />
                         </SelectTrigger>
                       </FormControl>
@@ -200,7 +201,7 @@ export function PaymentForm({
                     <FormLabel>Tipo de Pagamento</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="Selecione o tipo" />
                         </SelectTrigger>
                       </FormControl>
@@ -242,7 +243,14 @@ export function PaymentForm({
                   <FormItem>
                     <FormLabel>Valor Base (R$)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input
+                        placeholder="R$ 0,00"
+                        value={form.watch("salarioBase") === 0 ? "" : formatCentsToReal(Math.round(Number(field.value || 0) * 100))}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value) / 100)
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -256,7 +264,14 @@ export function PaymentForm({
                   <FormItem>
                     <FormLabel>Adicionais (R$)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input
+                        placeholder="R$ 0,00"
+                        value={form.watch("adicionais") === 0 ? "" : formatCentsToReal(Math.round(Number(field.value || 0) * 100))}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value) / 100)
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -285,7 +300,14 @@ export function PaymentForm({
                   <FormItem>
                     <FormLabel>Valor Horas Extras (R$)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input
+                        placeholder="R$ 0,00"
+                        value={form.watch("valorHorasExtras") === 0 ? "" : formatCentsToReal(Math.round(Number(field.value || 0) * 100))}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value) / 100)
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -301,7 +323,14 @@ export function PaymentForm({
                   <FormItem>
                     <FormLabel>Descontos Gerais (R$)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input
+                        placeholder="R$ 0,00"
+                        value={form.watch("descontos") === 0 ? "" : formatCentsToReal(Math.round(Number(field.value || 0) * 100))}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value) / 100)
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -314,7 +343,14 @@ export function PaymentForm({
                   <FormItem>
                     <FormLabel>Adiantamento/Vale (R$)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input
+                        placeholder="R$ 0,00"
+                        value={form.watch("valorAdiantamentos") === 0 ? "" : formatCentsToReal(Math.round(Number(field.value || 0) * 100))}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value) / 100)
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

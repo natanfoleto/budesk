@@ -90,7 +90,7 @@ export function ThirteenthForm({
                   <FormLabel>Funcionário</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecione um funcionário" />
                       </SelectTrigger>
                     </FormControl>
@@ -126,13 +126,13 @@ export function ThirteenthForm({
                 name="mesesTrabalhados"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Meses Trabalhados</FormLabel>
+                    <FormLabel className="flex justify-between items-center">
+                      <span>Meses Trabalhados</span>
+                      <span className="text-xs text-muted-foreground font-normal">Max: 12</span>
+                    </FormLabel>
                     <FormControl>
                       <Input type="number" min="1" max="12" {...field} />
                     </FormControl>
-                    <div className="text-xs text-muted-foreground mt-1 text-right">
-                      Max: 12
-                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

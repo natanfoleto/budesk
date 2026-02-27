@@ -96,18 +96,18 @@ export function VacationsTable({ vacations, onEdit, onDelete, onConfirmPayment }
                       </Button>
                     )}
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       onClick={() => onEdit(v)}
                       title="Editar"
                     >
-                      <FileEdit className="h-4 w-4" />
+                      <FileEdit className="h-4 w-4 text-muted-foreground" />
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       onClick={() => onDelete(v.id)}
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      className="text-destructive hover:text-destructive"
                       title="Excluir"
                     >
                       <Trash2 className="h-4 w-4" />

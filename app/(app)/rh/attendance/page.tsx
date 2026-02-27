@@ -36,17 +36,6 @@ export default function AttendancePage() {
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
       
-      {/* Time Bank Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">Banco de Horas</h2>
-          <p className="text-sm text-muted-foreground mr-auto ml-4">Saldo geral por funcionário.</p>
-        </div>
-        <TimeBankView timeBanks={timeBanks || []} />
-      </section>
-      
-      <hr />
-
       {/* Attendance Section */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
@@ -66,12 +55,23 @@ export default function AttendancePage() {
               />
             </div>
             <Button onClick={handleOpenCreate}>
-              <Plus className="mr-2 h-4 w-4" /> Lançar Ponto/Falta
+              <Plus className="h-4 w-4" /> Lançar Ponto/Falta
             </Button>
           </div>
         </div>
 
         <AttendanceTable records={records || []} />
+      </section>
+
+      <hr />
+
+      {/* Time Bank Section */}
+      <section className="space-y-4">
+        <div className="flex flex-col items-start justify-between">
+          <h2 className="text-2xl font-bold tracking-tight">Banco de Horas</h2>
+          <p className="text-sm text-muted-foreground">Saldo geral por funcionário.</p>
+        </div>
+        <TimeBankView timeBanks={timeBanks || []} />
       </section>
 
       <AttendanceForm

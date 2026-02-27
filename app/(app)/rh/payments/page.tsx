@@ -82,7 +82,7 @@ export default function PaymentsPage() {
           <p className="text-muted-foreground">Folha de pagamento, diárias, bônus e adiantamentos.</p>
         </div>
         <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Novo Pagamento
+          <Plus className="h-4 w-4" /> Novo Pagamento
         </Button>
       </div>
 

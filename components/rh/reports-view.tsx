@@ -72,7 +72,7 @@ export function ReportsView() {
           </Select>
         </div>
         <Button variant="outline" onClick={handleExportCSV}>
-          <Download className="mr-2 h-4 w-4" /> Exportar CSV
+          <Download className="h-4 w-4" /> Exportar CSV
         </Button>
       </div>
 

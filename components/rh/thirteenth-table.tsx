@@ -82,9 +82,9 @@ export function ThirteenthTable({ records, onDelete, onToggleParcela }: Thirteen
                     </span>
                     {!r.primeiraPaga && (
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
                         title="Pagar 1ª Parcela"
                         onClick={() => onToggleParcela(r, true)}
                       >
@@ -103,9 +103,9 @@ export function ThirteenthTable({ records, onDelete, onToggleParcela }: Thirteen
                     </span>
                     {!r.segundaPaga && (
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
                         title="Pagar 2ª Parcela"
                         onClick={() => onToggleParcela(r, false)}
                       >
@@ -121,10 +121,10 @@ export function ThirteenthTable({ records, onDelete, onToggleParcela }: Thirteen
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       onClick={() => onDelete(r.id)}
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      className="text-destructive hover:text-destructive"
                       title="Excluir"
                     >
                       <Trash2 className="h-4 w-4" />

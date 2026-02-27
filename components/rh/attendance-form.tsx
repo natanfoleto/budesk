@@ -101,7 +101,7 @@ export function AttendanceForm({
                   <FormLabel>Funcionário</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecione um funcionário" />
                       </SelectTrigger>
                     </FormControl>
@@ -140,7 +140,7 @@ export function AttendanceForm({
                     <FormLabel>Status / Ocorrência</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full">
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>

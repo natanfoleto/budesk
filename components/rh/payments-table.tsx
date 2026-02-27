@@ -102,18 +102,18 @@ export function PaymentsTable({ payments, onEdit, onDelete, onConfirm }: Payment
                     </Button>
                   )}
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="icon"
                     onClick={() => onEdit(p)}
                     title="Editar"
                   >
-                    <FileEdit className="h-4 w-4" />
+                    <FileEdit className="h-4 w-4 text-muted-foreground" />
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="icon"
                     onClick={() => onDelete(p.id)}
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="text-destructive hover:text-destructive"
                     title="Excluir"
                   >
                     <Trash2 className="h-4 w-4" />

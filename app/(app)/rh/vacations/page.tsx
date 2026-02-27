@@ -87,7 +87,7 @@ export default function VacationsPage() {
           <p className="text-muted-foreground">Gestão de períodos aquisitivos, concessivos e pagamentos.</p>
         </div>
         <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Registrar Férias
+          <Plus className="h-4 w-4" /> Registrar Férias
         </Button>
       </div>
 

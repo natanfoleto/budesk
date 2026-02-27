@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useEmployees } from "@/hooks/use-employees"
+import { formatCentsToReal } from "@/lib/utils"
 import { Vacation, VacationFormData } from "@/types/rh"
 
 const schema = z.object({
@@ -139,7 +140,7 @@ export function VacationForm({
                   <FormLabel>Funcionário</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Selecione um funcionário" />
                       </SelectTrigger>
                     </FormControl>
@@ -253,7 +254,14 @@ export function VacationForm({
                   <FormItem>
                     <FormLabel>Valor Bruto (S/ 1/3) R$</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input
+                        placeholder="R$ 0,00"
+                        value={form.watch("valorFerias") === 0 ? "" : formatCentsToReal(Math.round(Number(field.value || 0) * 100))}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "")
+                          field.onChange(Number(value) / 100)
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -273,7 +281,7 @@ export function VacationForm({
                   <FormLabel>Status</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>

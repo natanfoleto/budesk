@@ -73,7 +73,7 @@ export default function ThirteenthPage() {
           <p className="text-muted-foreground">Provisões e pagamentos da primeira e segunda parcelas.</p>
         </div>
         <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Gerar 13º Salário
+          <Plus className="h-4 w-4" /> Gerar 13º Salário
         </Button>
       </div>
 

@@ -67,8 +67,21 @@ export async function PUT(
       return NextResponse.json({ error: "Pagamento não encontrado" }, { status: 404 })
     }
 
-    const totalBruto = Number(salarioBase) + Number(adicionais) + Number(valorHorasExtras)
-    const totalLiquido = totalBruto - Number(descontos) - Number(valorAdiantamentos)
+    const totalBruto = Number(salarioBase ?? existing.salarioBase) + Number(adicionais ?? existing.adicionais) + Number(valorHorasExtras ?? existing.valorHorasExtras)
+    const totalLiquido = totalBruto - Number(descontos ?? existing.descontos) - Number(valorAdiantamentos ?? existing.valorAdiantamentos)
+
+    const mergedData = {
+      competencia: competencia ?? existing.competencia,
+      tipoPagamento: tipoPagamento ?? existing.tipoPagamento,
+      salarioBase: salarioBase ?? existing.salarioBase,
+      adicionais: adicionais ?? existing.adicionais,
+      horasExtras: horasExtras ?? existing.horasExtras,
+      valorHorasExtras: valorHorasExtras ?? existing.valorHorasExtras,
+      descontos: descontos ?? existing.descontos,
+      valorAdiantamentos: valorAdiantamentos ?? existing.valorAdiantamentos,
+      totalBruto,
+      totalLiquido,
+    }
 
     // If changing to PAGO status and no transaction exists yet → create one
     if (status === "PAGO" && existing.status !== "PAGO" && !existing.transaction) {
@@ -76,36 +89,27 @@ export async function PUT(
         const updated = await tx.rHPayment.update({
           where: { id },
           data: {
-            competencia,
-            tipoPagamento,
-            salarioBase,
-            adicionais,
-            horasExtras,
-            valorHorasExtras,
-            descontos,
-            valorAdiantamentos,
-            totalBruto,
-            totalLiquido,
+            ...mergedData,
             status: "PAGO",
             dataPagamento: dataPagamento ? new Date(dataPagamento) : new Date(),
-            formaPagamento: formaPagamento || null,
-            centroCusto: centroCusto || null,
-            observacoes: observacoes || null,
+            formaPagamento: formaPagamento ?? existing.formaPagamento ?? null,
+            centroCusto: centroCusto ?? existing.centroCusto ?? null,
+            observacoes: observacoes ?? existing.observacoes ?? null,
           },
           include: {
             employee: { select: { id: true, name: true, role: true } },
           },
         })
 
-        const valueInCents = Math.round(Number(totalLiquido) * 100)
+        const valueInCents = Math.round(Number(mergedData.totalLiquido) * 100)
 
         await tx.financialTransaction.create({
           data: {
-            description: `Pagamento RH - ${updated.employee.name} - ${competencia}`,
+            description: `Pagamento RH - ${updated.employee.name} - ${mergedData.competencia}`,
             type: "SAIDA",
             valueInCents,
             category: "Pagamento Funcionário",
-            paymentMethod: formaPagamento || "TRANSFERENCIA",
+            paymentMethod: (formaPagamento ?? existing.formaPagamento ?? "TRANSFERENCIA") as "DINHEIRO" | "PIX" | "CARTAO" | "BOLETO" | "CHEQUE" | "TRANSFERENCIA",
             date: dataPagamento ? new Date(dataPagamento) : new Date(),
             employeeId: updated.employeeId,
             rhPaymentId: id,
@@ -138,21 +142,12 @@ export async function PUT(
         return tx.rHPayment.update({
           where: { id },
           data: {
-            competencia,
-            tipoPagamento,
-            salarioBase,
-            adicionais,
-            horasExtras,
-            valorHorasExtras,
-            descontos,
-            valorAdiantamentos,
-            totalBruto,
-            totalLiquido,
-            status,
+            ...mergedData,
+            status: status ?? existing.status,
             dataPagamento: dataPagamento ? new Date(dataPagamento) : null,
-            formaPagamento: formaPagamento || null,
-            centroCusto: centroCusto || null,
-            observacoes: observacoes || null,
+            formaPagamento: formaPagamento ?? existing.formaPagamento ?? null,
+            centroCusto: centroCusto ?? existing.centroCusto ?? null,
+            observacoes: observacoes ?? existing.observacoes ?? null,
           },
         })
       })
@@ -164,21 +159,12 @@ export async function PUT(
     const payment = await prisma.rHPayment.update({
       where: { id },
       data: {
-        competencia,
-        tipoPagamento,
-        salarioBase,
-        adicionais,
-        horasExtras,
-        valorHorasExtras,
-        descontos,
-        valorAdiantamentos,
-        totalBruto,
-        totalLiquido,
-        status,
+        ...mergedData,
+        status: status ?? existing.status,
         dataPagamento: dataPagamento ? new Date(dataPagamento) : null,
-        formaPagamento: formaPagamento || null,
-        centroCusto: centroCusto || null,
-        observacoes: observacoes || null,
+        formaPagamento: formaPagamento ?? existing.formaPagamento ?? null,
+        centroCusto: centroCusto ?? existing.centroCusto ?? null,
+        observacoes: observacoes ?? existing.observacoes ?? null,
       },
     })
 
