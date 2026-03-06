@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
-
-const AUDIT_Create = "CREATE"
+import { AuditService } from "@/src/modules/audit/services/AuditService"
+import { FinanceService } from "@/src/modules/finance/services/FinanceService"
 
 export async function GET(
   request: NextRequest,
@@ -35,50 +34,42 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { valueInCents, date, note, payrollReference, paymentMethod } = body
-
-    // Transaction Data
-    const transactionData = {
-      description: `Adiantamento Salarial - ${payrollReference || date}`,
-      type: "SAIDA" as const,
-      valueInCents: valueInCents,
-      category: "Adiantamento Salarial",
-      paymentMethod: paymentMethod || "TRANSFERENCIA",
-      date: new Date(date),
-      employeeId: id,
-    }
+    // Support backward compatibility for valueInCents vs amountInCents payload
+    const amountInCents = body.amountInCents ?? body.valueInCents
+    const { date, note, payrollReference, paymentMethod } = body
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create Financial Transaction
-      const transaction = await tx.financialTransaction.create({
-        data: transactionData
-      })
-
-      // 2. Create Advance Record (amount is Decimal, so divide by 100)
+      // Create Advance Record
       const advance = await tx.employeeAdvance.create({
         data: {
           employeeId: id,
-          amount: valueInCents / 100.0,
+          amountInCents,
           date: new Date(date),
           note,
           payrollReference,
-          transactionId: transaction.id
         }
       })
 
-      return { advance, transaction }
+      // Create Financial Transaction centrally via Service
+      await FinanceService.registerTransaction(tx, {
+        type: "SAIDA",
+        category: "Adiantamento Salarial",
+        amountInCents,
+        paymentMethod: paymentMethod || "TRANSFERENCIA",
+        description: `Adiantamento Salarial - ${payrollReference || date}`,
+        date: new Date(date),
+        referenceId: advance.id,
+        referenceType: "employeeAdvance",
+        userId
+      })
+
+      // Audit will be triggered for both individually (FinanceService does its own)
+      await AuditService.logAction(tx, "CREATE", "EmployeeAdvance", advance.id, advance, userId)
+
+      return advance
     })
 
-    // Audit
-    await createAuditLog({
-      action: AUDIT_Create,
-      entity: "EmployeeAdvance",
-      entityId: result.advance.id,
-      newData: result as any, // Using 'as any' to match the loosely typed helper expectation or ensure compatibility
-      userId: userId,
-    })
-
-    return NextResponse.json(result.advance, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: "Erro ao criar adiantamento" }, { status: 500 })

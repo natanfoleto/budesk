@@ -2,8 +2,9 @@ import { AuditAction } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { maintenanceSchema } from "@/components/fleet/maintenance-schema"
-import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
+import { AuditService } from "@/src/modules/audit/services/AuditService"
+import { FinanceService } from "@/src/modules/finance/services/FinanceService"
 
 export async function GET(
   request: NextRequest,
@@ -19,7 +20,8 @@ export async function GET(
       },
       orderBy: { scheduledDate: "desc" },
       include: {
-        supplier: true
+        supplier: true,
+        costCenter: true
       }
     })
     return NextResponse.json(maintenances)
@@ -61,53 +63,49 @@ export async function POST(
       isPaid, paymentMethod
     } = validationResult.data
 
-    const maintenance = await prisma.maintenance.create({
-      data: {
-        vehicleId: id,
-        type,
-        category,
-        description,
-        priority,
-        scheduledDate: new Date(scheduledDate),
-        isRecurrent: isRecurrent || false,
-        intervalKm,
-        intervalDays,
-        estimatedCost,
-        costCenter,
-        supplierId,
-        invoiceNumber,
-        status: status || "PENDENTE",
-        isPaid,
-        internalNotes,
-        approvalResponsible,
-        operationalImpact
-      }
-    })
-
-    // Financial Transaction Logic
-    if (isPaid && estimatedCost > 0) {
-      await prisma.financialTransaction.create({
+    const maintenance = await prisma.$transaction(async (tx) => {
+      const createdMaintenance = await tx.maintenance.create({
         data: {
-          description: `Manutenção - ${category}`,
-          type: "SAIDA",
-          category: "Manutenção de Veículos",
-          valueInCents: estimatedCost,
-          paymentMethod: paymentMethod || "TRANSFERENCIA",
-          date: new Date(),
-          // serviceId? No, it's maintenance
-          maintenanceId: maintenance.id,
-          supplierId: supplierId
+          vehicleId: id,
+          type,
+          category,
+          description,
+          priority,
+          scheduledDate: new Date(scheduledDate),
+          isRecurrent: isRecurrent || false,
+          intervalKm,
+          intervalDays,
+          estimatedCost,
+          costCenterId: costCenter || undefined, // Mapped to new field
+          supplierId,
+          invoiceNumber,
+          status: status || "PENDENTE",
+          isPaid,
+          internalNotes,
+          approvalResponsible,
+          operationalImpact
         }
       })
-    }
 
-    // Audit
-    await createAuditLog({
-      action: AuditAction.CREATE,
-      entity: "Maintenance",
-      entityId: maintenance.id,
-      newData: maintenance,
-      userId: userId,
+      // Financial Transaction Logic
+      if (isPaid && estimatedCost > 0) {
+        await FinanceService.registerTransaction(tx, {
+          type: "SAIDA",
+          category: "Manutenção de Veículos",
+          amountInCents: estimatedCost,
+          paymentMethod: paymentMethod || "TRANSFERENCIA",
+          description: `Manutenção - ${category}`,
+          date: new Date(),
+          referenceId: createdMaintenance.id,
+          referenceType: "maintenance",
+          costCenterId: costCenter || undefined,
+          userId
+        })
+      }
+
+      await AuditService.logAction(tx, AuditAction.CREATE, "Maintenance", createdMaintenance.id, createdMaintenance, userId)
+
+      return createdMaintenance
     })
 
     return NextResponse.json(maintenance, { status: 201 })

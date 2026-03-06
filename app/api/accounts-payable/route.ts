@@ -1,6 +1,9 @@
+import { Prisma } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import prisma from "@/lib/prisma"
+import { AuditService } from "@/src/modules/audit/services/AuditService"
+import { FinanceService } from "@/src/modules/finance/services/FinanceService"
 
 const AUDIT_CREATE = "CREATE"
 
@@ -11,10 +14,10 @@ export async function GET(request: NextRequest) {
   const endDate = searchParams.get("endDate")
 
   try {
-    const where: any = {}
+    const where: Prisma.AccountPayableWhereInput = {}
 
     if (status) {
-      where.status = status
+      where.status = status as Prisma.AccountPayableWhereInput["status"]
     }
 
     if (startDate && endDate) {
@@ -34,6 +37,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(accounts)
   } catch (error) {
+    console.error(error)
     return NextResponse.json({ error: "Erro ao buscar contas" }, { status: 500 })
   }
 }
@@ -43,30 +47,44 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { description, valueInCents, dueDate, status, supplierId } = body
+    const { description, valueInCents, dueDate, status, supplierId, costCenterId } = body
 
-    const account = await prisma.accountPayable.create({
-      data: {
-        description,
-        valueInCents,
-        dueDate: new Date(dueDate),
-        status: status || "PENDENTE",
-        supplierId: supplierId || null,
-      },
-    })
+    const account = await prisma.$transaction(async (tx) => {
+      const createdAccount = await tx.accountPayable.create({
+        data: {
+          description,
+          valueInCents,
+          dueDate: new Date(dueDate),
+          status: status || "PENDENTE",
+          supplierId: supplierId || null,
+          costCenterId: costCenterId || null,
+        },
+      })
 
-    await prisma.auditLog.create({
-      data: {
-        action: AUDIT_CREATE,
-        entity: "AccountPayable",
-        entityId: account.id,
-        newData: account as any,
-        userId: userId,
+      // Se nascer já PAGA, gera transação
+      if (createdAccount.status === "PAGA") {
+        await FinanceService.registerTransaction(tx, {
+          type: "SAIDA",
+          category: `Contas a Pagar`,
+          amountInCents: createdAccount.valueInCents,
+          paymentMethod: "TRANSFERENCIA", // default
+          description: `Pagamento da Conta: ${createdAccount.description}`,
+          date: new Date(),
+          costCenterId: createdAccount.costCenterId || undefined,
+          referenceId: createdAccount.supplierId || undefined,
+          referenceType: createdAccount.supplierId ? "supplier" : undefined,
+          userId: userId || undefined
+        })
       }
+
+      await AuditService.logAction(tx, AUDIT_CREATE, "AccountPayable", createdAccount.id, createdAccount, userId || null)
+
+      return createdAccount
     })
 
     return NextResponse.json(account, { status: 201 })
   } catch (error) {
+    console.error(error)
     return NextResponse.json({ error: "Erro ao criar conta" }, { status: 500 })
   }
 }

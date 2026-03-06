@@ -74,6 +74,7 @@ enum VehicleType {
   OUTRO
 }
 
+// Enums maintained for data integrity and backwards compatibility
 enum AuditAction {
   CREATE
   UPDATE
@@ -149,6 +150,24 @@ model User {
   loginLogs LoginLog[]
 
   @@map("users")
+}
+
+// COST CENTER (NEW)
+
+model CostCenter {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  maintenances          Maintenance[]
+  rhPayments            RHPayment[]
+  financialTransactions FinancialTransaction[]
+  vehicleUsages         VehicleUsage[]
+  accountsPayable       AccountPayable[]
+
+  @@map("cost_centers")
 }
 
 // AUDITORIA GLOBAL
@@ -255,7 +274,6 @@ model Employee {
   employmentRecords EmploymentRecord[]
   contracts         EmployeeContract[]
 
-
   // RH Relations
   rhPayments        RHPayment[]
   salaryHistories   SalaryHistory[]
@@ -268,11 +286,11 @@ model Employee {
 }
 
 model EmployeeAdvance {
-  id         String   @id @default(cuid())
-  employeeId String
-  amount     Decimal  @db.Decimal(10, 2)
-  date       DateTime
-  note       String?
+  id               String   @id @default(cuid())
+  employeeId       String
+  amountInCents    Int      @map("amount_in_cents")
+  date             DateTime
+  note             String?
   payrollReference String?
   transactionId    String? @unique
 
@@ -284,24 +302,24 @@ model EmployeeAdvance {
 }
 
 model EmploymentRecord {
-  id              String    @id @default(cuid())
-  employeeId      String
-  admissionDate   DateTime
-  terminationDate DateTime?
-  jobTitle        String
-  baseSalary      Decimal   @db.Decimal(10, 2)
-  contractType    String
-  weeklyWorkload  Int?
-  workRegime      String?
-  isActive        Boolean   @default(true)
+  id                    String    @id @default(cuid())
+  employeeId            String
+  admissionDate         DateTime
+  terminationDate       DateTime?
+  jobTitle              String
+  baseSalaryInCents     Int       @map("base_salary_in_cents")
+  contractType          String
+  weeklyWorkload        Int?
+  workRegime            String?
+  isActive              Boolean   @default(true)
   hasMedicalExam        Boolean   @default(false)
   hasSignedRegistration Boolean   @default(false)
   hasSignedEpiReceipt   Boolean   @default(false)
-  notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  employee        Employee  @relation(fields: [employeeId], references: [id])
+  employee              Employee  @relation(fields: [employeeId], references: [id])
 
   @@map("employment_records")
 }
@@ -343,6 +361,7 @@ model Service {
   transactions FinancialTransaction[]
   documents    Document[]
   vehicleUsage VehicleUsage[]
+  allocations  ProjectAllocation[]
 
   @@index([status])
   @@index([startDate])
@@ -362,11 +381,14 @@ model FinancialTransaction {
   serviceId     String?
   employeeId    String?
   supplierId    String?
+  costCenterId  String?
   createdAt     DateTime        @default(now())
 
-  service  Service?  @relation(fields: [serviceId], references: [id])
-  employee Employee? @relation(fields: [employeeId], references: [id])
-  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  service    Service?  @relation(fields: [serviceId], references: [id])
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+  costCenter CostCenter? @relation(fields: [costCenterId], references: [id])
+
   advance  EmployeeAdvance?
   maintenanceId String? @unique
   maintenance   Maintenance? @relation(fields: [maintenanceId], references: [id])
@@ -387,10 +409,12 @@ model AccountPayable {
   valueInCents Int           @map("value_in_cents")
   dueDate      DateTime
   status       AccountStatus
-  supplierId  String?
-  createdAt   DateTime      @default(now())
+  supplierId   String?
+  costCenterId String?
+  createdAt    DateTime      @default(now())
 
-  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+  costCenter CostCenter? @relation(fields: [costCenterId], references: [id])
 
   @@index([dueDate])
   @@index([status])
@@ -400,15 +424,15 @@ model AccountPayable {
 // DOCUMENTOS
 
 model Document {
-  id        String   @id @default(cuid())
-  name      String
-  category  String?
-  fileUrl   String
+  id          String   @id @default(cuid())
+  name        String
+  category    String?
+  fileUrl     String
   description String?
-  serviceId String?
-  clientId  String?
-  vehicleId String?
-  createdAt DateTime @default(now())
+  serviceId   String?
+  clientId    String?
+  vehicleId   String?
+  createdAt   DateTime @default(now())
 
   service Service? @relation(fields: [serviceId], references: [id])
   client  Client?  @relation(fields: [clientId], references: [id]) 
@@ -440,14 +464,16 @@ model Vehicle {
 }
 
 model VehicleUsage {
-  id        String  @id @default(cuid())
-  vehicleId String
-  serviceId String
-  cost      Decimal @db.Decimal(10, 2)
-  note      String?
+  id           String  @id @default(cuid())
+  vehicleId    String
+  serviceId    String
+  costCenterId String?
+  costInCents  Int     @map("cost_in_cents")
+  note         String?
 
-  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
-  service Service @relation(fields: [serviceId], references: [id])
+  vehicle    Vehicle @relation(fields: [vehicleId], references: [id])
+  service    Service @relation(fields: [serviceId], references: [id])
+  costCenter CostCenter? @relation(fields: [costCenterId], references: [id])
 
   @@index([vehicleId])
   @@index([serviceId])
@@ -499,7 +525,7 @@ model Maintenance {
   // Financial
   estimatedCost      Int     // in cents
   finalCost          Int?    // in cents
-  costCenter         String?
+  costCenterId       String?
   supplierId         String?
   invoiceNumber      String?
 
@@ -519,6 +545,7 @@ model Maintenance {
 
   vehicle            Vehicle @relation(fields: [vehicleId], references: [id])
   supplier           Supplier? @relation(fields: [supplierId], references: [id])
+  costCenter         CostCenter? @relation(fields: [costCenterId], references: [id])
   transaction        FinancialTransaction? // 1:1 reverse relation ideally, or 1:N
 
   @@map("maintenances")
@@ -527,48 +554,49 @@ model Maintenance {
 // RH — RECURSOS HUMANOS
 
 model RHPayment {
-  id                  String          @id @default(cuid())
-  employeeId          String
-  competencia         String          // "YYYY-MM" format
-  tipoPagamento       RHPaymentType
-  salarioBase         Decimal         @db.Decimal(10, 2)
-  adicionais          Decimal         @default(0) @db.Decimal(10, 2)
-  horasExtras         Decimal         @default(0) @db.Decimal(4, 2)
-  valorHorasExtras    Decimal         @default(0) @db.Decimal(10, 2)
-  descontos           Decimal         @default(0) @db.Decimal(10, 2)
-  valorAdiantamentos  Decimal         @default(0) @db.Decimal(10, 2)
-  totalBruto          Decimal         @db.Decimal(10, 2)
-  totalLiquido        Decimal         @db.Decimal(10, 2)
-  status              RHPaymentStatus @default(PENDENTE)
-  dataPagamento       DateTime?
-  formaPagamento      PaymentMethod?
-  centroCusto         String?
-  observacoes         String?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  id                    String          @id @default(cuid())
+  employeeId            String
+  competenceMonth       String          // "YYYY-MM" format
+  paymentType           RHPaymentType   
+  baseSalaryInCents     Int             
+  additionsInCents      Int             @default(0) 
+  overtimeHours         Decimal         @default(0) @db.Decimal(4, 2) 
+  overtimeValueInCents  Int             @default(0) 
+  discountsInCents      Int             @default(0) 
+  advancesValueInCents  Int             @default(0) 
+  grossTotalInCents     Int             
+  netTotalInCents       Int             
+  status                RHPaymentStatus @default(PENDENTE)
+  paymentDate           DateTime?       
+  paymentMethod         PaymentMethod?  
+  costCenterId          String?
+  notes                 String?         
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
-  employee            Employee        @relation(fields: [employeeId], references: [id])
-  transaction         FinancialTransaction?
-  encargos            EmployerContribution?
-  rateios             ProjectAllocation[]
+  employee              Employee        @relation(fields: [employeeId], references: [id])
+  transaction           FinancialTransaction?
+  taxes                 EmployerContribution?
+  allocations           ProjectAllocation[]
+  costCenter            CostCenter?     @relation(fields: [costCenterId], references: [id])
 
   @@index([employeeId])
-  @@index([competencia])
+  @@index([competenceMonth])
   @@index([status])
   @@map("rh_payments")
 }
 
 model SalaryHistory {
-  id                String   @id @default(cuid())
-  employeeId        String
-  salarioAnterior   Decimal  @db.Decimal(10, 2)
-  novoSalario       Decimal  @db.Decimal(10, 2)
-  percentualAumento Decimal  @db.Decimal(5, 2)
-  motivo            String?
-  dataVigencia      DateTime
-  createdAt         DateTime @default(now())
+  id                    String   @id @default(cuid())
+  employeeId            String
+  previousSalaryInCents Int  
+  newSalaryInCents      Int  
+  increasePercentage    Decimal  @db.Decimal(5, 2) 
+  reason                String?  
+  effectiveDate         DateTime 
+  createdAt             DateTime @default(now())
 
-  employee          Employee @relation(fields: [employeeId], references: [id])
+  employee              Employee @relation(fields: [employeeId], references: [id])
 
   @@index([employeeId])
   @@map("salary_histories")
@@ -577,14 +605,14 @@ model SalaryHistory {
 model Vacation {
   id                     String        @id @default(cuid())
   employeeId             String
-  periodoAquisitivoInicio DateTime
-  periodoAquisitivoFim   DateTime
-  diasDireito            Int           @default(30)
-  diasUtilizados         Int           @default(0)
-  dataInicio             DateTime?
-  dataFim                DateTime?
-  valorFerias            Decimal?      @db.Decimal(10, 2)
-  adicionalUmTerco       Decimal?      @db.Decimal(10, 2)
+  vestingPeriodStart     DateTime      
+  vestingPeriodEnd       DateTime      
+  entitledDays           Int           @default(30) 
+  usedDays               Int           @default(0) 
+  startDate              DateTime?     
+  endDate                DateTime?     
+  vacationAmountInCents  Int?          
+  oneThirdBonusInCents   Int?          
   status                 VacationStatus @default(PREVISTA)
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
@@ -596,22 +624,22 @@ model Vacation {
 }
 
 model ThirteenthSalary {
-  id              String           @id @default(cuid())
-  employeeId      String
-  anoReferencia   Int
-  mesesTrabalhados Int
-  valorTotal      Decimal          @db.Decimal(10, 2)
-  primeiraParcela Decimal?         @db.Decimal(10, 2)
-  segundaParcela  Decimal?         @db.Decimal(10, 2)
-  primeiraPaga    Boolean          @default(false)
-  segundaPaga     Boolean          @default(false)
-  status          ThirteenthStatus @default(PENDENTE)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                       String           @id @default(cuid())
+  employeeId               String
+  referenceYear            Int              
+  workedMonths             Int              
+  totalAmountInCents       Int              
+  firstInstallmentInCents  Int?             
+  secondInstallmentInCents Int?             
+  firstInstallmentPaid     Boolean          @default(false) 
+  secondInstallmentPaid    Boolean          @default(false) 
+  status                   ThirteenthStatus @default(PENDENTE)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
 
-  employee        Employee         @relation(fields: [employeeId], references: [id])
+  employee                 Employee         @relation(fields: [employeeId], references: [id])
 
-  @@unique([employeeId, anoReferencia])
+  @@unique([employeeId, referenceYear])
   @@index([employeeId])
   @@map("thirteenth_salaries")
 }
@@ -619,9 +647,9 @@ model ThirteenthSalary {
 model TimeBank {
   id           String   @id @default(cuid())
   employeeId   String   @unique
-  saldoHoras   Decimal  @default(0) @db.Decimal(6, 2)
-  horasCredito Decimal  @default(0) @db.Decimal(6, 2)
-  horasDebito  Decimal  @default(0) @db.Decimal(6, 2)
+  balanceHours Decimal  @default(0) @db.Decimal(6, 2) 
+  creditHours  Decimal  @default(0) @db.Decimal(6, 2) 
+  debitHours   Decimal  @default(0) @db.Decimal(6, 2) 
   updatedAt    DateTime @updatedAt
 
   employee     Employee @relation(fields: [employeeId], references: [id])
@@ -632,48 +660,49 @@ model TimeBank {
 model AttendanceRecord {
   id              String         @id @default(cuid())
   employeeId      String
-  data            DateTime       @db.Date
-  tipo            AttendanceType
-  horasTrabalhadas Decimal?      @db.Decimal(4, 2)
-  horasExtras     Decimal?       @db.Decimal(4, 2)
-  bancoHorasImpacto Decimal?     @db.Decimal(4, 2)
-  observacao      String?
+  date            DateTime       @db.Date 
+  type            AttendanceType 
+  workedHours     Decimal?       @db.Decimal(4, 2) 
+  overtimeHours   Decimal?       @db.Decimal(4, 2) 
+  timeBankImpact  Decimal?       @db.Decimal(4, 2) 
+  notes           String?        
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
   employee        Employee       @relation(fields: [employeeId], references: [id])
 
-  @@unique([employeeId, data])
+  @@unique([employeeId, date])
   @@index([employeeId])
-  @@index([data])
+  @@index([date])
   @@map("attendance_records")
 }
 
 model EmployerContribution {
-  id                  String    @id @default(cuid())
-  pagamentoId         String    @unique
-  inssEmpresa         Decimal   @default(0) @db.Decimal(10, 2)
-  fgts                Decimal   @default(0) @db.Decimal(10, 2)
-  outrosEncargos      Decimal   @default(0) @db.Decimal(10, 2)
-  totalEncargosEmpresa Decimal  @db.Decimal(10, 2)
-  transactionId       String?   @unique
-  createdAt           DateTime  @default(now())
+  id                       String    @id @default(cuid())
+  paymentId                String    @unique 
+  companyInssInCents       Int       @default(0) 
+  fgtsInCents              Int       @default(0) 
+  otherTaxesInCents        Int       @default(0) 
+  totalCompanyTaxesInCents Int       
+  transactionId            String?   @unique
+  createdAt                DateTime  @default(now())
 
-  pagamento           RHPayment @relation(fields: [pagamentoId], references: [id], onDelete: Cascade)
+  payment                  RHPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@map("employer_contributions")
 }
 
 model ProjectAllocation {
-  id              String    @id @default(cuid())
-  pagamentoId     String
-  projetoId       String
-  percentualRateio Decimal  @db.Decimal(5, 2)
-  valorRateado    Decimal   @db.Decimal(10, 2)
-  createdAt       DateTime  @default(now())
+  id                     String    @id @default(cuid())
+  paymentId              String    
+  serviceId              String    
+  allocationPercentage   Decimal   @db.Decimal(5, 2) 
+  allocatedAmountInCents Int     
+  createdAt              DateTime  @default(now())
 
-  pagamento       RHPayment @relation(fields: [pagamentoId], references: [id], onDelete: Cascade)
+  payment                RHPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  service                Service   @relation(fields: [serviceId], references: [id])
 
-  @@index([pagamentoId])
+  @@index([paymentId])
   @@map("project_allocations")
 }

@@ -1,26 +1,28 @@
+import { Prisma, RHPaymentStatus } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
-import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
+import { AuditService } from "@/src/modules/audit/services/AuditService"
+import { FinanceService } from "@/src/modules/finance/services/FinanceService"
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const employeeId = searchParams.get("employeeId")
-    const status = searchParams.get("status")
-    const competencia = searchParams.get("competencia")
+    const status = searchParams.get("status") as RHPaymentStatus | null
+    const competenceMonth = searchParams.get("competencia") || searchParams.get("competenceMonth")
 
-    const where: Record<string, unknown> = {}
+    const where: Prisma.RHPaymentWhereInput = {}
     if (employeeId) where.employeeId = employeeId
     if (status) where.status = status
-    if (competencia) where.competencia = competencia
+    if (competenceMonth) where.competenceMonth = competenceMonth
 
     const payments = await prisma.rHPayment.findMany({
       where,
-      orderBy: [{ competencia: "desc" }, { createdAt: "desc" }],
+      orderBy: [{ competenceMonth: "desc" }, { createdAt: "desc" }],
       include: {
         employee: { select: { id: true, name: true, role: true } },
-        encargos: true,
+        taxes: true,
       },
     })
 
@@ -39,59 +41,72 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const {
-      employeeId,
-      competencia,
-      tipoPagamento,
-      salarioBase,
-      adicionais = 0,
-      horasExtras = 0,
-      valorHorasExtras = 0,
-      descontos = 0,
-      valorAdiantamentos = 0,
-      status = "PENDENTE",
-      dataPagamento,
-      formaPagamento,
-      centroCusto,
-      observacoes,
-    } = body
+    // Support both old PT payload and new EN payload to avoid immediate breakage
+    const competenceMonth = body.competenceMonth || body.competencia
+    const paymentType = body.paymentType || body.tipoPagamento
+    const baseSalaryInCents = body.baseSalaryInCents ?? (body.salarioBase ? Number(body.salarioBase) * 100 : 0)
+    const additionsInCents = body.additionsInCents ?? (body.adicionais ? Number(body.adicionais) * 100 : 0)
+    const overtimeHours = body.overtimeHours || body.horasExtras || 0
+    const overtimeValueInCents = body.overtimeValueInCents ?? (body.valorHorasExtras ? Number(body.valorHorasExtras) * 100 : 0)
+    const discountsInCents = body.discountsInCents ?? (body.descontos ? Number(body.descontos) * 100 : 0)
+    const advancesValueInCents = body.advancesValueInCents ?? (body.valorAdiantamentos ? Number(body.valorAdiantamentos) * 100 : 0)
+    
+    const grossTotalInCents = baseSalaryInCents + additionsInCents + overtimeValueInCents
+    const netTotalInCents = grossTotalInCents - discountsInCents - advancesValueInCents
+    
+    const status = body.status || "PENDENTE"
+    const paymentDate = body.paymentDate || body.dataPagamento || null
+    const paymentMethod = body.paymentMethod || body.formaPagamento || null
+    const notes = body.notes || body.observacoes || null
+    const costCenterId = body.costCenterId || null // Frontend must eventually send costCenterId
 
-    const totalBruto = Number(salarioBase) + Number(adicionais) + Number(valorHorasExtras)
-    const totalLiquido = totalBruto - Number(descontos) - Number(valorAdiantamentos)
+    const result = await prisma.$transaction(async (tx) => {
+      const payment = await tx.rHPayment.create({
+        data: {
+          employeeId: body.employeeId,
+          competenceMonth,
+          paymentType,
+          baseSalaryInCents,
+          additionsInCents,
+          overtimeHours,
+          overtimeValueInCents,
+          discountsInCents,
+          advancesValueInCents,
+          grossTotalInCents,
+          netTotalInCents,
+          status,
+          paymentDate: paymentDate ? new Date(paymentDate) : null,
+          paymentMethod,
+          costCenterId,
+          notes,
+        },
+        include: {
+          employee: { select: { id: true, name: true, role: true } },
+        },
+      })
 
-    const payment = await prisma.rHPayment.create({
-      data: {
-        employeeId,
-        competencia,
-        tipoPagamento,
-        salarioBase,
-        adicionais,
-        horasExtras,
-        valorHorasExtras,
-        descontos,
-        valorAdiantamentos,
-        totalBruto,
-        totalLiquido,
-        status,
-        dataPagamento: dataPagamento ? new Date(dataPagamento) : null,
-        formaPagamento: formaPagamento || null,
-        centroCusto: centroCusto || null,
-        observacoes: observacoes || null,
-      },
-      include: {
-        employee: { select: { id: true, name: true, role: true } },
-      },
+      // Se for pago ou tiver data de pagamento, registrar a transação financeira
+      if (status === "PAGO" || paymentDate) {
+        await FinanceService.registerTransaction(tx, {
+          type: "SAIDA",
+          category: `Pagamento RH - ${competenceMonth}`,
+          amountInCents: netTotalInCents,
+          paymentMethod: paymentMethod || "TRANSFERENCIA",
+          description: `Pagamento de ${paymentType} para funcionário`,
+          date: paymentDate ? new Date(paymentDate) : new Date(),
+          referenceId: payment.id,
+          referenceType: "rhPayment",
+          costCenterId,
+          userId
+        })
+      }
+
+      await AuditService.logAction(tx, "CREATE", "RHPayment", payment.id, payment, userId)
+
+      return payment
     })
 
-    await createAuditLog({
-      action: "CREATE",
-      entity: "RHPayment",
-      entityId: payment.id,
-      newData: payment,
-      userId,
-    })
-
-    return NextResponse.json(payment, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: "Erro ao criar pagamento" }, { status: 500 })

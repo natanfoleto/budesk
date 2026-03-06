@@ -1,8 +1,11 @@
 import { AttendanceType, Prisma } from "@prisma/client"
+import { AuditAction } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
-import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
+import { AuditService } from "@/src/modules/audit/services/AuditService"
+import { TimeBankService } from "@/src/modules/rh/services/TimeBankService"
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +22,7 @@ export async function GET(request: NextRequest) {
       const start = new Date(year, m, 1)
       const end = new Date(year, m + 1, 0, 23, 59, 59)
       
-      where.data = {
+      where.date = {
         gte: start,
         lte: end,
       }
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     const records = await prisma.attendanceRecord.findMany({
       where,
-      orderBy: { data: "desc" },
+      orderBy: { date: "desc" },
       include: {
         employee: { select: { id: true, name: true } },
       },
@@ -48,46 +51,53 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { employeeId, data, tipo, horasTrabalhadas, horasExtras, observacao } = body
+    // Mapping both Old and New payloads seamlessly 
+    const employeeId = body.employeeId
+    const dateStr = body.date || body.data
+    const tipo = body.type || body.tipo
+    const horasTrabalhadas = body.workedHours || body.horasTrabalhadas
+    const horasExtras = body.overtimeHours || body.horasExtras
+    const timeBankImpact = body.timeBankImpact || body.bancoHorasImpacto || (horasExtras ? Number(horasExtras) : null)
+    const observacao = body.notes || body.observacao
 
-    // Check for existing record on the exact same date
-    const dateObj = new Date(data)
+    const dateObj = new Date(dateStr)
     
-    // Create UTC date matching the local date string to store in DB as pure Date 
-    // We use standard JS date, Prisma maps it to Postgre Date
-    const record = await prisma.attendanceRecord.upsert({
-      where: {
-        employeeId_data: {
+    const result = await prisma.$transaction(async (tx) => {
+      const record = await tx.attendanceRecord.upsert({
+        where: {
+          employeeId_date: {
+            employeeId,
+            date: dateObj,
+          }
+        },
+        update: {
+          type: tipo as AttendanceType,
+          workedHours: horasTrabalhadas ? Number(horasTrabalhadas) : null,
+          overtimeHours: horasExtras ? Number(horasExtras) : null,
+          timeBankImpact: timeBankImpact !== null ? Number(timeBankImpact) : null,
+          notes: observacao || null,
+        },
+        create: {
           employeeId,
-          data: dateObj,
-        }
-      },
-      update: {
-        tipo: tipo as AttendanceType,
-        horasTrabalhadas: horasTrabalhadas ? Number(horasTrabalhadas) : null,
-        horasExtras: horasExtras ? Number(horasExtras) : null,
-        observacao: observacao || null,
-      },
-      create: {
-        employeeId,
-        data: dateObj,
-        tipo: tipo as AttendanceType,
-        horasTrabalhadas: horasTrabalhadas ? Number(horasTrabalhadas) : null,
-        horasExtras: horasExtras ? Number(horasExtras) : null,
-        observacao: observacao || null,
-      },
-      include: { employee: { select: { name: true } } },
+          date: dateObj,
+          type: tipo as AttendanceType,
+          workedHours: horasTrabalhadas ? Number(horasTrabalhadas) : null,
+          overtimeHours: horasExtras ? Number(horasExtras) : null,
+          timeBankImpact: timeBankImpact !== null ? Number(timeBankImpact) : null,
+          notes: observacao || null,
+        },
+        include: { employee: { select: { name: true } } },
+      })
+
+      // Garantir sincronização do Banco de Horas
+      await TimeBankService.syncTimeBank(tx, employeeId)
+
+      await AuditService.logAction(tx, AuditAction.UPDATE, "AttendanceRecord", record.id, record, userId)
+
+      return record
     })
 
-    await createAuditLog({
-      action: "CREATE", // logic: treated as create/update audit
-      entity: "AttendanceRecord",
-      entityId: record.id,
-      newData: record,
-      userId,
-    })
-
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: "Erro ao criar/atualizar registro de frequência" }, { status: 500 })

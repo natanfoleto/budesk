@@ -2,8 +2,10 @@ import { AuditAction, Prisma } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { maintenanceSchema } from "@/components/fleet/maintenance-schema"
-import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
+import { AuditService } from "@/src/modules/audit/services/AuditService"
+import { FinanceService } from "@/src/modules/finance/services/FinanceService"
+
 
 export async function PUT(
   request: NextRequest,
@@ -52,7 +54,6 @@ export async function PUT(
     const isRollingBack = status !== "REALIZADA" && existingMaintenance.status === "REALIZADA"
 
     // Prepare Update Data
-    // Prepare Update Data
     const updateData: Prisma.MaintenanceUncheckedUpdateInput = {
       type, category, description, priority,
       scheduledDate: new Date(scheduledDate),
@@ -62,7 +63,7 @@ export async function PUT(
       isPaid,
       estimatedCost,
       finalCost,
-      costCenter,
+      costCenterId: costCenter || undefined, // Mapped to new field
       supplierId,
       invoiceNumber,
       status, 
@@ -72,17 +73,10 @@ export async function PUT(
       downtimeDays,
       completedDate: completedDate ? new Date(completedDate) : null,
       currentKm,
-      // paymentMethod is not directly on Maintenance, it's for the transaction. 
-      // We should extract it before creating the update object if it's not part of Maintenance model.
-      // However, if we want to keep it here for now, we might need to cast or omit it.
-      // Looking at the original code, 'paymentMethod' was in the object but commented "Although not in schema".
-      // Prisma.MaintenanceUpdateInput will fail if paymentMethod is not in the schema.
-      // I will remove paymentMethod from this object since it is used later for transaction logic anyway.
     }
 
     if (isCompleting) {
       if (!updateData.completedDate) updateData.completedDate = new Date()
-      // If finalCost is not provided, use estimatedCost
       if (updateData.finalCost === null || updateData.finalCost === undefined) {
         updateData.finalCost = updateData.estimatedCost
       }
@@ -93,114 +87,102 @@ export async function PUT(
       updateData.finalCost = null
     }
 
-    // Execute Update
-    const maintenance = await prisma.maintenance.update({
-      where: { id: maintenanceId },
-      data: updateData,
-      include: {
-        vehicle: true
-      }
-    })
+    const result = await prisma.$transaction(async (tx) => {
+      // Execute Update
+      const maintenance = await tx.maintenance.update({
+        where: { id: maintenanceId },
+        data: updateData,
+        include: {
+          vehicle: true
+        }
+      })
 
-    // --- Business Logic: Financials ---
-    
-    // 1. Handle isPaid / Transaction Control
-    const shouldHaveTransaction = isPaid && estimatedCost > 0
-    
-    if (shouldHaveTransaction) {
-      // Upsert transaction
-      const transactionData = {
-        description: `Manutenção - ${maintenance.vehicle.plate} - ${maintenance.category}`,
-        type: "SAIDA" as const,
-        category: "Manutenção de Veículos",
-        valueInCents: estimatedCost,
-        paymentMethod: paymentMethod || "TRANSFERENCIA",
-        date: new Date(),
-        supplierId: maintenance.supplierId
-      }
-
-      if (existingMaintenance.transaction) {
-        // Update existing
-        await prisma.financialTransaction.update({
-          where: { id: existingMaintenance.transaction.id },
-          data: transactionData
-        })
-      } else {
-        // Create new
-        await prisma.financialTransaction.create({
-          data: {
-            ...transactionData,
-            maintenanceId: maintenance.id
-          }
-        })
-      }
-    } else {
-      // If shouldn't have transaction but has one, delete it
-      if (existingMaintenance.transaction) {
-        await prisma.financialTransaction.delete({
-          where: { id: existingMaintenance.transaction.id }
-        })
-      }
-    }
-    
-    // --- Business Logic: Recurrence ---
-    
-    if (isCompleting && maintenance.isRecurrent) {
-      // Calculation for next date/km
-      let nextDate = null
-      let newScheduledDate: Date | null = null
-
-      if (maintenance.intervalDays) {
-        const baseDate = maintenance.completedDate || new Date()
-        nextDate = new Date(baseDate)
-        nextDate.setDate(nextDate.getDate() + maintenance.intervalDays)
-        newScheduledDate = nextDate
-      }
-
-      // If we have intervalDays, we have a date.
-      // If we only have intervalKm, we might not have a date... 
-      // Requirement usually mandates a date. Let's force a date if missing (e.g. 6 months) or keep null if schema allows?
-      // Schema says scheduledDate is Date (not null). So we MUST have a date.
+      // --- Business Logic: Financials ---
+      const shouldHaveTransaction = isPaid && estimatedCost > 0
       
-      if (!newScheduledDate) {
-        // Fallback if only KM is set: estimate based on average usage? 
-        // For now, let's default to 6 months if only KM is provided to avoid error
-        const today = new Date()
-        newScheduledDate = new Date(today.setMonth(today.getMonth() + 6))
+      if (shouldHaveTransaction) {
+        // Upsert transaction logic is centralized via FinanceService, but FinanceService creates it.
+        // If we update, we either replace or update. Using the existing relation is safer.
+        const transactionData = {
+          description: `Manutenção - ${maintenance.vehicle.plate} - ${maintenance.category}`,
+          type: "SAIDA" as const,
+          category: "Manutenção de Veículos",
+          valueInCents: estimatedCost,
+          paymentMethod: paymentMethod || "TRANSFERENCIA",
+          date: new Date(),
+          supplierId: maintenance.supplierId,
+          costCenterId: maintenance.costCenterId
+        }
+
+        if (existingMaintenance.transaction) {
+          // Update existing directly for simplicity on upserts
+          await tx.financialTransaction.update({
+            where: { id: existingMaintenance.transaction.id },
+            data: transactionData
+          })
+        } else {
+          // Create new via Service
+          await FinanceService.registerTransaction(tx, {
+            ...transactionData,
+            amountInCents: transactionData.valueInCents,
+            referenceId: maintenance.id,
+            referenceType: "maintenance",
+            userId
+          })
+        }
+      } else {
+        // If shouldn't have transaction but has one, delete it
+        if (existingMaintenance.transaction) {
+          await tx.financialTransaction.delete({
+            where: { id: existingMaintenance.transaction.id }
+          })
+        }
+      }
+      
+      // --- Business Logic: Recurrence ---
+      if (isCompleting && maintenance.isRecurrent) {
+        let nextDate = null
+        let newScheduledDate: Date | null = null
+
+        if (maintenance.intervalDays) {
+          const baseDate = maintenance.completedDate || new Date()
+          nextDate = new Date(baseDate)
+          nextDate.setDate(nextDate.getDate() + maintenance.intervalDays)
+          newScheduledDate = nextDate
+        }
+
+        if (!newScheduledDate) {
+          const today = new Date()
+          newScheduledDate = new Date(today.setMonth(today.getMonth() + 6))
+        }
+
+        if (maintenance.isRecurrent) {
+          await tx.maintenance.create({
+            data: {
+              vehicleId: id,
+              type: maintenance.type,
+              category: maintenance.category,
+              description: maintenance.description,
+              priority: maintenance.priority,
+              estimatedCost: maintenance.estimatedCost,
+              costCenterId: maintenance.costCenterId, // New mapped field
+              supplierId: maintenance.supplierId,
+              isRecurrent: true,
+              intervalDays: maintenance.intervalDays,
+              intervalKm: maintenance.intervalKm,
+              scheduledDate: newScheduledDate,
+              status: "PENDENTE"
+            }
+          })
+        }
       }
 
-      if (maintenance.isRecurrent) {
-        await prisma.maintenance.create({
-          data: {
-            vehicleId: id,
-            type: maintenance.type,
-            category: maintenance.category,
-            description: maintenance.description,
-            priority: maintenance.priority,
-            estimatedCost: maintenance.estimatedCost,
-            costCenter: maintenance.costCenter,
-            supplierId: maintenance.supplierId,
-            isRecurrent: true,
-            intervalDays: maintenance.intervalDays,
-            intervalKm: maintenance.intervalKm,
-            scheduledDate: newScheduledDate,
-            status: "PENDENTE"
-          }
-        })
-      }
-    }
-
-    // Audit
-    await createAuditLog({
-      action: AuditAction.UPDATE,
-      entity: "Maintenance",
-      entityId: maintenance.id,
-      oldData: existingMaintenance,
-      newData: maintenance,
-      userId: userId,
+      await AuditService.logAction(tx, AuditAction.UPDATE, "Maintenance", maintenance.id, maintenance, userId, existingMaintenance)
+      
+      return maintenance
     })
 
-    return NextResponse.json(maintenance)
+    return NextResponse.json(result)
   } catch (error) {
     console.error("Error updating maintenance:", error)
     return NextResponse.json({ error: "Erro ao atualizar manutenção" }, { status: 500 })
@@ -227,19 +209,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Manutenção não encontrada" }, { status: 404 })
     }
 
-    // Soft delete
-    await prisma.maintenance.update({
-      where: { id: maintenanceId },
-      data: { active: false }
-    })
-    
-    // Audit
-    await createAuditLog({
-      action: AuditAction.DELETE,
-      entity: "Maintenance",
-      entityId: maintenanceId,
-      oldData: existingMaintenance,
-      userId: userId,
+    await prisma.$transaction(async (tx) => {
+      // Soft delete
+      const maintenance = await tx.maintenance.update({
+        where: { id: maintenanceId },
+        data: { active: false }
+      })
+      
+      // If there's a payment/transaction, we might need to rollback.
+      // Easiest is to just log deletion.
+      await AuditService.logAction(tx, AuditAction.DELETE, "Maintenance", maintenanceId, null, userId, existingMaintenance)
+      
+      return maintenance
     })
 
     return NextResponse.json({ success: true })
