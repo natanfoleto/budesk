@@ -7,6 +7,7 @@ import {
   FileText,
   LayoutDashboard, 
   Receipt, 
+  Tractor,
   Truck,
   Users,
 } from "lucide-react"
@@ -51,6 +52,18 @@ const menuItems = [
       { title: "13º Salário", href: "/rh/thirteenth" },
       { title: "Frequência", href: "/rh/attendance" },
       { title: "Relatórios", href: "/rh/reports" },
+    ],
+  },
+  {
+    title: "Plantio Manual",
+    icon: Tractor,
+    children: [
+      { title: "Dashboard", href: "/planting/dashboard" },
+      { title: "Apontamentos", href: "/planting/appointments" },
+      { title: "Gastos Operacionais", href: "/planting/expenses" },
+      { title: "Safras e Frentes", href: "/planting/seasons" },
+      { title: "Parâmetros Gerais", href: "/planting/parameters" },
+      { title: "Fechamento", href: "/planting/closing" },
     ],
   },
   {

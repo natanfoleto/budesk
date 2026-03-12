@@ -131,6 +131,13 @@ enum AttendanceType {
   FALTA
   FALTA_JUSTIFICADA
   ATESTADO
+  DECLARACAO
+  AFASTAMENTO
+}
+
+enum PlantingProductionType {
+  PLANTIO
+  CORTE
 }
 
 // USUÁRIOS
@@ -282,6 +289,11 @@ model Employee {
   timeBank          TimeBank?
   attendanceRecords AttendanceRecord[]
 
+  // Plantio Relations
+  plantingProductions PlantingProduction[]
+  dailyWages          DailyWage[]
+  driverAllocations   DriverAllocation[]
+
   @@map("employees")
 }
 
@@ -394,6 +406,8 @@ model FinancialTransaction {
   maintenance   Maintenance? @relation(fields: [maintenanceId], references: [id])
   rhPaymentId   String?  @unique
   rhPayment     RHPayment? @relation(fields: [rhPaymentId], references: [id])
+  
+  plantingExpense PlantingExpense?
 
   @@index([type])
   @@index([date])
@@ -458,6 +472,7 @@ model Vehicle {
   usages VehicleUsage[]
   documents Document[]
   maintenances Maintenance[]
+  plantingExpenses PlantingExpense[]
 
   @@unique([plate])
   @@map("vehicles")
@@ -705,4 +720,189 @@ model ProjectAllocation {
 
   @@index([paymentId])
   @@map("project_allocations")
+}
+
+// MÓDULO PLANTIO MANUAL
+
+model PlantingSeason {
+  id          String   @id @default(cuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime?
+  totalArea   Decimal?  @db.Decimal(10, 2)
+  notes       String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workFronts  WorkFront[]
+  plantingProductions PlantingProduction[]
+  dailyWages DailyWage[]
+  driverAllocations DriverAllocation[]
+  plantingAreas PlantingArea[]
+  plantingExpenses PlantingExpense[]
+
+  @@map("planting_seasons")
+}
+
+model WorkFront {
+  id          String   @id @default(cuid())
+  seasonId    String
+  name        String
+  description String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  season      PlantingSeason @relation(fields: [seasonId], references: [id])
+  plantingProductions PlantingProduction[]
+  dailyWages DailyWage[]
+  driverAllocations DriverAllocation[]
+  plantingAreas PlantingArea[]
+  plantingExpenses PlantingExpense[]
+
+  @@map("work_fronts")
+}
+
+model PlantingProduction {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  employeeId  String
+  frontId     String
+  seasonId    String
+  type        PlantingProductionType
+  meters      Decimal?  @db.Decimal(10, 2)
+  meterValueInCents Int
+  totalValueInCents Int
+  presence    AttendanceType @default(PRESENCA)
+  notes       String?
+  isClosed    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  front       WorkFront @relation(fields: [frontId], references: [id])
+  season      PlantingSeason @relation(fields: [seasonId], references: [id])
+
+  @@index([date])
+  @@index([employeeId])
+  @@index([frontId])
+  @@map("planting_productions")
+}
+
+model DailyWage {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  employeeId  String
+  frontId     String
+  seasonId    String
+  valueInCents Int
+  presence    AttendanceType @default(PRESENCA)
+  notes       String?
+  isClosed    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  front       WorkFront @relation(fields: [frontId], references: [id])
+  season      PlantingSeason @relation(fields: [seasonId], references: [id])
+
+  @@index([date])
+  @@index([employeeId])
+  @@index([frontId])
+  @@map("daily_wages")
+}
+
+model DriverCategory {
+  id          String   @id @default(cuid())
+  name        String
+  defaultDailyValueInCents Int
+  notes       String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  allocations DriverAllocation[]
+
+  @@map("driver_categories")
+}
+
+model DriverAllocation {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  employeeId  String
+  categoryId  String
+  frontId     String
+  seasonId    String
+  valueInCents Int      // Copied from category at creation time
+  notes       String?
+  isClosed    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  category    DriverCategory @relation(fields: [categoryId], references: [id])
+  front       WorkFront @relation(fields: [frontId], references: [id])
+  season      PlantingSeason @relation(fields: [seasonId], references: [id])
+
+  @@index([date])
+  @@index([employeeId])
+  @@map("driver_allocations")
+}
+
+model PlantingArea {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  frontId     String
+  seasonId    String
+  workedArea  Decimal  @db.Decimal(10, 2)
+  hectares    Decimal  @db.Decimal(10, 2)
+  notes       String?
+  isClosed    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  front       WorkFront @relation(fields: [frontId], references: [id])
+  season      PlantingSeason @relation(fields: [seasonId], references: [id])
+
+  @@index([date])
+  @@index([frontId])
+  @@map("planting_areas")
+}
+
+model PlantingExpense {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  frontId     String
+  seasonId    String
+  category    String   // e.g. Diesel, Manutenção, Refeição, etc
+  description String
+  quantity    Decimal?  @db.Decimal(10, 2)
+  unitValueInCents Int?
+  totalValueInCents Int
+  vehicleId   String?
+  transactionId String? @unique
+  notes       String?
+  isClosed    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  front       WorkFront @relation(fields: [frontId], references: [id])
+  season      PlantingSeason @relation(fields: [seasonId], references: [id])
+  vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
+  transaction FinancialTransaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([date])
+  @@index([category])
+  @@map("planting_expenses")
+}
+
+model PlantingParameter {
+  id          String   @id @default(cuid())
+  key         String   @unique // e.g. "valor_metro_plantio", "preco_diesel", "valor_metro_corte"
+  value       String   // String to handle decimal or simple values
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("planting_parameters")
 }
