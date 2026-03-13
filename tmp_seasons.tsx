@@ -68,14 +68,14 @@ export default function PlantingSeasonsPage() {
 
   // Forms setups
   const seasonForm = useForm<SeasonFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(seasonSchema) as any,
+    // @ts-expect-error - version mismatch between RHF and Zod resolver
+    resolver: zodResolver(seasonSchema),
     defaultValues: { name: "", startDate: "", endDate: "", notes: "", active: true },
   })
 
   const frontForm = useForm<FrontFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(frontSchema) as any,
+    // @ts-expect-error - version mismatch between RHF and Zod resolver
+    resolver: zodResolver(frontSchema),
     defaultValues: { name: "", description: "", active: true },
   })
 
@@ -162,6 +162,7 @@ export default function PlantingSeasonsPage() {
               </DialogTrigger>
               <DialogContent>
                 <Form {...seasonForm}>
+                  {/* @ts-expect-error - version mismatch between RHF and Zod resolver */}
                   <form onSubmit={seasonForm.handleSubmit(onSaveSeason)}>
                     <DialogHeader>
                       <DialogTitle>{seasonForm.watch("id") ? "Editar Safra" : "Nova Safra"}</DialogTitle>
@@ -262,8 +263,16 @@ export default function PlantingSeasonsPage() {
                 {seasons?.map((season) => (
                   <li key={season.id}>
                     <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedSeasonId(season.id)}
-                      className={`cursor-pointer flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/50 ${selectedSeasonId === season.id ? "bg-muted font-medium" : ""}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          setSelectedSeasonId(season.id)
+                        }
+                      }}
+                      className={`flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/50 ${selectedSeasonId === season.id ? "bg-muted font-medium" : ""}`}
                     >
                       <div>
                         <div className="flex items-center gap-2">
@@ -308,6 +317,7 @@ export default function PlantingSeasonsPage() {
                 </DialogTrigger>
                 <DialogContent>
                   <Form {...frontForm}>
+                    {/* @ts-expect-error - version mismatch between RHF and Zod resolver */}
                     <form onSubmit={frontForm.handleSubmit(onSaveFront)}>
                       <DialogHeader>
                         <DialogTitle>Nova Frente de Trabalho</DialogTitle>

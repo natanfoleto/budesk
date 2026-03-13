@@ -1,12 +1,12 @@
 "use client"
 
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { Plus, Trash } from "lucide-react"
-import { useEffect,useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription,CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -25,6 +25,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useCreateDriverAllocation, useDriverCategories } from "@/hooks/use-planting"
+import { formatCurrency } from "@/lib/utils"
 
 interface DriverTabProps {
   seasonId: string
@@ -49,7 +51,7 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("")
   const [dailyValue, setDailyValue] = useState<number>(0)
 
-  // Fetch employees
+  // Fetch all active employees
   const { data: employees } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
@@ -59,15 +61,8 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
     }
   })
 
-  // Fetch driver categories
-  const { data: categories } = useQuery({
-    queryKey: ["driverCategories"],
-    queryFn: async () => {
-      const res = await fetch("/api/planting/driver-categories")
-      if (!res.ok) return []
-      return res.json()
-    }
-  })
+  // Fetch driver categories via shared hook
+  const { data: categories } = useDriverCategories()
 
   // Fetch existing driver allocations
   const { data: existingRecords, isLoading, refetch } = useQuery({
@@ -83,66 +78,54 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
 
   useEffect(() => {
     if (existingRecords) {
-      setAllocations(existingRecords.map((r: { id: string; driverId: string; categoryId: string; vehicle?: { plate: string }; dailyValueInCents: number; isClosed: boolean }) => ({
+      setAllocations(existingRecords.map((r: { id: string; employeeId: string; categoryId: string; vehicle?: { plate: string }; valueInCents: number; isClosed: boolean }) => ({
         id: r.id,
-        employeeId: r.driverId,
+        employeeId: r.employeeId,
         categoryId: r.categoryId,
-        vehicleNamePlate: r.vehicle?.plate || "N/A", // If using direct relation
-        dailyValueInCents: r.dailyValueInCents,
+        vehicleNamePlate: r.vehicle?.plate || "N/A",
+        dailyValueInCents: r.valueInCents,
         isClosed: r.isClosed
       })))
     }
   }, [existingRecords])
 
-  const addDriverMutation = useMutation({
-    mutationFn: async (payload: { driverId: string; categoryId: string; frontId: string; date: string; dailyValueInCents: number }) => {
-      const res = await fetch("/api/planting/drivers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) throw new Error("Falha ao adicionar motorista")
-      return res.json()
-    },
-    onSuccess: () => {
-      refetch()
-      toast.success("Motorista adicionado!")
-      setSelectedDriverId("")
-      setSelectedCategoryId("")
-    },
-    onError: (err) => {
-      toast.error(err.message)
-    }
-  })
+  const addDriverMutation = useCreateDriverAllocation()
 
-  const removeDriverMutation = useMutation({
-    mutationFn: async (_id: string) => {
-      // In reality we should have a DELETE route for removing drivers, this may need implementation
-      toast.error("Remoção ainda não implementada no backend")
-    }
-  })
+  const handleRemove = (_id: string) => {
+    toast.error("Remoção ainda não implementada no backend")
+  }
 
   const handleAdd = () => {
-    if(!selectedDriverId || !selectedCategoryId) {
+    if (!selectedDriverId || !selectedCategoryId) {
       toast.error("Selecione motorista e categoria.")
       return
     }
-    const cat = categories?.find((c: { id: string; standardDailyValueInCents: number }) => c.id === selectedCategoryId)
+    const cat = categories?.find((c: { id: string; defaultDailyValueInCents: number }) => c.id === selectedCategoryId)
 
-    addDriverMutation.mutate({
-      driverId: selectedDriverId,
-      categoryId: selectedCategoryId,
-      frontId,
-      date: new Date(date).toISOString(),
-      dailyValueInCents: dailyValue > 0 ? dailyValue * 100 : cat?.standardDailyValueInCents || 0
-    })
+    addDriverMutation.mutate(
+      {
+        employeeId: selectedDriverId,
+        categoryId: selectedCategoryId,
+        frontId,
+        seasonId,
+        date: new Date(date).toISOString(),
+        valueInCents: dailyValue > 0 ? Math.round(dailyValue * 100) : cat?.defaultDailyValueInCents || 0,
+      },
+      {
+        onSuccess: () => {
+          refetch()
+          setSelectedDriverId("")
+          setSelectedCategoryId("")
+        }
+      }
+    )
   }
 
   // Auto-fill value when category changes
   useEffect(() => {
-    if(selectedCategoryId && categories) {
-      const cat = categories.find((c: { id: string; standardDailyValueInCents: number }) => c.id === selectedCategoryId)
-      if(cat) setDailyValue(cat.standardDailyValueInCents / 100)
+    if (selectedCategoryId && categories) {
+      const cat = categories.find((c: { id: string; defaultDailyValueInCents: number }) => c.id === selectedCategoryId)
+      if (cat) setDailyValue(cat.defaultDailyValueInCents / 100)
     }
   }, [selectedCategoryId, categories])
 
@@ -171,7 +154,7 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
           <div className="flex-1">
             <Label>Motorista</Label>
             <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
@@ -184,7 +167,7 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
           <div className="flex-1">
             <Label>Categoria</Label>
             <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
@@ -239,10 +222,10 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
                     <TableRow key={alloc.id} className={alloc.isClosed ? "opacity-60" : ""}>
                       <TableCell className="font-medium">{empObj?.name || "Desconhecido"}</TableCell>
                       <TableCell>{catObj?.name || "-"}</TableCell>
-                      <TableCell className="text-right">{(alloc.dailyValueInCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(alloc.dailyValueInCents)}</TableCell>
                       <TableCell className="text-right">
                         {!alloc.isClosed && (
-                          <Button variant="ghost" size="icon" onClick={() => removeDriverMutation.mutate(alloc.id)}>
+                          <Button variant="ghost" size="icon" onClick={() => handleRemove(alloc.id)}>
                             <Trash className="h-4 w-4 text-destructive" />
                           </Button>
                         )}

@@ -1,16 +1,16 @@
 "use client"
 
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { AlertCircle,Save } from "lucide-react"
-import { useEffect,useState } from "react"
-import { toast } from "sonner"
+import { AlertCircle, Save } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription,CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useCreatePlantingArea, usePlantingAreas } from "@/hooks/use-planting"
+import { PlantingAreaFormData } from "@/types/planting"
 
 interface AreaTabProps {
   seasonId: string
@@ -20,58 +20,42 @@ interface AreaTabProps {
 
 export function AreaTab({ seasonId, frontId, date }: AreaTabProps) {
   const [hectares, setHectares] = useState<number>(0)
-  const [areaRecordId, setAreaRecordId] = useState<string | null>(null)
   const [isClosed, setIsClosed] = useState(false)
 
-  // Fetch existing area record for the front/date
-  const { data: areaRecords, isLoading, refetch } = useQuery({
-    queryKey: ["plantingAreas", seasonId, frontId, date],
-    queryFn: async () => {
-      if (seasonId === "all" || frontId === "all" || !date) return []
-      const res = await fetch(`/api/planting/areas?seasonId=${seasonId}&frontId=${frontId}&date=${date}T00:00:00Z`)
-      if (!res.ok) throw new Error("Failed to fetch area data")
-      return res.json()
-    },
-    enabled: seasonId !== "all" && frontId !== "all" && !!date
+  // Fetch existing area record via shared hook
+  const { data: areaRecords, isLoading, refetch } = usePlantingAreas({
+    seasonId,
+    frontId,
+    date: date ? `${date}T00:00:00Z` : undefined
   })
+
+  const saveMutation = useCreatePlantingArea()
 
   useEffect(() => {
     if (areaRecords && areaRecords.length > 0) {
-      setHectares(areaRecords[0].workedHectares)
-      setAreaRecordId(areaRecords[0].id)
+      setHectares(areaRecords[0].hectares)
       setIsClosed(areaRecords[0].isClosed)
     } else {
       setHectares(0)
-      setAreaRecordId(null)
       setIsClosed(false)
     }
   }, [areaRecords])
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const payload = {
-        id: areaRecordId || undefined,
-        frontId,
-        date: new Date(date).toISOString(),
-        workedHectares: hectares
-      }
-      
-      const res = await fetch("/api/planting/areas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) throw new Error("Falha ao salvar área")
-      return res.json()
-    },
-    onSuccess: () => {
-      toast.success("Área (hectares) atualizada com sucesso!")
-      refetch()
-    },
-    onError: (err) => {
-      toast.error(err.message)
+  const handleSave = () => {
+    const payload: PlantingAreaFormData = {
+      seasonId,
+      frontId,
+      date: new Date(date).toISOString(),
+      hectares: hectares,
+      workedArea: hectares // In manual planting, usually hectares = workedArea
     }
-  })
+    
+    saveMutation.mutate(payload, {
+      onSuccess: () => {
+        refetch()
+      }
+    })
+  }
 
   if (seasonId === "all" || frontId === "all" || !date) {
     return (
@@ -110,7 +94,7 @@ export function AreaTab({ seasonId, frontId, date }: AreaTabProps) {
                     onChange={(e) => setHectares(Number(e.target.value))}
                     disabled={isClosed}
                   />
-                  <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isClosed}>
+                  <Button onClick={handleSave} disabled={saveMutation.isPending || isClosed}>
                     <Save className="mr-2 h-4 w-4" /> 
                     Salvar
                   </Button>

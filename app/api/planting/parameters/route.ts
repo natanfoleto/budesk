@@ -14,7 +14,20 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { key, value, description } = await req.json()
+    const body = await req.json()
+    
+    if (body.parameters && Array.isArray(body.parameters)) {
+      const results = []
+      for (const param of body.parameters) {
+        if (param.key && param.value !== undefined) {
+          const result = await PlantingParameterService.setParameter(param.key, String(param.value), param.description)
+          results.push(result)
+        }
+      }
+      return NextResponse.json(results)
+    }
+
+    const { key, value, description } = body
     if (!key || value === undefined) {
       return NextResponse.json({ error: "Key and value are required" }, { status: 400 })
     }

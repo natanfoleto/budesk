@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { endOfMonth, format, setDate,startOfMonth } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { AlertTriangle, CalendarCheck,Lock } from "lucide-react"
@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { usePlantingDashboard, usePlantingSeasons } from "@/hooks/use-planting"
+import { formatCurrency } from "@/lib/utils"
 
 export default function PlantingClosingPage() {
   const queryClient = useQueryClient()
@@ -26,36 +28,18 @@ export default function PlantingClosingPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"))
   const [selectedPeriod, setSelectedPeriod] = useState<"1-15" | "16-end">("1-15")
 
-  // Fetch Seasons
-  const { data: seasons, isLoading: isLoadingSeasons } = useQuery({
-    queryKey: ["plantingSeasons"],
-    queryFn: async () => {
-      const res = await fetch("/api/planting/seasons")
-      return res.json()
-    }
-  })
+  const { data: seasons, isLoading: isLoadingSeasons } = usePlantingSeasons()
+  const { data: dashboardData, isLoading: isLoadingSummary } = usePlantingDashboard(selectedSeasonId)
 
-  // Automatically select active season if available
+  // Auto-select active season
   if (seasons && !selectedSeasonId) {
-    const active = seasons.find((s: { id: string; active: boolean }) => s.active)
+    const active = seasons.find((s) => s.active)
     if (active) setSelectedSeasonId(active.id)
     else if (seasons.length > 0) setSelectedSeasonId(seasons[0].id)
   }
 
-  const { data: dashboardData, isLoading: isLoadingSummary } = useQuery({
-    queryKey: ["plantingDashboard", selectedSeasonId],
-    queryFn: async () => {
-      if (!selectedSeasonId) return null
-      const res = await fetch(`/api/planting/dashboard?seasonId=${selectedSeasonId}`)
-      if (!res.ok) throw new Error("Failed to fetch summary")
-      return res.json()
-    },
-    enabled: !!selectedSeasonId
-  })
-
   const closePeriodMutation = useMutation({
     mutationFn: async () => {
-      // Calculate start and end dates based on month and period
       const baseDate = new Date(`${selectedMonth}-01T12:00:00Z`)
       let startDateStr, endDateStr
 
@@ -74,7 +58,7 @@ export default function PlantingClosingPage() {
           seasonId: selectedSeasonId,
           startDate: `${startDateStr}T00:00:00Z`,
           endDate: `${endDateStr}T23:59:59Z`,
-        })
+        }),
       })
 
       if (!res.ok) {
@@ -89,7 +73,7 @@ export default function PlantingClosingPage() {
     },
     onError: (err: Error) => {
       toast.error(err.message)
-    }
+    },
   })
 
   const handleClose = () => {
@@ -103,7 +87,7 @@ export default function PlantingClosingPage() {
     d.setMonth(d.getMonth() - i)
     return {
       value: format(d, "yyyy-MM"),
-      label: format(d, "MMMM yyyy", { locale: ptBR })
+      label: format(d, "MMMM yyyy", { locale: ptBR }),
     }
   })
 
@@ -133,11 +117,11 @@ export default function PlantingClosingPage() {
                 <Skeleton className="h-10 w-full" />
               ) : (
                 <Select value={selectedSeasonId} onValueChange={setSelectedSeasonId}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Selecione a Safra" />
                   </SelectTrigger>
                   <SelectContent>
-                    {seasons?.map((s: { id: string; name: string }) => (
+                    {seasons?.map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -148,7 +132,7 @@ export default function PlantingClosingPage() {
             <div className="space-y-2">
               <Label>Mês de Referência</Label>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecione o Mês" />
                 </SelectTrigger>
                 <SelectContent>
@@ -164,7 +148,7 @@ export default function PlantingClosingPage() {
             <div className="space-y-2">
               <Label>Quinzena</Label>
               <Select value={selectedPeriod} onValueChange={(v: "1-15" | "16-end") => setSelectedPeriod(v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecione a Quinzena" />
                 </SelectTrigger>
                 <SelectContent>
@@ -173,7 +157,7 @@ export default function PlantingClosingPage() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <Alert variant="destructive" className="mt-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Atenção</AlertTitle>
@@ -183,19 +167,19 @@ export default function PlantingClosingPage() {
             </Alert>
           </CardContent>
           <CardFooter>
-            <Button 
-              className="w-full" 
-              variant="destructive" 
+            <Button
+              className="w-full"
+              variant="destructive"
               onClick={handleClose}
               disabled={!selectedSeasonId || closePeriodMutation.isPending}
             >
-              <Lock className="mr-2 h-4 w-4" /> 
+              <Lock className="h-4 w-4" />
               {closePeriodMutation.isPending ? "Processando Fechamento..." : "Realizar Fechamento"}
             </Button>
           </CardFooter>
         </Card>
 
-        {/* Resumo da Safra para ajudar na decisão */}
+        {/* Resumo da Safra */}
         <Card className="bg-muted/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -219,24 +203,24 @@ export default function PlantingClosingPage() {
               <div className="space-y-6">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Custo Total Acumulado</p>
-                  <p className="text-3xl font-bold tracking-tight">{(dashboardData.totalCostInCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <p className="text-3xl font-bold tracking-tight">{formatCurrency(dashboardData.totalCostInCents)}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs font-medium text-muted-foreground">Área Plantada (ha)</p>
-                    <p className="text-xl font-semibold">{dashboardData.totalHectares.toFixed(2)}</p>
+                    <p className="text-xl font-semibold">{Number(dashboardData.totalHectares).toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground">Custo por Hectare</p>
-                    <p className="text-xl font-semibold">{(dashboardData.costPerHectareInCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    <p className="text-xl font-semibold">{formatCurrency(dashboardData.costPerHectareInCents)}</p>
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground">Metragem (Plantio)</p>
-                    <p className="text-xl font-semibold">{dashboardData.totalPlantingMeters.toFixed(0)}m</p>
+                    <p className="text-xl font-semibold">{Number(dashboardData.totalPlantingMeters).toFixed(0)}m</p>
                   </div>
                   <div>
                     <p className="text-xs font-medium text-muted-foreground">Metragem (Corte)</p>
-                    <p className="text-xl font-semibold">{dashboardData.totalCuttingMeters.toFixed(0)}m</p>
+                    <p className="text-xl font-semibold">{Number(dashboardData.totalCuttingMeters).toFixed(0)}m</p>
                   </div>
                 </div>
               </div>
@@ -244,7 +228,6 @@ export default function PlantingClosingPage() {
           </CardContent>
         </Card>
       </div>
-
     </div>
   )
 }

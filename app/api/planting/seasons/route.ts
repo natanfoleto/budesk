@@ -15,8 +15,12 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const data = await req.json()
-    // Mock user for now if we don't have auth block
-    const userId = "root" // Placeholder or read from session: const session = await getServerSession() ... session.user.id
+    const userId = req.headers.get("x-user-id")
+    
+    if (!userId) {
+      return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    }
+
     const season = await PlantingSeasonService.create(data, userId)
     return NextResponse.json(season, { status: 201 })
   } catch (error) {

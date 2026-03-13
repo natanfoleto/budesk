@@ -1,13 +1,13 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
 import { Save } from "lucide-react"
-import { useEffect,useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription,CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -17,6 +17,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useEmployees } from "@/hooks/use-employees"
+import { useCreateProduction, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
+import { formatCurrency } from "@/lib/utils"
+import { PlantingProduction, PlantingProductionFormData } from "@/types/planting"
 
 interface PlantingTabProps {
   seasonId: string
@@ -36,28 +40,25 @@ type ProductionRecord = {
 export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
   const [productions, setProductions] = useState<Record<string, ProductionRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
+  const [globalPlantingPrice, setGlobalPlantingPrice] = useState<string>("")
+  const [globalCuttingPrice, setGlobalCuttingPrice] = useState<string>("")
 
-  // Fetch all active employees
-  const { data: employees, isLoading: isLoadingEmployees } = useQuery({
-    queryKey: ["employees"],
-    queryFn: async () => {
-      const res = await fetch("/api/employees")
-      if (!res.ok) return []
-      return res.json()
-    }
+  // Fetch all active employees via shared hook
+  const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
+
+  // Fetch parameters to get default prices
+  const { data: parameters } = usePlantingParameters()
+  const defaultPlantingPrice = Number(parameters?.find(p => p.key === "valor_metro_plantio")?.value || 0)
+  const defaultCuttingPrice = Number(parameters?.find(p => p.key === "valor_metro_corte")?.value || 0)
+
+  // Fetch existing productions via shared hook
+  const { data: existingRecords, isLoading: isLoadingRecords, refetch } = usePlantingProductions({
+    seasonId,
+    frontId,
+    date: date ? `${date}T00:00:00Z` : undefined
   })
 
-  // Fetch existing productions for the given date and front
-  const { data: existingRecords, isLoading: isLoadingRecords, refetch } = useQuery({
-    queryKey: ["plantingProductions", seasonId, frontId, date],
-    queryFn: async () => {
-      if (seasonId === "all" || frontId === "all" || !date) return []
-      const res = await fetch(`/api/planting/productions?seasonId=${seasonId}&frontId=${frontId}&date=${date}T00:00:00Z`)
-      if (!res.ok) throw new Error("Failed to fetch records")
-      return res.json()
-    },
-    enabled: seasonId !== "all" && frontId !== "all" && !!date
-  })
+  const createProductionMutation = useCreateProduction()
 
   // Initialize table state
   useEffect(() => {
@@ -76,11 +77,11 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
       })
 
       // Populate existing values
-      existingRecords.forEach((rec: { id: string; employeeId: string; type: string; meters?: number; isClosed: boolean }) => {
+      existingRecords.forEach((rec: PlantingProduction) => {
         if (state[rec.employeeId]) {
           if (rec.type === "PLANTIO") {
             state[rec.employeeId].plantingMeters = rec.meters || 0
-            state[rec.employeeId].id = rec.id // For simplification, keeping track of one ID per employee. Backend upserts.
+            state[rec.employeeId].id = rec.id 
             state[rec.employeeId].isClosed = rec.isClosed
           } else if (rec.type === "CORTE") {
             state[rec.employeeId].cuttingMeters = rec.meters || 0
@@ -94,53 +95,50 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
     }
   }, [employees, existingRecords])
 
-
-
-  const handleSave = () => {
-    // Collect non-zero entries
-    const toSave: { employeeId: string; frontId: string; date: string; type: string; meters: number }[] = []
+  const handleSave = async () => {
+    const toSave: PlantingProductionFormData[] = []
     Object.values(productions).forEach(p => {
+      // Always use 0 if not provided, backend should handle upsert/delete if needed
+      // Actually current implementation only saves if > 0
       if (p.plantingMeters > 0) {
         toSave.push({
           employeeId: p.employeeId,
           frontId: frontId,
+          seasonId: seasonId,
           date: new Date(date).toISOString(),
           type: "PLANTIO",
-          meters: p.plantingMeters
+          meters: p.plantingMeters,
+          meterValueInCents: globalPlantingPrice ? Math.round(Number(globalPlantingPrice) * 100) : 0
         })
       }
       if (p.cuttingMeters > 0) {
         toSave.push({
           employeeId: p.employeeId,
           frontId: frontId,
+          seasonId: seasonId,
           date: new Date(date).toISOString(),
           type: "CORTE",
-          meters: p.cuttingMeters
+          meters: p.cuttingMeters,
+          meterValueInCents: globalCuttingPrice ? Math.round(Number(globalCuttingPrice) * 100) : 0
         })
       }
     })
 
-    // Wait, the backend productions POST expects a single object. 
-    // We didn't build a batch save endpoint. Let's send them sequentially or we need to update the backend route.
-    // For now, I will send them sequentially with Promise.all
     if (toSave.length === 0) {
       toast.info("Nenhum valor preenchido para salvar.")
       return
     }
 
-    Promise.all(toSave.map(payload => 
-      fetch("/api/planting/productions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }).then(res => { if(!res.ok) throw new Error(); return res })
-    )).then(() => {
+    try {
+      await Promise.all(toSave.map(payload => createProductionMutation.mutateAsync(payload)))
       toast.success("Apontamentos salvos com sucesso!")
       setIsEditing(false)
+      setGlobalPlantingPrice("")
+      setGlobalCuttingPrice("")
       refetch()
-    }).catch(() => {
-      toast.error("Alguns apontamentos não puderam ser salvos. Verifique se o período está fechado.")
-    })
+    } catch {
+      // Error already handled by toast in hook
+    }
   }
 
   const handleInputChange = (empId: string, field: "plantingMeters"|"cuttingMeters", val: string) => {
@@ -176,19 +174,48 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
             Informe a metragem de plantio ou corte realizada por cada funcionário nesta frente e data.
           </CardDescription>
         </div>
-        <Button onClick={handleSave} disabled={!isEditing}>
-          <Save className="mr-2 h-4 w-4" /> Salvar Alterações
+        <Button onClick={handleSave} disabled={!isEditing || createProductionMutation.isPending}>
+          <Save className="h-4 w-4" /> Salvar Alterações
         </Button>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 flex flex-wrap gap-6 items-center rounded-md border p-3 bg-muted/20">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">Preço Diário: Plantio (R$/m)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="Padrão do sistema"
+              className="h-8 max-w-[180px]"
+              value={globalPlantingPrice}
+              onChange={(e) => { setGlobalPlantingPrice(e.target.value); setIsEditing(true) }}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground">Preço Diário: Corte (R$/m)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="Padrão do sistema"
+              className="h-8 max-w-[180px]"
+              value={globalCuttingPrice}
+              onChange={(e) => { setGlobalCuttingPrice(e.target.value); setIsEditing(true) }}
+            />
+          </div>
+          <div className="flex-1 text-xs text-muted-foreground p-2 border-l pl-4">
+            Se você não preencher estes campos, o sistema usará o valor padrão em Parâmetros Gerais. Este preço será aplicado a todos desta frente no dia {new Date(date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}.
+          </div>
+        </div>
+
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Funcionário</TableHead>
-                <TableHead className="w-[150px] text-center">Plantio (m)</TableHead>
-                <TableHead className="w-[150px] text-center">Corte (m)</TableHead>
-                <TableHead className="w-[100px] text-right">Status</TableHead>
+                <TableHead className="w-[120px] text-center">Plantio (m)</TableHead>
+                <TableHead className="w-[120px] text-center">Corte (m)</TableHead>
+                <TableHead className="w-[120px] text-right">Valor (Est.)</TableHead>
+                <TableHead className="w-[80px] text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -203,43 +230,55 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
                 ))
               ) : sortedEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     Nenhum funcionário ativo encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedEmployees.map((record) => (
-                  <TableRow key={record.employeeId} className={record.isClosed ? "bg-muted/50" : ""}>
-                    <TableCell className="font-medium">{record.employeeName}</TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="h-8 text-center"
-                        value={record.plantingMeters || ""}
-                        onChange={(e) => handleInputChange(record.employeeId, "plantingMeters", e.target.value)}
-                        disabled={record.isClosed}
-                        placeholder="0"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="h-8 text-center"
-                        value={record.cuttingMeters || ""}
-                        onChange={(e) => handleInputChange(record.employeeId, "cuttingMeters", e.target.value)}
-                        disabled={record.isClosed}
-                        placeholder="0"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {record.isClosed ? (
-                        <span className="text-xs text-muted-foreground">Fechado</span>
-                      ) : (
-                        <span className="text-xs text-green-600">Aberto</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                sortedEmployees.map((record) => {
+                  const currentPlantingPrice = globalPlantingPrice ? Number(globalPlantingPrice) * 100 : defaultPlantingPrice
+                  const currentCuttingPrice = globalCuttingPrice ? Number(globalCuttingPrice) * 100 : defaultCuttingPrice
+                  const estimatedTotalInCents = 
+                    ((record.plantingMeters || 0) * currentPlantingPrice) + 
+                    ((record.cuttingMeters || 0) * currentCuttingPrice)
+
+
+                  return (
+                    <TableRow key={record.employeeId} className={record.isClosed ? "bg-muted/50" : ""}>
+                      <TableCell className="font-medium">{record.employeeName}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          className="h-8 text-center"
+                          value={record.plantingMeters || ""}
+                          onChange={(e) => handleInputChange(record.employeeId, "plantingMeters", e.target.value)}
+                          disabled={record.isClosed}
+                          placeholder="0"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          className="h-8 text-center"
+                          value={record.cuttingMeters || ""}
+                          onChange={(e) => handleInputChange(record.employeeId, "cuttingMeters", e.target.value)}
+                          disabled={record.isClosed}
+                          placeholder="0"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(Math.round(estimatedTotalInCents))}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {record.isClosed ? (
+                          <span className="text-xs text-muted-foreground">Fechado</span>
+                        ) : (
+                          <span className="text-xs text-green-600">Aberto</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

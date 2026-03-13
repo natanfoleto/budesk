@@ -37,9 +37,20 @@ export class PlantingProductionService {
    * Criar um apontamento e calcular o valor total = metros * valor_metro
    */
   static async createOrUpdate(data: Prisma.PlantingProductionUncheckedCreateInput, db = prisma) {
+    let meterValueInCents = data.meterValueInCents || 0
+
+    // Fallback for default price if not provided
+    if (meterValueInCents === 0) {
+      const paramKey = data.type === "PLANTIO" ? "valor_metro_plantio" : "valor_metro_corte"
+      const param = await db.plantingParameter.findUnique({ where: { key: paramKey } })
+      if (param && !isNaN(Number(param.value))) {
+        meterValueInCents = Number(param.value)
+      }
+    }
+
     // Calcular total
     const meters = data.meters ? Number(data.meters) : 0
-    const totalValueInCents = Math.round(meters * data.meterValueInCents)
+    const totalValueInCents = Math.round(meters * meterValueInCents)
     
     // Se existir id, faremos um update, se não, create
     if (data.id) {
@@ -51,6 +62,7 @@ export class PlantingProductionService {
         where: { id: data.id },
         data: {
           ...data,
+          meterValueInCents,
           totalValueInCents
         }
       })
@@ -59,6 +71,7 @@ export class PlantingProductionService {
     return db.plantingProduction.create({
       data: {
         ...data,
+        meterValueInCents,
         totalValueInCents
       }
     })

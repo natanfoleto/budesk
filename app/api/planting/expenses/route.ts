@@ -21,7 +21,12 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const data = await req.json()
-    const userId = "root"
+    const userId = req.headers.get("x-user-id")
+    
+    if (!userId) {
+      return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    }
+
     const expense = await PlantingExpenseService.create(data, userId)
     return NextResponse.json(expense, { status: 201 })
   } catch (error: unknown) {

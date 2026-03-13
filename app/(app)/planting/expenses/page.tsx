@@ -1,9 +1,11 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useQuery } from "@tanstack/react-query"
 import { Plus, Trash } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,8 +18,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -34,139 +43,103 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  useCreateExpense,
+  useDeleteExpense,
+  usePlantingExpenses,
+  usePlantingSeasons,
+  useWorkFronts,
+} from "@/hooks/use-planting"
+import { formatCurrency } from "@/lib/utils"
+import { PlantingExpenseFormData } from "@/types/planting"
 
+type Vehicle = { id: string; plate: string; model: string }
 
-type Expense = {
-  id: string
-  date: string
-  itemDescription: string
-  invoiceNumber: string | null
-  quantity: number
-  unitValueInCents: number
-  totalValueInCents: number
-  notes: string | null
-  isClosed: boolean
-  vehicle?: { name: string; plate: string }
-  front?: { name: string }
-}
+const expenseSchema = z.object({
+  date: z.string().min(1, "A data é obrigatória"),
+  frontId: z.string().min(1, "Selecione uma frente de trabalho"),
+  vehicleId: z.string().optional().or(z.literal("")),
+  itemDescription: z.string().min(1, "Informe a descrição do item/serviço"),
+  invoiceNumber: z.string().optional(),
+  quantity: z.preprocess((val) => Number(val), z.number().min(0.01, "A quantidade deve ser maior que 0")),
+  unitValue: z.preprocess((val) => Number(val), z.number().min(0, "O valor unitário não pode ser negativo")),
+})
+
+type ExpenseFormValues = z.infer<typeof expenseSchema>
 
 export default function PlantingExpensesPage() {
-  const queryClient = useQueryClient()
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("all")
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [expenseForm, setExpenseForm] = useState<Partial<Expense> & { vehicleId?: string, frontId?: string }>({
-    date: new Date().toISOString().split("T")[0],
-    quantity: 1,
-    unitValueInCents: 0,
-  })
 
-  // Data fetching
-  const { data: seasons } = useQuery({
-    queryKey: ["plantingSeasons"],
-    queryFn: async () => {
-      const res = await fetch("/api/planting/seasons")
-      return res.json()
-    }
-  })
-
-  const { data: fronts } = useQuery({
-    queryKey: ["workFronts", selectedSeasonId],
-    queryFn: async () => {
-      if (!selectedSeasonId || selectedSeasonId === "all") return []
-      const res = await fetch(`/api/planting/work-fronts?seasonId=${selectedSeasonId}`)
-      return res.json()
+  const form = useForm<ExpenseFormValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(expenseSchema) as any,
+    defaultValues: {
+      date: new Date().toISOString().split("T")[0],
+      frontId: "",
+      vehicleId: "",
+      itemDescription: "",
+      invoiceNumber: "",
+      quantity: 1,
+      unitValue: 0,
     },
-    enabled: selectedSeasonId !== "all"
   })
 
-  const { data: vehicles } = useQuery({
+  // Queries
+  const { data: seasons } = usePlantingSeasons()
+  const { data: fronts } = useWorkFronts(selectedSeasonId !== "all" ? selectedSeasonId : undefined)
+  const { data: expenses, isLoading } = usePlantingExpenses(
+    selectedSeasonId !== "all" ? { seasonId: selectedSeasonId } : undefined
+  )
+
+  // Vehicles fetch using useQuery
+  const { data: vehicles } = useQuery<Vehicle[]>({
     queryKey: ["vehicles"],
     queryFn: async () => {
       const res = await fetch("/api/vehicles")
-      if(!res.ok) return []
+      if (!res.ok) throw new Error("Falha ao buscar veículos")
       return res.json()
-    }
-  })
-
-  const filterUrl = selectedSeasonId !== "all" ? `/api/planting/expenses?seasonId=${selectedSeasonId}` : `/api/planting/expenses`
-  const { data: expenses, isLoading } = useQuery({
-    queryKey: ["plantingExpenses", selectedSeasonId],
-    queryFn: async () => {
-      const res = await fetch(filterUrl)
-      if (!res.ok) throw new Error("Failed to fetch expenses")
-      return res.json() as Promise<Expense[]>
-    }
+    },
+    enabled: isModalOpen,
   })
 
   // Mutations
-  const createExpenseMutation = useMutation({
-    mutationFn: async (payload: { seasonId: string; frontId: string; vehicleId?: string; date: string; itemDescription: string; invoiceNumber?: string | null; quantity: number; unitValueInCents: number; notes?: string | null }) => {
-      const res = await fetch("/api/planting/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || "Failed to create expense")
-      }
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["plantingExpenses"] })
-      queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      setIsModalOpen(false)
-      setExpenseForm({ date: new Date().toISOString().split("T")[0], quantity: 1, unitValueInCents: 0 })
-      toast.success("Gasto registrado com sucesso.")
-    },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    }
-  })
+  const createExpenseMutation = useCreateExpense()
+  const deleteExpenseMutation = useDeleteExpense()
 
-  const deleteExpenseMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/planting/expenses?id=${id}`, {
-        method: "DELETE",
-      })
-      if (!res.ok) throw new Error("Failed to delete expense")
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["plantingExpenses"] })
-      toast.success("Registro removido.")
-    }
-  })
+  const onSubmit = (values: ExpenseFormValues) => {
+    if (selectedSeasonId === "all") return
 
-  // Handlers
-  const handleSaveExpense = () => {
-    // Basic validation
-    if (!expenseForm.date || !expenseForm.itemDescription || !expenseForm.frontId) {
-      toast.error("Preencha Frente, Data e Descrição do Item.")
-      return
-    }
-
-    const payload = {
+    const payload: PlantingExpenseFormData = {
       seasonId: selectedSeasonId,
-      frontId: expenseForm.frontId,
-      vehicleId: expenseForm.vehicleId,
-      date: new Date(expenseForm.date as string).toISOString(),
-      itemDescription: expenseForm.itemDescription,
-      invoiceNumber: expenseForm.invoiceNumber,
-      quantity: Number(expenseForm.quantity),
-      unitValueInCents: Math.round(Number(expenseForm.unitValueInCents) * 100),
-      notes: expenseForm.notes
+      frontId: values.frontId,
+      vehicleId: values.vehicleId || undefined,
+      date: new Date(values.date).toISOString(),
+      description: values.itemDescription,
+      itemDescription: values.itemDescription,
+      invoiceNumber: values.invoiceNumber || undefined,
+      quantity: values.quantity,
+      unitValueInCents: Math.round(values.unitValue * 100),
     }
 
-    createExpenseMutation.mutate(payload)
+    createExpenseMutation.mutate(payload, {
+      onSuccess: () => {
+        setIsModalOpen(false)
+        form.reset({
+          date: new Date().toISOString().split("T")[0],
+          frontId: "",
+          vehicleId: "",
+          itemDescription: "",
+          invoiceNumber: "",
+          quantity: 1,
+          unitValue: 0,
+        })
+      }
+    })
   }
 
-  const formatCurrency = (cents: number) => {
-    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100)
-  }
-
-  // Calculated total for form
-  const formTotal = (Number(expenseForm.quantity || 0) * Number(expenseForm.unitValueInCents || 0)).toFixed(2)
+  const formValues = form.watch()
+  const formTotal = (Number(formValues.quantity || 0) * Number(formValues.unitValue || 0)).toFixed(2)
 
   return (
     <div className="space-y-6">
@@ -179,23 +152,23 @@ export default function PlantingExpensesPage() {
         </div>
         <div className="flex items-center gap-2">
           <Select value={selectedSeasonId} onValueChange={setSelectedSeasonId}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full md:w-[200px]">
               <SelectValue placeholder="Filtrar por Safra" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as Safras</SelectItem>
-              {seasons?.map((season: { id: string; name: string }) => (
+              {seasons?.map((season) => (
                 <SelectItem key={season.id} value={season.id}>
                   {season.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          
+
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
               <Button disabled={selectedSeasonId === "all"}>
-                <Plus className="mr-2 h-4 w-4" /> Novo Gasto
+                <Plus className="h-4 w-4" /> Novo Gasto
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
@@ -205,70 +178,148 @@ export default function PlantingExpensesPage() {
                   Este lançamento gerará uma saída no módulo Financeiro automaticamente.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="date" className="text-right">Data</Label>
-                  <Input id="date" type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({...expenseForm, date: e.target.value})} className="col-span-3" />
-                </div>
-                
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="front" className="text-right">Frente</Label>
-                  <Select value={expenseForm.frontId} onValueChange={(v) => setExpenseForm({...expenseForm, frontId: v})}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Selecione a frente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fronts?.map((front: { id: string; name: string }) => (
-                        <SelectItem key={front.id} value={front.id}>{front.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="item" className="text-right">Item/Serviço</Label>
-                  <Input id="item" placeholder="Ex: Óleo Diesel S10" value={expenseForm.itemDescription || ""} onChange={(e) => setExpenseForm({...expenseForm, itemDescription: e.target.value})} className="col-span-3" />
-                </div>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                  <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
+                        <FormLabel className="text-right">Data</FormLabel>
+                        <div className="col-span-3 space-y-1">
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
 
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="invoice" className="text-right">NF/Recibo</Label>
-                  <Input id="invoice" placeholder="Opcional" value={expenseForm.invoiceNumber || ""} onChange={(e) => setExpenseForm({...expenseForm, invoiceNumber: e.target.value})} className="col-span-3" />
-                </div>
-                
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="vehicle" className="text-right">Veículo</Label>
-                  <Select value={expenseForm.vehicleId} onValueChange={(v) => setExpenseForm({...expenseForm, vehicleId: v})}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Opcional (se for frota)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vehicles?.map((v: { id: string; name: string; plate: string }) => (
-                        <SelectItem key={v.id} value={v.id}>{v.name} ({v.plate})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <FormField
+                    control={form.control}
+                    name="frontId"
+                    render={({ field }) => (
+                      <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
+                        <FormLabel className="text-right">Frente</FormLabel>
+                        <div className="col-span-3 space-y-1">
+                          <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Selecione a frente" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {fronts?.map((front) => (
+                                <SelectItem key={front.id} value={front.id}>{front.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
 
-                <div className="grid grid-cols-[1fr_1fr_1fr] gap-4">
-                  <div>
-                    <Label htmlFor="qty">Quant.</Label>
-                    <Input id="qty" type="number" step="0.01" value={expenseForm.quantity} onChange={(e) => setExpenseForm({...expenseForm, quantity: Number(e.target.value)})} />
+                  <FormField
+                    control={form.control}
+                    name="itemDescription"
+                    render={({ field }) => (
+                      <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
+                        <FormLabel className="text-right">Item/Serviço</FormLabel>
+                        <div className="col-span-3 space-y-1">
+                          <FormControl>
+                            <Input placeholder="Ex: Óleo Diesel S10" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="invoiceNumber"
+                    render={({ field }) => (
+                      <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
+                        <FormLabel className="text-right">NF/Recibo</FormLabel>
+                        <div className="col-span-3 space-y-1">
+                          <FormControl>
+                            <Input placeholder="Opcional" {...field} value={field.value || ""} />
+                          </FormControl>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="vehicleId"
+                    render={({ field }) => (
+                      <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
+                        <FormLabel className="text-right">Veículo</FormLabel>
+                        <div className="col-span-3 space-y-1">
+                          <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Opcional (se for frota)" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">Nenhum veículo</SelectItem>
+                              {vehicles?.map((v) => (
+                                <SelectItem key={v.id} value={v.id}>{v.model} ({v.plate})</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-[1fr_1fr_1fr] gap-4">
+                    <FormField
+                      control={form.control}
+                      name="quantity"
+                      render={({ field }) => (
+                        <FormItem className="space-y-1">
+                          <FormLabel>Quant.</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="unitValue"
+                      render={({ field }) => (
+                        <FormItem className="space-y-1">
+                          <FormLabel>Valor Unit. (R$)</FormLabel>
+                          <FormControl>
+                            <Input type="number" step="0.01" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="space-y-1">
+                      <FormLabel>Total</FormLabel>
+                      <Input value={`R$ ${formTotal}`} disabled className="bg-muted font-bold h-10" />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="unit">Valor Unit.</Label>
-                    <Input id="unit" type="number" step="0.01" value={expenseForm.unitValueInCents} onChange={(e) => setExpenseForm({...expenseForm, unitValueInCents: Number(e.target.value)})} />
-                  </div>
-                  <div>
-                    <Label htmlFor="total">Total</Label>
-                    <Input id="total" value={`R$ ${formTotal}`} disabled className="bg-muted font-bold" />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleSaveExpense} disabled={createExpenseMutation.isPending}>
-                  Confirmar Lançamento
-                </Button>
-              </DialogFooter>
+
+                  <DialogFooter className="pt-4">
+                    <Button type="submit" disabled={createExpenseMutation.isPending}>
+                      Confirmar Lançamento
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         </div>
@@ -313,11 +364,11 @@ export default function PlantingExpensesPage() {
                 expenses?.map((expense) => (
                   <TableRow key={expense.id} className={expense.isClosed ? "bg-muted/30" : ""}>
                     <TableCell>{new Date(expense.date).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell className="font-medium">{expense.itemDescription}</TableCell>
-                    <TableCell>{expense.invoiceNumber || "-"}</TableCell>
+                    <TableCell className="font-medium">{expense.description}</TableCell>
+                    <TableCell>{"-"}</TableCell>
                     <TableCell>{expense.front?.name || "-"}</TableCell>
                     <TableCell>{expense.vehicle?.plate || "-"}</TableCell>
-                    <TableCell className="text-right">{expense.quantity}</TableCell>
+                    <TableCell className="text-right">{expense.quantity ?? 1}</TableCell>
                     <TableCell className="text-right font-bold">{formatCurrency(expense.totalValueInCents)}</TableCell>
                     <TableCell>
                       {!expense.isClosed && (
@@ -325,7 +376,7 @@ export default function PlantingExpensesPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            if(confirm("Tem certeza que deseja remover este gasto? A transação financeira também será removida.")) {
+                            if (confirm("Tem certeza que deseja remover este gasto? A transação financeira também será removida.")) {
                               deleteExpenseMutation.mutate(expense.id)
                             }
                           }}

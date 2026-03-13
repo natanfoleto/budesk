@@ -1,12 +1,12 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { AttendanceType } from "@prisma/client"
 import { Save } from "lucide-react"
-import { useEffect,useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription,CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
@@ -18,6 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useEmployees } from "@/hooks/use-employees"
+import { useCreateDailyWage, useDailyWages, usePlantingParameters } from "@/hooks/use-planting"
+import { DailyWage, DailyWageFormData, PlantingParameter } from "@/types/planting"
 
 interface DailyWageTabProps {
   seasonId: string
@@ -38,43 +41,27 @@ export function DailyWageTab({ seasonId, frontId, date }: DailyWageTabProps) {
   const [wages, setWages] = useState<Record<string, WageRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
 
-  // Fetch all active employees
-  const { data: employees, isLoading: isLoadingEmployees } = useQuery({
-    queryKey: ["employees"],
-    queryFn: async () => {
-      const res = await fetch("/api/employees")
-      if (!res.ok) return []
-      return res.json()
-    }
+  // Fetch all active employees via shared hook
+  const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
+
+  // Fetch existing daily wages via shared hook
+  const { data: existingRecords, isLoading: isLoadingRecords, refetch } = useDailyWages({
+    seasonId,
+    frontId,
+    date: date ? `${date}T00:00:00Z` : undefined
   })
 
-  // Fetch existing daily wages for the given date and front
-  const { data: existingRecords, isLoading: isLoadingRecords, refetch } = useQuery({
-    queryKey: ["dailyWages", seasonId, frontId, date],
-    queryFn: async () => {
-      if (seasonId === "all" || frontId === "all" || !date) return []
-      const res = await fetch(`/api/planting/daily-wages?seasonId=${seasonId}&frontId=${frontId}&date=${date}T00:00:00Z`)
-      if (!res.ok) throw new Error("Failed to fetch wages")
-      return res.json()
-    },
-    enabled: seasonId !== "all" && frontId !== "all" && !!date
-  })
+  // Fetch standard values for default daily wage via shared hook
+  const { data: parameters } = usePlantingParameters()
 
-  // Fetch standard values for default daily wage
-  const { data: parameters } = useQuery({
-    queryKey: ["plantingParameters"],
-    queryFn: async () => {
-      const res = await fetch("/api/planting/parameters")
-      return res.json()
-    }
-  })
+  const createDailyWageMutation = useCreateDailyWage()
 
   useEffect(() => {
     if (employees && existingRecords && parameters) {
       const state: Record<string, WageRecord> = {}
       
-      const defaultWageParam = parameters?.find((p: { key: string; valueInCents: number }) => p.key === "valor_diaria")
-      const defaultWageInCents = defaultWageParam ? defaultWageParam.valueInCents : 9000 // default 90 BRL
+      const defaultWageParam = parameters?.find((p: PlantingParameter) => p.key === "valor_diaria")
+      const defaultWageInCents = defaultWageParam ? Number(defaultWageParam.value) : 9000 // default 90 BRL
 
       employees.forEach((emp: { id: string; name: string }) => {
         state[emp.id] = {
@@ -86,11 +73,11 @@ export function DailyWageTab({ seasonId, frontId, date }: DailyWageTabProps) {
         }
       })
 
-      existingRecords.forEach((rec: { id: string; employeeId: string; presence: boolean; dailyValueInCents: number; isClosed: boolean }) => {
+      existingRecords.forEach((rec: DailyWage) => {
         if (state[rec.employeeId]) {
           state[rec.employeeId].id = rec.id
-          state[rec.employeeId].presence = rec.presence
-          state[rec.employeeId].dailyValueInCents = rec.dailyValueInCents
+          state[rec.employeeId].presence = rec.presence === AttendanceType.PRESENCA
+          state[rec.employeeId].dailyValueInCents = rec.valueInCents
           state[rec.employeeId].isClosed = rec.isClosed
         }
       })
@@ -100,16 +87,17 @@ export function DailyWageTab({ seasonId, frontId, date }: DailyWageTabProps) {
     }
   }, [employees, existingRecords, parameters])
 
-  const handleSave = () => {
-    const toSave: { employeeId: string; frontId: string; date: string; presence: boolean; dailyValueInCents: number }[] = []
+  const handleSave = async () => {
+    const toSave: DailyWageFormData[] = []
     Object.values(wages).forEach(w => {
       if (w.presence) {
         toSave.push({
           employeeId: w.employeeId,
           frontId: frontId,
+          seasonId: seasonId,
           date: new Date(date).toISOString(),
-          presence: w.presence,
-          dailyValueInCents: w.dailyValueInCents
+          presence: AttendanceType.PRESENCA,
+          valueInCents: w.dailyValueInCents
         })
       }
     })
@@ -119,19 +107,14 @@ export function DailyWageTab({ seasonId, frontId, date }: DailyWageTabProps) {
       return
     }
 
-    Promise.all(toSave.map(payload => 
-      fetch("/api/planting/daily-wages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }).then(res => { if(!res.ok) throw new Error(); return res })
-    )).then(() => {
+    try {
+      await Promise.all(toSave.map(payload => createDailyWageMutation.mutateAsync(payload)))
       toast.success("Diárias salvas com sucesso!")
       setIsEditing(false)
       refetch()
-    }).catch(() => {
-      toast.error("Erro ao salvar diárias.")
-    })
+    } catch {
+      // Error already handled by hook toast
+    }
   }
 
   const handlePresenceChange = (empId: string, checked: boolean) => {
@@ -178,7 +161,7 @@ export function DailyWageTab({ seasonId, frontId, date }: DailyWageTabProps) {
             Apontamento de diaristas na frente de trabalho para a data selecionada.
           </CardDescription>
         </div>
-        <Button onClick={handleSave} disabled={!isEditing}>
+        <Button onClick={handleSave} disabled={!isEditing || createDailyWageMutation.isPending}>
           <Save className="mr-2 h-4 w-4" /> Salvar Alterações
         </Button>
       </CardHeader>

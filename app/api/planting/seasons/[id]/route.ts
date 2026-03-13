@@ -2,11 +2,10 @@ import { NextResponse } from "next/server"
 
 import { PlantingSeasonService } from "@/src/modules/planting/services/PlantingSeasonService"
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // Await params if Next.js > 14 requires it, typically params is handled async now
-    const awaitedParams = await params
-    const season = await PlantingSeasonService.getById(awaitedParams.id)
+    const { id } = await params
+    const season = await PlantingSeasonService.getById(id)
     if (!season) return NextResponse.json({ error: "Not found" }, { status: 404 })
     return NextResponse.json(season)
   } catch (error) {
@@ -15,12 +14,17 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const awaitedParams = await params
+    const { id } = await params
     const data = await req.json()
-    const userId = "root" 
-    const season = await PlantingSeasonService.update(awaitedParams.id, data, userId)
+    const userId = req.headers.get("x-user-id")
+
+    if (!userId) {
+      return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    }
+
+    const season = await PlantingSeasonService.update(id, data, userId)
     return NextResponse.json(season)
   } catch (error) {
     console.error("Error updating season:", error)
