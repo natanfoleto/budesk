@@ -46,7 +46,7 @@ import {
   useUpdateEmployeeContract,
   useUpdateEmploymentRecord,
 } from "@/hooks/use-employees"
-import { formatCentsToReal,formatCurrency, formatDate } from "@/lib/utils"
+import { formatCentsToReal, formatDate } from "@/lib/utils"
 import { 
   AdvanceFormData,
   ContractFormData, 
@@ -338,7 +338,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 <CardDescription>Admissão: {formatDate(record.admissionDate)}</CardDescription>
               </CardHeader>
               <CardContent>
-                <p>Salário: {formatCurrency(Number(record.baseSalary))}</p>
+                <p>Salário: {formatCentsToReal(record.baseSalaryInCents)}</p>
                 {record.terminationDate && <p>Término: {formatDate(record.terminationDate)}</p>}
                 {record.workRegime && <p>Regime: {record.workRegime}</p>}
                 {record.notes && <p className="mt-2 text-sm text-muted-foreground italic">{record.notes}</p>}
@@ -397,7 +397,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                 <CardDescription>Data: {formatDate(advance.date)}</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-lg font-bold text-red-600">-{formatCurrency(advance.amount as unknown as number)}</p>
+                <p className="text-lg font-bold text-red-600">-{formatCentsToReal(advance.amountInCents)}</p>
                 {advance.note && <p className="mt-2 text-sm text-muted-foreground">{advance.note}</p>}
                 {advance.transaction && (
                   <div className="mt-2 text-xs text-muted-foreground">
@@ -445,7 +445,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           admissionDate: new Date(selectedRecord.admissionDate).toISOString().split("T")[0],
           terminationDate: selectedRecord.terminationDate ? new Date(selectedRecord.terminationDate).toISOString().split("T")[0] : undefined,
           jobTitle: selectedRecord.jobTitle,
-          baseSalary: Number(selectedRecord.baseSalary) * 100,
+          baseSalary: selectedRecord.baseSalaryInCents,
           contractType: selectedRecord.contractType,
           weeklyWorkload: selectedRecord.weeklyWorkload || 0,
           workRegime: selectedRecord.workRegime || "",
@@ -481,7 +481,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         onSubmit={handleAdvanceSubmit}
         onDelete={handleAdvanceDelete}
         initialData={selectedAdvance ? {
-          valueInCents: Number(selectedAdvance.amount) * 100,
+          valueInCents: selectedAdvance.amountInCents,
           date: new Date(selectedAdvance.date).toISOString().split("T")[0],
           note: selectedAdvance.note || "",
           payrollReference: selectedAdvance.payrollReference || "",

@@ -1,3 +1,4 @@
+import { ExpenseCategory } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import prisma from "@/lib/prisma"
@@ -53,7 +54,7 @@ export async function POST(
       // Create Financial Transaction centrally via Service
       await FinanceService.registerTransaction(tx, {
         type: "SAIDA",
-        category: "Adiantamento Salarial",
+        category: ExpenseCategory.SALARIO,
         amountInCents,
         paymentMethod: paymentMethod || "TRANSFERENCIA",
         description: `Adiantamento Salarial - ${payrollReference || date}`,

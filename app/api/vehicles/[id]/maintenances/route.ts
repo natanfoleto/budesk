@@ -1,4 +1,4 @@
-import { AuditAction } from "@prisma/client"
+import { AuditAction, ExpenseCategory } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { maintenanceSchema } from "@/components/fleet/maintenance-schema"
@@ -91,7 +91,7 @@ export async function POST(
       if (isPaid && estimatedCost > 0) {
         await FinanceService.registerTransaction(tx, {
           type: "SAIDA",
-          category: "Manutenção de Veículos",
+          category: ExpenseCategory.MANUTENCAO,
           amountInCents: estimatedCost,
           paymentMethod: paymentMethod || "TRANSFERENCIA",
           description: `Manutenção - ${category}`,

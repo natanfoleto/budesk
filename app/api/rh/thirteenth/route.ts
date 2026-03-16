@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const thirteenths = await prisma.thirteenthSalary.findMany({
       where,
-      orderBy: [{ anoReferencia: "desc" }, { createdAt: "desc" }],
+      orderBy: [{ referenceYear: "desc" }, { createdAt: "desc" }],
       include: {
         employee: { select: { id: true, name: true, role: true, salaryInCents: true } },
       },
@@ -34,20 +34,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { employeeId, anoReferencia, mesesTrabalhados } = body
+    const { employeeId, referenceYear, workedMonths } = body
 
     const employee = await prisma.employee.findUnique({ where: { id: employeeId } })
     if (!employee) return NextResponse.json({ error: "Funcionário não encontrado" }, { status: 404 })
 
-    const salarioBase = Number(employee.salaryInCents || 0) / 100
-    const valorTotal = (salarioBase / 12) * Number(mesesTrabalhados)
+    const baseSalaryInCents = Number(employee.salaryInCents || 0)
+    const totalAmountInCents = Math.round((baseSalaryInCents / 12) * Number(workedMonths))
 
     const thirteenth = await prisma.thirteenthSalary.create({
       data: {
         employeeId,
-        anoReferencia: Number(anoReferencia),
-        mesesTrabalhados: Number(mesesTrabalhados),
-        valorTotal,
+        referenceYear: Number(referenceYear),
+        workedMonths: Number(workedMonths),
+        totalAmountInCents,
         status: "PENDENTE",
       },
       include: { employee: { select: { id: true, name: true } } },

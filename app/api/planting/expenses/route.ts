@@ -27,7 +27,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
     }
 
-    const expense = await PlantingExpenseService.create(data, userId)
+    const cleanData = { ...data }
+    delete cleanData.itemDescription
+    delete cleanData.invoiceNumber
+    
+    if (data.invoiceNumber) {
+      cleanData.description = `${data.description} (NF: ${data.invoiceNumber})`
+    }
+
+    const expense = await PlantingExpenseService.create(cleanData, userId)
     return NextResponse.json(expense, { status: 201 })
   } catch (error: unknown) {
     console.error("Error creating expense:", error)
@@ -47,6 +55,34 @@ export async function DELETE(req: Request) {
   } catch (error: unknown) {
     console.error("Error deleting expense:", error)
     const message = error instanceof Error ? error.message : "Failed to delete"
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+export async function PUT(req: Request) {
+  try {
+    const data = await req.json()
+    const userId = req.headers.get("x-user-id")
+    
+    if (!userId) {
+      return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    }
+
+    const { id, ...cleanData } = data
+    delete cleanData.itemDescription
+    delete cleanData.invoiceNumber
+    
+    if (!id) return NextResponse.json({ error: "ID obrigatório para edição" }, { status: 400 })
+
+    if (data.invoiceNumber) {
+      cleanData.description = `${data.description} (NF: ${data.invoiceNumber})`
+    }
+
+    const expense = await PlantingExpenseService.update(id, cleanData, userId)
+    return NextResponse.json(expense)
+  } catch (error: unknown) {
+    console.error("Error updating expense:", error)
+    const message = error instanceof Error ? error.message : "Failed to update expense"
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -17,6 +17,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateProduction, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
 import { formatCurrency } from "@/lib/utils"
@@ -42,6 +49,7 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [globalPlantingPrice, setGlobalPlantingPrice] = useState<string>("")
   const [globalCuttingPrice, setGlobalCuttingPrice] = useState<string>("")
+  const [typeFilter, setTypeFilter] = useState<"ALL" | "PLANTIO" | "CORTE">("ALL")
 
   // Fetch all active employees via shared hook
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
@@ -165,6 +173,28 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
 
   const sortedEmployees = Object.values(productions).sort((a, b) => a.employeeName.localeCompare(b.employeeName))
 
+  const currentPlantingPrice = globalPlantingPrice ? Number(globalPlantingPrice) * 100 : defaultPlantingPrice
+  const currentCuttingPrice = globalCuttingPrice ? Number(globalCuttingPrice) * 100 : defaultCuttingPrice
+
+  const totals = sortedEmployees.reduce(
+    (acc, curr) => {
+      acc.planting += curr.plantingMeters || 0
+      acc.cutting += curr.cuttingMeters || 0
+      
+      let est = 0
+      if (typeFilter === "ALL" || typeFilter === "PLANTIO") {
+        est += (curr.plantingMeters || 0) * currentPlantingPrice
+      }
+      if (typeFilter === "ALL" || typeFilter === "CORTE") {
+        est += (curr.cuttingMeters || 0) * currentCuttingPrice
+      }
+      acc.value += est
+
+      return acc
+    },
+    { planting: 0, cutting: 0, value: 0 }
+  )
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -205,6 +235,19 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
           <div className="flex-1 text-xs text-muted-foreground p-2 border-l pl-4">
             Se você não preencher estes campos, o sistema usará o valor padrão em Parâmetros Gerais. Este preço será aplicado a todos desta frente no dia {new Date(date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}.
           </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Label className="text-sm font-medium whitespace-nowrap">Filtrar por:</Label>
+            <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val as any)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Selecione o filtro" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Plantio e Corte</SelectItem>
+                <SelectItem value="PLANTIO">Apenas Plantio</SelectItem>
+                <SelectItem value="CORTE">Apenas Corte</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="rounded-md border">
@@ -212,8 +255,12 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Funcionário</TableHead>
-                <TableHead className="w-[120px] text-center">Plantio (m)</TableHead>
-                <TableHead className="w-[120px] text-center">Corte (m)</TableHead>
+                {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
+                  <TableHead className="w-[120px] text-center">Plantio (m)</TableHead>
+                )}
+                {(typeFilter === "ALL" || typeFilter === "CORTE") && (
+                  <TableHead className="w-[120px] text-center">Corte (m)</TableHead>
+                )}
                 <TableHead className="w-[120px] text-right">Valor (Est.)</TableHead>
                 <TableHead className="w-[80px] text-right">Status</TableHead>
               </TableRow>
@@ -246,26 +293,30 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
                   return (
                     <TableRow key={record.employeeId} className={record.isClosed ? "bg-muted/50" : ""}>
                       <TableCell className="font-medium">{record.employeeName}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          className="h-8 text-center"
-                          value={record.plantingMeters || ""}
-                          onChange={(e) => handleInputChange(record.employeeId, "plantingMeters", e.target.value)}
-                          disabled={record.isClosed}
-                          placeholder="0"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          className="h-8 text-center"
-                          value={record.cuttingMeters || ""}
-                          onChange={(e) => handleInputChange(record.employeeId, "cuttingMeters", e.target.value)}
-                          disabled={record.isClosed}
-                          placeholder="0"
-                        />
-                      </TableCell>
+                      {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
+                        <TableCell>
+                          <Input
+                            type="number"
+                            className="h-8 text-center"
+                            value={record.plantingMeters || ""}
+                            onChange={(e) => handleInputChange(record.employeeId, "plantingMeters", e.target.value)}
+                            disabled={record.isClosed}
+                            placeholder="0"
+                          />
+                        </TableCell>
+                      )}
+                      {(typeFilter === "ALL" || typeFilter === "CORTE") && (
+                        <TableCell>
+                          <Input
+                            type="number"
+                            className="h-8 text-center"
+                            value={record.cuttingMeters || ""}
+                            onChange={(e) => handleInputChange(record.employeeId, "cuttingMeters", e.target.value)}
+                            disabled={record.isClosed}
+                            placeholder="0"
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="text-right font-medium">
                         {formatCurrency(Math.round(estimatedTotalInCents))}
                       </TableCell>
@@ -281,6 +332,21 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
                 })
               )}
             </TableBody>
+            <TableHeader>
+              <TableRow className="bg-muted/50 font-bold hover:bg-muted/50">
+                <TableCell className="text-right">Total</TableCell>
+                {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
+                  <TableCell className="text-center">{totals.planting} m</TableCell>
+                )}
+                {(typeFilter === "ALL" || typeFilter === "CORTE") && (
+                  <TableCell className="text-center">{totals.cutting} m</TableCell>
+                )}
+                <TableCell className="text-right text-emerald-600">
+                  {formatCurrency(Math.round(totals.value))}
+                </TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            </TableHeader>
           </Table>
         </div>
       </CardContent>

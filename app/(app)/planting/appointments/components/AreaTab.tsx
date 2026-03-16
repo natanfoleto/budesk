@@ -1,16 +1,7 @@
 "use client"
 
-import { AlertCircle, Save } from "lucide-react"
-import { useEffect, useState } from "react"
-
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useCreatePlantingArea, usePlantingAreas } from "@/hooks/use-planting"
-import { PlantingAreaFormData } from "@/types/planting"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
 
 interface AreaTabProps {
   seasonId: string
@@ -19,43 +10,36 @@ interface AreaTabProps {
 }
 
 export function AreaTab({ seasonId, frontId, date }: AreaTabProps) {
-  const [hectares, setHectares] = useState<number>(0)
-  const [isClosed, setIsClosed] = useState(false)
+  const { data: parameters } = usePlantingParameters()
+  const areaPlantioRatio = parameters?.find(p => p.key === "area_hectare_plantio")?.value ? Number(parameters?.find(p => p.key === "area_hectare_plantio")?.value) : 834
+  const areaCorteRatio = parameters?.find(p => p.key === "area_hectare_corte")?.value ? Number(parameters?.find(p => p.key === "area_hectare_corte")?.value) : 1333
 
-  // Fetch existing area record via shared hook
-  const { data: areaRecords, isLoading, refetch } = usePlantingAreas({
+  // Active day productions to track the exact metrics
+  const { data: dailyProductions } = usePlantingProductions({
     seasonId,
     frontId,
     date: date ? `${date}T00:00:00Z` : undefined
   })
 
-  const saveMutation = useCreatePlantingArea()
+  // Cumulative productions to track all inputs in the front
+  const { data: cumulativeProductions } = usePlantingProductions({
+    seasonId,
+    frontId
+  })
 
-  useEffect(() => {
-    if (areaRecords && areaRecords.length > 0) {
-      setHectares(areaRecords[0].hectares)
-      setIsClosed(areaRecords[0].isClosed)
-    } else {
-      setHectares(0)
-      setIsClosed(false)
-    }
-  }, [areaRecords])
+  const dailyPlantioMeters = dailyProductions?.filter((p: { type: string, presence: string, meters: string | number | null }) => p.type === "PLANTIO" && p.presence === "PRESENCA").reduce((acc: number, curr: { meters: string | number | null }) => acc + Number(curr.meters || 0), 0) || 0
+  const dailyCorteMeters = dailyProductions?.filter((p: { type: string, presence: string, meters: string | number | null }) => p.type === "CORTE" && p.presence === "PRESENCA").reduce((acc: number, curr: { meters: string | number | null }) => acc + Number(curr.meters || 0), 0) || 0
+  
+  const dailyPlantioHectares = dailyPlantioMeters / areaPlantioRatio
+  const dailyCorteHectares = dailyCorteMeters / areaCorteRatio
+  const computedDailyHectares = Number((dailyPlantioHectares + dailyCorteHectares).toFixed(2))
 
-  const handleSave = () => {
-    const payload: PlantingAreaFormData = {
-      seasonId,
-      frontId,
-      date: new Date(date).toISOString(),
-      hectares: hectares,
-      workedArea: hectares // In manual planting, usually hectares = workedArea
-    }
-    
-    saveMutation.mutate(payload, {
-      onSuccess: () => {
-        refetch()
-      }
-    })
-  }
+  const totalPlantioMeters = cumulativeProductions?.filter((p: { type: string, presence: string, meters: string | number | null }) => p.type === "PLANTIO" && p.presence === "PRESENCA").reduce((acc: number, curr: { meters: string | number | null }) => acc + Number(curr.meters || 0), 0) || 0
+  const totalCorteMeters = cumulativeProductions?.filter((p: { type: string, presence: string, meters: string | number | null }) => p.type === "CORTE" && p.presence === "PRESENCA").reduce((acc: number, curr: { meters: string | number | null }) => acc + Number(curr.meters || 0), 0) || 0
+
+  const totalPlantioHectares = totalPlantioMeters / areaPlantioRatio
+  const totalCorteHectares = totalCorteMeters / areaCorteRatio
+  const computedTotalHectares = Number((totalPlantioHectares + totalCorteHectares).toFixed(2))
 
   if (seasonId === "all" || frontId === "all" || !date) {
     return (
@@ -68,52 +52,68 @@ export function AreaTab({ seasonId, frontId, date }: AreaTabProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Controle de Área (Hectares)</CardTitle>
-        <CardDescription>
-          Informe a quantidade de hectares (ha) concluídos nesta frente na data selecionada.
-          Este valor é vital para o cálculo de custo/ha e produtividade geral.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-32 w-full" />
-        ) : (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="hectares" className="text-base">Hectares concluídos (ha)</Label>
-                <div className="flex items-center gap-2">
-                  <Input 
-                    id="hectares"
-                    type="number" 
-                    step="0.01"
-                    className="w-32 text-lg font-bold"
-                    value={hectares || ""}
-                    onChange={(e) => setHectares(Number(e.target.value))}
-                    disabled={isClosed}
-                  />
-                  <Button onClick={handleSave} disabled={saveMutation.isPending || isClosed}>
-                    <Save className="mr-2 h-4 w-4" /> 
-                    Salvar
-                  </Button>
-                </div>
-              </div>
-            </div>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Hectares Plantio (Hoje)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{dailyPlantioHectares.toFixed(2)} ha</div>
+            <p className="text-xs text-muted-foreground mt-1">Base/ha: {areaPlantioRatio}m</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Hectares Corte (Hoje)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{dailyCorteHectares.toFixed(2)} ha</div>
+            <p className="text-xs text-muted-foreground mt-1">Base/ha: {areaCorteRatio}m</p>
+          </CardContent>
+        </Card>
 
-            {isClosed && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Período Fechado</AlertTitle>
-                <AlertDescription>
-                  A alteração deste valor está bloqueada pois pertence a um período de safra que já foi fechado.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        <Card className="bg-muted/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total (Hoje)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{computedDailyHectares.toFixed(2)} ha</div>
+            <p className="text-xs text-muted-foreground mt-1">Soma de Plantio e Corte</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-600">Total Plantio (Acumulado)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalPlantioHectares.toFixed(2)} ha</div>
+            <p className="text-xs text-muted-foreground mt-1">Todos os dias da frente</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-600">Total Corte (Acumulado)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCorteHectares.toFixed(2)} ha</div>
+            <p className="text-xs text-muted-foreground mt-1">Todos os dias da frente</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-emerald-50 dark:bg-emerald-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-600">Total Área (Acumulado)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">{computedTotalHectares.toFixed(2)} ha</div>
+            <p className="text-xs text-emerald-600/70 mt-1">Acumulado Total</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 }

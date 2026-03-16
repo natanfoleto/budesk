@@ -1,3 +1,4 @@
+import { ExpenseCategory } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { createAuditLog } from "@/lib/audit"
@@ -13,7 +14,7 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { primeiraParcela, segundaParcela, primeiraPaga, segundaPaga } = body
+    const { firstInstallmentInCents, secondInstallmentInCents, firstInstallmentPaid, secondInstallmentPaid } = body
 
     const existing = await prisma.thirteenthSalary.findUnique({
       where: { id },
@@ -24,25 +25,23 @@ export async function PUT(
 
     // Determine Status
     let status: "PENDENTE" | "PARCIAL" | "PAGO" = "PENDENTE"
-    if (primeiraPaga && segundaPaga) status = "PAGO"
-    else if (primeiraPaga || segundaPaga) status = "PARCIAL"
+    if (firstInstallmentPaid && secondInstallmentPaid) status = "PAGO"
+    else if (firstInstallmentPaid || secondInstallmentPaid) status = "PARCIAL"
 
     const data: {
       status: "PENDENTE" | "PARCIAL" | "PAGO"
-      primeiraParcela?: number
-      segundaParcela?: number
-      primeiraPaga?: boolean
-      segundaPaga?: boolean
+      firstInstallmentInCents?: number
+      secondInstallmentInCents?: number
+      firstInstallmentPaid?: boolean
+      secondInstallmentPaid?: boolean
     } = { status }
     
-    if (primeiraParcela !== undefined) data.primeiraParcela = Number(primeiraParcela)
-    if (segundaParcela !== undefined) data.segundaParcela = Number(segundaParcela)
-    if (primeiraPaga !== undefined) data.primeiraPaga = primeiraPaga
-    if (segundaPaga !== undefined) data.segundaPaga = segundaPaga
+    if (firstInstallmentInCents !== undefined) data.firstInstallmentInCents = Number(firstInstallmentInCents)
+    if (secondInstallmentInCents !== undefined) data.secondInstallmentInCents = Number(secondInstallmentInCents)
+    if (firstInstallmentPaid !== undefined) data.firstInstallmentPaid = firstInstallmentPaid
+    if (secondInstallmentPaid !== undefined) data.secondInstallmentPaid = secondInstallmentPaid
 
-    // Payment Logic - We could generate a full RHPayment here too, but to keep it simple, 
-    // we'll just generate the financial transaction right away for whichever parcel was just paid.
-    
+    // Payment Logic
     const thirteenth = await prisma.$transaction(async (tx) => {
       const updated = await tx.thirteenthSalary.update({
         where: { id },
@@ -50,31 +49,31 @@ export async function PUT(
       })
 
       const now = new Date()
-      const compStr = `${updated.anoReferencia}-13`
+      const compStr = `${updated.referenceYear}-13`
 
       // If primeira parcel was JUST marked as paid
-      if (primeiraPaga && !existing.primeiraPaga && data.primeiraParcela) {
+      if (firstInstallmentPaid && !existing.firstInstallmentPaid && data.firstInstallmentInCents) {
         
         const rh1 = await tx.rHPayment.create({
           data: {
             employeeId: updated.employeeId,
-            competencia: compStr,
-            tipoPagamento: "DECIMO_TERCEIRO",
-            salarioBase: Number(data.primeiraParcela),
-            totalBruto: Number(data.primeiraParcela),
-            totalLiquido: Number(data.primeiraParcela),
+            competenceMonth: compStr,
+            paymentType: "DECIMO_TERCEIRO",
+            baseSalaryInCents: Number(data.firstInstallmentInCents),
+            grossTotalInCents: Number(data.firstInstallmentInCents),
+            netTotalInCents: Number(data.firstInstallmentInCents),
             status: "PAGO",
-            dataPagamento: now,
-            observacoes: `1ª Parcela do 13º Salário (${updated.anoReferencia})`
+            paymentDate: now,
+            notes: `1ª Parcela do 13º Salário (${updated.referenceYear})`
           }
         })
 
         await tx.financialTransaction.create({
           data: {
-            description: `1ª Parcela 13º - ${existing.employee.name} - ${updated.anoReferencia}`,
+            description: `1ª Parcela 13º - ${existing.employee.name} - ${updated.referenceYear}`,
             type: "SAIDA",
-            valueInCents: Math.round(Number(data.primeiraParcela) * 100),
-            category: "Pagamento 13º",
+            valueInCents: Math.round(Number(data.firstInstallmentInCents)),
+            category: ExpenseCategory.SALARIO,
             paymentMethod: "TRANSFERENCIA",
             date: now,
             employeeId: updated.employeeId,
@@ -84,27 +83,27 @@ export async function PUT(
       }
 
       // If segunda parcel was JUST marked as paid
-      if (segundaPaga && !existing.segundaPaga && data.segundaParcela) {
+      if (secondInstallmentPaid && !existing.secondInstallmentPaid && data.secondInstallmentInCents) {
         const rh2 = await tx.rHPayment.create({
           data: {
             employeeId: updated.employeeId,
-            competencia: compStr,
-            tipoPagamento: "DECIMO_TERCEIRO",
-            salarioBase: Number(data.segundaParcela),
-            totalBruto: Number(data.segundaParcela),
-            totalLiquido: Number(data.segundaParcela), // simplificando impostos descontados via campos na UI se quiser
+            competenceMonth: compStr,
+            paymentType: "DECIMO_TERCEIRO",
+            baseSalaryInCents: Number(data.secondInstallmentInCents),
+            grossTotalInCents: Number(data.secondInstallmentInCents),
+            netTotalInCents: Number(data.secondInstallmentInCents),
             status: "PAGO",
-            dataPagamento: now,
-            observacoes: `2ª Parcela do 13º Salário (${updated.anoReferencia})`
+            paymentDate: now,
+            notes: `2ª Parcela do 13º Salário (${updated.referenceYear})`
           }
         })
 
         await tx.financialTransaction.create({
           data: {
-            description: `2ª Parcela 13º - ${existing.employee.name} - ${updated.anoReferencia}`,
+            description: `2ª Parcela 13º - ${existing.employee.name} - ${updated.referenceYear}`,
             type: "SAIDA",
-            valueInCents: Math.round(Number(data.segundaParcela) * 100),
-            category: "Pagamento 13º",
+            valueInCents: Math.round(Number(data.secondInstallmentInCents)),
+            category: ExpenseCategory.SALARIO,
             paymentMethod: "TRANSFERENCIA",
             date: now,
             employeeId: updated.employeeId,

@@ -140,6 +140,17 @@ enum PlantingProductionType {
   CORTE
 }
 
+enum ExpenseCategory {
+  ALIMENTACAO
+  COMBUSTIVEL
+  EQUIPAMENTOS
+  MANUTENCAO
+  PECAS
+  SALARIO
+  SERVICOS
+  OUTROS
+}
+
 // USUÁRIOS
 
 model User {
@@ -387,7 +398,7 @@ model FinancialTransaction {
   description   String
   type          TransactionType
   valueInCents  Int             @map("value_in_cents")
-  category      String
+  category      ExpenseCategory
   paymentMethod PaymentMethod
   date          DateTime
   serviceId     String?
@@ -875,7 +886,7 @@ model PlantingExpense {
   date        DateTime @db.Date
   frontId     String
   seasonId    String
-  category    String   // e.g. Diesel, Manutenção, Refeição, etc
+  category    ExpenseCategory
   description String
   quantity    Decimal?  @db.Decimal(10, 2)
   unitValueInCents Int?

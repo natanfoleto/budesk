@@ -31,33 +31,33 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { employeeId, horasCredito, horasDebito } = body
+    const { employeeId, creditHours, debitHours } = body
 
     // Calculate current saldo or use defaults
     const record = await prisma.$transaction(async (tx) => {
       const existing = await tx.timeBank.findUnique({ where: { employeeId } })
 
       if (existing) {
-        const novoSaldo = Number(existing.saldoHoras) + Number(horasCredito || 0) - Number(horasDebito || 0)
+        const newBalance = Number(existing.balanceHours) + Number(creditHours || 0) - Number(debitHours || 0)
         return tx.timeBank.update({
           where: { employeeId },
           data: {
-            saldoHoras: novoSaldo,
-            horasCredito: Number(existing.horasCredito) + Number(horasCredito || 0),
-            horasDebito: Number(existing.horasDebito) + Number(horasDebito || 0),
+            balanceHours: newBalance,
+            creditHours: Number(existing.creditHours) + Number(creditHours || 0),
+            debitHours: Number(existing.debitHours) + Number(debitHours || 0),
           },
-          include: { employee: { select: { name: true } } },
+          include: { employee: { select: { id: true, name: true } } },
         })
       } else {
-        const saldo = Number(horasCredito || 0) - Number(horasDebito || 0)
+        const balance = Number(creditHours || 0) - Number(debitHours || 0)
         return tx.timeBank.create({
           data: {
             employeeId,
-            saldoHoras: saldo,
-            horasCredito: Number(horasCredito || 0),
-            horasDebito: Number(horasDebito || 0),
+            balanceHours: balance,
+            creditHours: Number(creditHours || 0),
+            debitHours: Number(debitHours || 0),
           },
-          include: { employee: { select: { name: true } } },
+          include: { employee: { select: { id: true, name: true } } },
         })
       }
     })

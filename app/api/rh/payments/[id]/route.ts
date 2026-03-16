@@ -1,3 +1,4 @@
+import { ExpenseCategory, PaymentMethod } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { createAuditLog } from "@/lib/audit"
@@ -13,8 +14,8 @@ export async function GET(
       where: { id },
       include: {
         employee: { select: { id: true, name: true, role: true } },
-        encargos: true,
-        rateios: true,
+        taxes: true,
+        allocations: true,
         transaction: true,
       },
     })
@@ -43,19 +44,19 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     const {
-      competencia,
-      tipoPagamento,
-      salarioBase,
-      adicionais = 0,
-      horasExtras = 0,
-      valorHorasExtras = 0,
-      descontos = 0,
-      valorAdiantamentos = 0,
+      competenceMonth,
+      paymentType,
+      baseSalaryInCents,
+      additionsInCents = 0,
+      overtimeHours = 0,
+      overtimeValueInCents = 0,
+      discountsInCents = 0,
+      advancesValueInCents = 0,
       status,
-      dataPagamento,
-      formaPagamento,
-      centroCusto,
-      observacoes,
+      paymentDate,
+      paymentMethod,
+      costCenterId,
+      notes,
     } = body
 
     const existing = await prisma.rHPayment.findUnique({
@@ -67,20 +68,20 @@ export async function PUT(
       return NextResponse.json({ error: "Pagamento não encontrado" }, { status: 404 })
     }
 
-    const totalBruto = Number(salarioBase ?? existing.salarioBase) + Number(adicionais ?? existing.adicionais) + Number(valorHorasExtras ?? existing.valorHorasExtras)
-    const totalLiquido = totalBruto - Number(descontos ?? existing.descontos) - Number(valorAdiantamentos ?? existing.valorAdiantamentos)
+    const grossTotalInCents = Number(baseSalaryInCents ?? existing.baseSalaryInCents) + Number(additionsInCents ?? existing.additionsInCents) + Number(overtimeValueInCents ?? existing.overtimeValueInCents)
+    const netTotalInCents = grossTotalInCents - Number(discountsInCents ?? existing.discountsInCents) - Number(advancesValueInCents ?? existing.advancesValueInCents)
 
     const mergedData = {
-      competencia: competencia ?? existing.competencia,
-      tipoPagamento: tipoPagamento ?? existing.tipoPagamento,
-      salarioBase: salarioBase ?? existing.salarioBase,
-      adicionais: adicionais ?? existing.adicionais,
-      horasExtras: horasExtras ?? existing.horasExtras,
-      valorHorasExtras: valorHorasExtras ?? existing.valorHorasExtras,
-      descontos: descontos ?? existing.descontos,
-      valorAdiantamentos: valorAdiantamentos ?? existing.valorAdiantamentos,
-      totalBruto,
-      totalLiquido,
+      competenceMonth: competenceMonth ?? existing.competenceMonth,
+      paymentType: paymentType ?? existing.paymentType,
+      baseSalaryInCents: baseSalaryInCents ?? existing.baseSalaryInCents,
+      additionsInCents: additionsInCents ?? existing.additionsInCents,
+      overtimeHours: overtimeHours ?? existing.overtimeHours,
+      overtimeValueInCents: overtimeValueInCents ?? existing.overtimeValueInCents,
+      discountsInCents: discountsInCents ?? existing.discountsInCents,
+      advancesValueInCents: advancesValueInCents ?? existing.advancesValueInCents,
+      grossTotalInCents,
+      netTotalInCents,
     }
 
     // If changing to PAGO status and no transaction exists yet → create one
@@ -91,26 +92,24 @@ export async function PUT(
           data: {
             ...mergedData,
             status: "PAGO",
-            dataPagamento: dataPagamento ? new Date(dataPagamento) : new Date(),
-            formaPagamento: formaPagamento ?? existing.formaPagamento ?? null,
-            centroCusto: centroCusto ?? existing.centroCusto ?? null,
-            observacoes: observacoes ?? existing.observacoes ?? null,
+            paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+            paymentMethod: paymentMethod ?? existing.paymentMethod ?? null,
+            costCenterId: costCenterId ?? existing.costCenterId ?? null,
+            notes: notes ?? existing.notes ?? null,
           },
           include: {
             employee: { select: { id: true, name: true, role: true } },
           },
         })
 
-        const valueInCents = Math.round(Number(mergedData.totalLiquido) * 100)
-
         await tx.financialTransaction.create({
           data: {
-            description: `Pagamento RH - ${updated.employee.name} - ${mergedData.competencia}`,
+            description: `Pagamento RH - ${updated.employee.name} - ${mergedData.competenceMonth}`,
             type: "SAIDA",
-            valueInCents,
-            category: "Pagamento Funcionário",
-            paymentMethod: (formaPagamento ?? existing.formaPagamento ?? "TRANSFERENCIA") as "DINHEIRO" | "PIX" | "CARTAO" | "BOLETO" | "CHEQUE" | "TRANSFERENCIA",
-            date: dataPagamento ? new Date(dataPagamento) : new Date(),
+            valueInCents: netTotalInCents,
+            category: ExpenseCategory.SALARIO,
+            paymentMethod: (paymentMethod ?? existing.paymentMethod ?? "TRANSFERENCIA") as PaymentMethod,
+            date: paymentDate ? new Date(paymentDate) : new Date(),
             employeeId: updated.employeeId,
             rhPaymentId: id,
           },
@@ -144,10 +143,10 @@ export async function PUT(
           data: {
             ...mergedData,
             status: status ?? existing.status,
-            dataPagamento: dataPagamento ? new Date(dataPagamento) : null,
-            formaPagamento: formaPagamento ?? existing.formaPagamento ?? null,
-            centroCusto: centroCusto ?? existing.centroCusto ?? null,
-            observacoes: observacoes ?? existing.observacoes ?? null,
+            paymentDate: paymentDate ? new Date(paymentDate) : null,
+            paymentMethod: paymentMethod ?? existing.paymentMethod ?? null,
+            costCenterId: costCenterId ?? existing.costCenterId ?? null,
+            notes: notes ?? existing.notes ?? null,
           },
         })
       })
@@ -161,10 +160,10 @@ export async function PUT(
       data: {
         ...mergedData,
         status: status ?? existing.status,
-        dataPagamento: dataPagamento ? new Date(dataPagamento) : null,
-        formaPagamento: formaPagamento ?? existing.formaPagamento ?? null,
-        centroCusto: centroCusto ?? existing.centroCusto ?? null,
-        observacoes: observacoes ?? existing.observacoes ?? null,
+        paymentDate: paymentDate ? new Date(paymentDate) : null,
+        paymentMethod: paymentMethod ?? existing.paymentMethod ?? null,
+        costCenterId: costCenterId ?? existing.costCenterId ?? null,
+        notes: notes ?? existing.notes ?? null,
       },
     })
 
@@ -197,7 +196,7 @@ export async function DELETE(
     const { id } = await params
     const existing = await prisma.rHPayment.findUnique({
       where: { id },
-      include: { transaction: true, encargos: true },
+      include: { transaction: true, taxes: true },
     })
 
     if (!existing) {

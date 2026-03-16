@@ -35,7 +35,7 @@ export async function POST(
   try {
     const body = await request.json()
     const { 
-      admissionDate, terminationDate, jobTitle, baseSalary,
+      admissionDate, terminationDate, jobTitle, baseSalaryInCents,
       contractType, weeklyWorkload, workRegime, isActive, notes,
       hasMedicalExam, hasSignedRegistration, hasSignedEpiReceipt
     } = body
@@ -46,7 +46,7 @@ export async function POST(
         admissionDate: new Date(admissionDate),
         terminationDate: terminationDate ? new Date(terminationDate) : null,
         jobTitle,
-        baseSalary,
+        baseSalaryInCents,
         contractType,
         weeklyWorkload: weeklyWorkload ? parseInt(weeklyWorkload) : null,
         workRegime,
@@ -63,7 +63,7 @@ export async function POST(
       action: AUDIT_Update,
       entity: "EmploymentRecord",
       entityId: record.id,
-      newData: record as any,
+      newData: record,
       userId: userId,
     })
 

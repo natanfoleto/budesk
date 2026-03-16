@@ -1,8 +1,11 @@
 "use client"
 
 import { format } from "date-fns"
-import { useState } from "react"
+import { FilterX } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useState } from "react"
 
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,13 +25,58 @@ import { DriverTab } from "./components/DriverTab"
 import { PlantingTab } from "./components/PlantingTab"
 import { PresenceTab } from "./components/PresenceTab"
 
-export default function AppointmentsPage() {
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string>("all")
-  const [selectedFrontId, setSelectedFrontId] = useState<string>("all")
-  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"))
+function AppointmentsContent() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>(searchParams.get("seasonId") || "all")
+  const [selectedFrontId, setSelectedFrontId] = useState<string>(searchParams.get("frontId") || "all")
+  const [selectedDate, setSelectedDate] = useState<string>(searchParams.get("date") || format(new Date(), "yyyy-MM-dd"))
+  const [activeTab, setActiveTab] = useState<string>(searchParams.get("tab") || "plantio")
 
   const { data: seasons } = usePlantingSeasons()
   const { data: fronts } = useWorkFronts(selectedSeasonId !== "all" ? selectedSeasonId : undefined)
+
+  const updateFilters = (season: string, front: string, date: string, tab: string) => {
+    const params = new URLSearchParams()
+    if (season && season !== "all") params.set("seasonId", season)
+    if (front && front !== "all") params.set("frontId", front)
+    if (date) params.set("date", date)
+    if (tab && tab !== "plantio") params.set("tab", tab)
+    
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
+  const handleSeasonChange = (v: string) => {
+    setSelectedSeasonId(v)
+    setSelectedFrontId("all")
+    updateFilters(v, "all", selectedDate, activeTab)
+  }
+
+  const handleFrontChange = (v: string) => {
+    setSelectedFrontId(v)
+    updateFilters(selectedSeasonId, v, selectedDate, activeTab)
+  }
+
+  const handleDateChange = (v: string) => {
+    setSelectedDate(v)
+    updateFilters(selectedSeasonId, selectedFrontId, v, activeTab)
+  }
+
+  const handleTabChange = (v: string) => {
+    setActiveTab(v)
+    updateFilters(selectedSeasonId, selectedFrontId, selectedDate, v)
+  }
+
+  const clearFilters = () => {
+    const today = format(new Date(), "yyyy-MM-dd")
+    setSelectedSeasonId("all")
+    setSelectedFrontId("all")
+    setSelectedDate(today)
+    setActiveTab("plantio")
+    router.replace(pathname, { scroll: false })
+  }
 
   return (
     <div className="space-y-6">
@@ -48,7 +96,7 @@ export default function AppointmentsPage() {
               <Label>Safra</Label>
               <Select
                 value={selectedSeasonId}
-                onValueChange={(v) => { setSelectedSeasonId(v); setSelectedFrontId("all") }}
+                onValueChange={handleSeasonChange}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecione a Safra" />
@@ -66,7 +114,7 @@ export default function AppointmentsPage() {
               <Label>Frente de Trabalho</Label>
               <Select
                 value={selectedFrontId}
-                onValueChange={setSelectedFrontId}
+                onValueChange={handleFrontChange}
                 disabled={selectedSeasonId === "all"}
               >
                 <SelectTrigger className="w-full">
@@ -86,14 +134,21 @@ export default function AppointmentsPage() {
               <Input
                 type="date"
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => handleDateChange(e.target.value)}
               />
+            </div>
+
+            <div className="flex pb-0.5">
+              <Button variant="outline" onClick={clearFilters} className="text-muted-foreground">
+                <FilterX className="h-4 w-4 mr-2" />
+                Limpar Filtros
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="plantio" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-5 h-12">
           <TabsTrigger value="plantio" className="text-base">Plantio &amp; Corte</TabsTrigger>
           <TabsTrigger value="diaria" className="text-base">Diárias</TabsTrigger>
@@ -141,5 +196,13 @@ export default function AppointmentsPage() {
         </div>
       </Tabs>
     </div>
+  )
+}
+
+export default function AppointmentsPage() {
+  return (
+    <Suspense>
+      <AppointmentsContent />
+    </Suspense>
   )
 }

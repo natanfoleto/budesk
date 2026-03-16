@@ -97,7 +97,7 @@ export interface PlantingExpense {
   date: string
   frontId: string
   seasonId: string
-  category: string
+  category: import("@prisma/client").ExpenseCategory
   description: string
   quantity: number | null
   unitValueInCents: number | null

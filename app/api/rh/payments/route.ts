@@ -1,4 +1,4 @@
-import { Prisma, RHPaymentStatus } from "@prisma/client"
+import { ExpenseCategory, Prisma, RHPaymentStatus } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import prisma from "@/lib/prisma"
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       if (status === "PAGO" || paymentDate) {
         await FinanceService.registerTransaction(tx, {
           type: "SAIDA",
-          category: `Pagamento RH - ${competenceMonth}`,
+          category: ExpenseCategory.SALARIO,
           amountInCents: netTotalInCents,
           paymentMethod: paymentMethod || "TRANSFERENCIA",
           description: `Pagamento de ${paymentType} para funcionário`,

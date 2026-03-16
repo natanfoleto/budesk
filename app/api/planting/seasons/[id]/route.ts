@@ -31,3 +31,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: "Failed to update season" }, { status: 500 })
   }
 }
+
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    const userId = req.headers.get("x-user-id")
+
+    if (!userId) {
+      return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+    }
+
+    const season = await PlantingSeasonService.delete(id, userId)
+    return NextResponse.json(season)
+  } catch (error) {
+    console.error("Error deleting season:", error)
+    return NextResponse.json({ error: "Failed to delete season" }, { status: 500 })
+  }
+}

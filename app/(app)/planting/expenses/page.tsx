@@ -1,10 +1,11 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { ExpenseCategory } from "@prisma/client"
 import { useQuery } from "@tanstack/react-query"
-import { Plus, Trash } from "lucide-react"
+import { Edit, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
-import { useForm } from "react-hook-form"
+import { Resolver, SubmitHandler, useForm } from "react-hook-form"
 import * as z from "zod"
 
 import { Button } from "@/components/ui/button"
@@ -48,21 +49,34 @@ import {
   useDeleteExpense,
   usePlantingExpenses,
   usePlantingSeasons,
+  useUpdateExpense,
   useWorkFronts,
 } from "@/hooks/use-planting"
 import { formatCurrency } from "@/lib/utils"
-import { PlantingExpenseFormData } from "@/types/planting"
+import { PlantingExpense, PlantingExpenseFormData } from "@/types/planting"
 
 type Vehicle = { id: string; plate: string; model: string }
+
+const categoryLabels: Record<ExpenseCategory, string> = {
+  [ExpenseCategory.ALIMENTACAO]: "Alimentação",
+  [ExpenseCategory.COMBUSTIVEL]: "Combustível",
+  [ExpenseCategory.EQUIPAMENTOS]: "Equipamentos",
+  [ExpenseCategory.MANUTENCAO]: "Manutenção",
+  [ExpenseCategory.PECAS]: "Peças",
+  [ExpenseCategory.SALARIO]: "Salário",
+  [ExpenseCategory.SERVICOS]: "Serviços",
+  [ExpenseCategory.OUTROS]: "Outros",
+}
 
 const expenseSchema = z.object({
   date: z.string().min(1, "A data é obrigatória"),
   frontId: z.string().min(1, "Selecione uma frente de trabalho"),
-  vehicleId: z.string().optional().or(z.literal("")),
+  vehicleId: z.string().optional(),
+  category: z.nativeEnum(ExpenseCategory),
   itemDescription: z.string().min(1, "Informe a descrição do item/serviço"),
   invoiceNumber: z.string().optional(),
-  quantity: z.preprocess((val) => Number(val), z.number().min(0.01, "A quantidade deve ser maior que 0")),
-  unitValue: z.preprocess((val) => Number(val), z.number().min(0, "O valor unitário não pode ser negativo")),
+  quantity: z.coerce.number().min(0.01, "A quantidade deve ser maior que 0"),
+  unitValue: z.coerce.number().min(0, "O valor unitário não pode ser negativo"),
 })
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>
@@ -70,14 +84,15 @@ type ExpenseFormValues = z.infer<typeof expenseSchema>
 export default function PlantingExpensesPage() {
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("all")
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<PlantingExpense | null>(null)
 
   const form = useForm<ExpenseFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(expenseSchema) as any,
+    resolver: zodResolver(expenseSchema) as Resolver<ExpenseFormValues>,
     defaultValues: {
       date: new Date().toISOString().split("T")[0],
       frontId: "",
       vehicleId: "",
+      category: ExpenseCategory.OUTROS,
       itemDescription: "",
       invoiceNumber: "",
       quantity: 1,
@@ -87,7 +102,8 @@ export default function PlantingExpensesPage() {
 
   // Queries
   const { data: seasons } = usePlantingSeasons()
-  const { data: fronts } = useWorkFronts(selectedSeasonId !== "all" ? selectedSeasonId : undefined)
+  const effectiveSeasonId = editingExpense ? editingExpense.seasonId : (selectedSeasonId !== "all" ? selectedSeasonId : undefined)
+  const { data: fronts } = useWorkFronts(effectiveSeasonId)
   const { data: expenses, isLoading } = usePlantingExpenses(
     selectedSeasonId !== "all" ? { seasonId: selectedSeasonId } : undefined
   )
@@ -106,14 +122,63 @@ export default function PlantingExpensesPage() {
   // Mutations
   const createExpenseMutation = useCreateExpense()
   const deleteExpenseMutation = useDeleteExpense()
+  const updateExpenseMutation = useUpdateExpense()
 
-  const onSubmit = (values: ExpenseFormValues) => {
-    if (selectedSeasonId === "all") return
+  const handleEditClick = (expense: PlantingExpense) => {
+    let invoiceNumber = ""
+    let itemDescription = expense.description
+    
+    // Extract invoice number if it was appended during creation
+    const match = expense.description.match(/\(NF: (.*?)\)$/)
+    if (match) {
+      invoiceNumber = match[1]
+      itemDescription = expense.description.replace(` (NF: ${invoiceNumber})`, "").trim()
+    }
+
+    setEditingExpense(expense)
+    
+    // Explicitly casting to match ExpenseFormValues
+    const editValues: ExpenseFormValues = {
+      date: new Date(expense.date).toISOString().split("T")[0],
+      frontId: expense.frontId || "",
+      vehicleId: expense.vehicleId || "",
+      category: (expense.category as ExpenseCategory) || ExpenseCategory.OUTROS,
+      itemDescription,
+      invoiceNumber: invoiceNumber || "",
+      quantity: Number(expense.quantity) || 1,
+      unitValue: expense.unitValueInCents ? expense.unitValueInCents / 100 : (expense.totalValueInCents / 100),
+    }
+    
+    form.reset(editValues)
+    setIsModalOpen(true)
+  }
+
+  const handleModalClose = (open: boolean) => {
+    setIsModalOpen(open)
+    if (!open) {
+      setEditingExpense(null)
+      form.reset({
+        date: new Date().toISOString().split("T")[0],
+        frontId: "",
+        vehicleId: "",
+        category: ExpenseCategory.OUTROS,
+        itemDescription: "",
+        invoiceNumber: "",
+        quantity: 1,
+        unitValue: 0,
+      })
+    }
+  }
+
+  const onSubmit: SubmitHandler<ExpenseFormValues> = (values) => {
+    const targetSeasonId = editingExpense ? editingExpense.seasonId : selectedSeasonId
+    if (targetSeasonId === "all") return
 
     const payload: PlantingExpenseFormData = {
-      seasonId: selectedSeasonId,
+      seasonId: targetSeasonId,
       frontId: values.frontId,
-      vehicleId: values.vehicleId || undefined,
+      vehicleId: values.vehicleId === "" ? undefined : values.vehicleId,
+      category: values.category,
       date: new Date(values.date).toISOString(),
       description: values.itemDescription,
       itemDescription: values.itemDescription,
@@ -122,20 +187,19 @@ export default function PlantingExpensesPage() {
       unitValueInCents: Math.round(values.unitValue * 100),
     }
 
-    createExpenseMutation.mutate(payload, {
-      onSuccess: () => {
-        setIsModalOpen(false)
-        form.reset({
-          date: new Date().toISOString().split("T")[0],
-          frontId: "",
-          vehicleId: "",
-          itemDescription: "",
-          invoiceNumber: "",
-          quantity: 1,
-          unitValue: 0,
-        })
-      }
-    })
+    if (editingExpense) {
+      updateExpenseMutation.mutate({ id: editingExpense.id, data: payload }, {
+        onSuccess: () => {
+          handleModalClose(false)
+        }
+      })
+    } else {
+      createExpenseMutation.mutate(payload, {
+        onSuccess: () => {
+          handleModalClose(false)
+        }
+      })
+    }
   }
 
   const formValues = form.watch()
@@ -165,7 +229,7 @@ export default function PlantingExpensesPage() {
             </SelectContent>
           </Select>
 
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <Dialog open={isModalOpen} onOpenChange={handleModalClose}>
             <DialogTrigger asChild>
               <Button disabled={selectedSeasonId === "all"}>
                 <Plus className="h-4 w-4" /> Novo Gasto
@@ -173,7 +237,7 @@ export default function PlantingExpensesPage() {
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Lançar Despesa Operacional</DialogTitle>
+                <DialogTitle>{editingExpense ? "Editar Despesa Operacional" : "Lançar Despesa Operacional"}</DialogTitle>
                 <DialogDescription>
                   Este lançamento gerará uma saída no módulo Financeiro automaticamente.
                 </DialogDescription>
@@ -224,6 +288,33 @@ export default function PlantingExpensesPage() {
 
                   <FormField
                     control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
+                        <FormLabel className="text-right">Categoria</FormLabel>
+                        <div className="col-span-3 space-y-1">
+                          <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Selecione a categoria" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {Object.values(ExpenseCategory).map((cat) => (
+                                <SelectItem key={cat} value={cat}>
+                                  {categoryLabels[cat]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="itemDescription"
                     render={({ field }) => (
                       <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
@@ -261,7 +352,10 @@ export default function PlantingExpensesPage() {
                       <FormItem className="grid grid-cols-4 items-center gap-4 space-y-0">
                         <FormLabel className="text-right">Veículo</FormLabel>
                         <div className="col-span-3 space-y-1">
-                          <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            value={field.value || "none"}
+                          >
                             <FormControl>
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Opcional (se for frota)" />
@@ -331,13 +425,13 @@ export default function PlantingExpensesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
+                <TableHead>Categoria</TableHead>
                 <TableHead>Descrição</TableHead>
-                <TableHead>NF</TableHead>
                 <TableHead>Frente</TableHead>
                 <TableHead>Veículo</TableHead>
                 <TableHead className="text-right">Quant.</TableHead>
                 <TableHead className="text-right">Valor Extenso</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -364,25 +458,36 @@ export default function PlantingExpensesPage() {
                 expenses?.map((expense) => (
                   <TableRow key={expense.id} className={expense.isClosed ? "bg-muted/30" : ""}>
                     <TableCell>{new Date(expense.date).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell>
+                      {expense.category ? (categoryLabels[expense.category as ExpenseCategory] || expense.category) : "-"}
+                    </TableCell>
                     <TableCell className="font-medium">{expense.description}</TableCell>
-                    <TableCell>{"-"}</TableCell>
                     <TableCell>{expense.front?.name || "-"}</TableCell>
                     <TableCell>{expense.vehicle?.plate || "-"}</TableCell>
                     <TableCell className="text-right">{expense.quantity ?? 1}</TableCell>
                     <TableCell className="text-right font-bold">{formatCurrency(expense.totalValueInCents)}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       {!expense.isClosed && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            if (confirm("Tem certeza que deseja remover este gasto? A transação financeira também será removida.")) {
-                              deleteExpenseMutation.mutate(expense.id)
-                            }
-                          }}
-                        >
-                          <Trash className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => handleEditClick(expense)}
+                          >
+                            <Edit className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              if (confirm("Tem certeza que deseja remover este gasto? A transação financeira também será removida.")) {
+                                deleteExpenseMutation.mutate(expense.id)
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>

@@ -47,7 +47,7 @@ export async function PUT(
       const advance = await tx.employeeAdvance.update({
         where: { id: advanceId },
         data: {
-          amount: valueInCents / 100.0,
+          amountInCents: valueInCents,
           date: new Date(date),
           note,
           payrollReference,
@@ -63,7 +63,7 @@ export async function PUT(
       entity: "EmployeeAdvance",
       entityId: advanceId,
       oldData: result.existingAdvance,
-      newData: result.advance as any,
+      newData: result.advance,
       userId: userId,
     })
 

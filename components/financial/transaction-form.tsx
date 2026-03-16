@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { ExpenseCategory, PaymentMethod, TransactionType } from "@prisma/client"
 import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -34,9 +35,9 @@ import { Transaction } from "@/types/financial"
 const formSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),
   valueInCents: z.number().min(1, "Valor obrigatório"),
-  type: z.enum(["ENTRADA", "SAIDA"]),
-  category: z.string().min(1, "Categoria obrigatória"),
-  paymentMethod: z.enum(["DINHEIRO", "PIX", "CARTAO", "BOLETO", "CHEQUE", "TRANSFERENCIA"]),
+  type: z.nativeEnum(TransactionType),
+  category: z.nativeEnum(ExpenseCategory),
+  paymentMethod: z.nativeEnum(PaymentMethod),
   date: z.string(),
 })
 
@@ -56,9 +57,9 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
     defaultValues: {
       description: "",
       valueInCents: 0,
-      type: "SAIDA",
-      category: "",
-      paymentMethod: "PIX",
+      type: TransactionType.SAIDA,
+      category: ExpenseCategory.OUTROS,
+      paymentMethod: PaymentMethod.PIX,
       date: new Date().toISOString().split("T")[0],
     },
   })
@@ -68,18 +69,18 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
       form.reset({
         description: initialData.description || "",
         valueInCents: initialData.valueInCents || 0,
-        type: initialData.type || "SAIDA",
-        category: initialData.category || "",
-        paymentMethod: (initialData.paymentMethod as TransactionFormData["paymentMethod"]) || "PIX",
+        type: (initialData.type as TransactionType) || TransactionType.SAIDA,
+        category: (initialData.category as ExpenseCategory) || ExpenseCategory.OUTROS,
+        paymentMethod: (initialData.paymentMethod as PaymentMethod) || PaymentMethod.PIX,
         date: initialData.date ? new Date(initialData.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
       })
     } else {
       form.reset({
         description: "",
         valueInCents: 0,
-        type: "SAIDA",
-        category: "",
-        paymentMethod: "PIX",
+        type: TransactionType.SAIDA,
+        category: ExpenseCategory.OUTROS,
+        paymentMethod: PaymentMethod.PIX,
         date: new Date().toISOString().split("T")[0],
       })
     }
@@ -175,9 +176,18 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Ex: Alimentação, Combustível" />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecione a categoria" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Object.values(ExpenseCategory).map((cat) => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

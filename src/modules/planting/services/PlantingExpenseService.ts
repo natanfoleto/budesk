@@ -39,7 +39,7 @@ export class PlantingExpenseService {
       // Generate financial transaction automatically
       const transaction = await FinanceService.registerTransaction(tx, {
         type: TransactionType.SAIDA,
-        category: "Custo Plantio Manual - " + expense.category,
+        category: expense.category,
         amountInCents: expense.totalValueInCents,
         description: expense.description,
         date: new Date(expense.date),
@@ -54,6 +54,55 @@ export class PlantingExpenseService {
         where: { id: expense.id },
         data: { transactionId: transaction.id }
       })
+
+      return expense
+    })
+  }
+
+  static async update(
+    id: string,
+    data: Prisma.PlantingExpenseUncheckedUpdateInput,
+    userId?: string,
+    db = prisma
+  ) {
+    const existing = await db.plantingExpense.findUnique({
+      where: { id },
+      include: { transaction: true }
+    })
+    
+    if (!existing) throw new Error("Gasto não encontrado")
+    if (existing.isClosed) throw new Error("Não é possível editar gasto em período fechado.")
+
+    let total = Number(data.totalValueInCents ?? existing.totalValueInCents)
+    if (data.quantity !== undefined && data.unitValueInCents !== undefined && !data.totalValueInCents) {
+      total = Math.round(Number(data.quantity) * Number(data.unitValueInCents))
+    }
+
+    return db.$transaction(async (tx) => {
+      const expense = await tx.plantingExpense.update({
+        where: { id },
+        data: {
+          ...data,
+          totalValueInCents: total
+        }
+      })
+
+      if (existing.transactionId) {
+        const amount = expense.totalValueInCents
+        const category = expense.category
+        const desc = expense.description
+        const dt = new Date(expense.date)
+
+        await tx.financialTransaction.update({
+          where: { id: existing.transactionId },
+          data: {
+            valueInCents: amount,
+            category: category,
+            description: desc,
+            date: dt
+          }
+        })
+      }
 
       return expense
     })

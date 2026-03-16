@@ -44,6 +44,14 @@ export const updateSeason = async (id: string, data: Partial<SeasonFormData>): P
   return res.json()
 }
 
+export const deleteSeason = async (id: string): Promise<void> => {
+  const res = await fetch(`${BASE_URL}/planting/seasons/${id}`, {
+    method: "DELETE",
+  })
+  if (!res.ok) throw new Error("Erro ao remover safra")
+  return res.json()
+}
+
 // ─── Work Fronts ────────────────────────────────────────────────────────────
 
 export const getWorkFronts = async (seasonId?: string): Promise<WorkFront[]> => {

@@ -1,13 +1,11 @@
-export type TransactionType = "ENTRADA" | "SAIDA"
-
-export type PaymentMethod = "DINHEIRO" | "PIX" | "CARTAO" | "BOLETO" | "CHEQUE" | "TRANSFERENCIA"
+import { ExpenseCategory, PaymentMethod, TransactionType } from "@prisma/client"
 
 export interface Transaction {
   id: string
   description: string
   valueInCents: number
   type: TransactionType
-  category: string
+  category: ExpenseCategory
   paymentMethod: PaymentMethod | string
   date: string | Date
   createdAt?: string | Date

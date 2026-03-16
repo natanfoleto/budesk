@@ -1,3 +1,4 @@
+import { ExpenseCategory } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { createAuditLog } from "@/lib/audit"
@@ -14,13 +15,13 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     const {
-      periodoAquisitivoInicio,
-      periodoAquisitivoFim,
-      diasDireito,
-      diasUtilizados,
-      dataInicio,
-      dataFim,
-      valorFerias,
+      vestingPeriodStart,
+      vestingPeriodEnd,
+      entitledDays,
+      usedDays,
+      startDate,
+      endDate,
+      vacationAmountInCents,
       status,
     } = body
 
@@ -30,60 +31,60 @@ export async function PUT(
 
     if (!existing) return NextResponse.json({ error: "Férias não encontradas" }, { status: 404 })
 
-    let adicionalUmTerco: number | null = existing.adicionalUmTerco as number | null
-    if (valorFerias !== undefined) {
-      adicionalUmTerco = valorFerias ? Number(valorFerias) / 3 : null
+    let oneThirdBonusInCents: number | null = existing.oneThirdBonusInCents
+    if (vacationAmountInCents !== undefined) {
+      oneThirdBonusInCents = vacationAmountInCents ? Math.round(Number(vacationAmountInCents) / 3) : null
     }
 
-    const start = dataInicio ? new Date(dataInicio) : existing.dataInicio
+    const start = startDate ? new Date(startDate) : existing.startDate
     
-    // Automatically generate RHPayment + Transaction if moved to "PAGA" and valorFerias is set
-    if (status === "PAGA" && existing.status !== "PAGA" && valorFerias) {
+    // Automatically generate RHPayment + Transaction if moved to "PAGA" and vacationAmountInCents is set
+    if (status === "PAGA" && existing.status !== "PAGA" && vacationAmountInCents) {
       const vacation = await prisma.$transaction(async (tx) => {
         const updated = await tx.vacation.update({
           where: { id },
           data: {
-            periodoAquisitivoInicio: periodoAquisitivoInicio ? new Date(periodoAquisitivoInicio) : undefined,
-            periodoAquisitivoFim: periodoAquisitivoFim ? new Date(periodoAquisitivoFim) : undefined,
-            diasDireito: diasDireito !== undefined ? Number(diasDireito) : undefined,
-            diasUtilizados: diasUtilizados !== undefined ? Number(diasUtilizados) : undefined,
-            dataInicio: start,
-            dataFim: dataFim ? new Date(dataFim) : undefined,
-            valorFerias: Number(valorFerias),
-            adicionalUmTerco,
+            vestingPeriodStart: vestingPeriodStart ? new Date(vestingPeriodStart) : undefined,
+            vestingPeriodEnd: vestingPeriodEnd ? new Date(vestingPeriodEnd) : undefined,
+            entitledDays: entitledDays !== undefined ? Number(entitledDays) : undefined,
+            usedDays: usedDays !== undefined ? Number(usedDays) : undefined,
+            startDate: start,
+            endDate: endDate ? new Date(endDate) : undefined,
+            vacationAmountInCents: Number(vacationAmountInCents),
+            oneThirdBonusInCents,
             status: "PAGA",
           },
           include: { employee: { select: { id: true, name: true } } },
         })
 
-        const totalLiquido = Number(valorFerias) + Number(adicionalUmTerco)
+        const netTotalInCents = Number(vacationAmountInCents) + Number(oneThirdBonusInCents)
         const compDate = start || new Date()
-        const competenciaStr = `${compDate.getFullYear()}-${String(compDate.getMonth() + 1).padStart(2, "0")}`
+        const competenceMonth = `${compDate.getFullYear()}-${String(compDate.getMonth() + 1).padStart(2, "0")}`
 
         // Create the abstract RHPayment
         const rhPayment = await tx.rHPayment.create({
           data: {
             employeeId: updated.employeeId,
-            competencia: competenciaStr,
-            tipoPagamento: "FERIAS",
-            salarioBase: Number(valorFerias),
-            adicionais: Number(adicionalUmTerco),
-            totalBruto: totalLiquido,
-            totalLiquido: totalLiquido,
+            competenceMonth,
+            paymentType: "FERIAS",
+            baseSalaryInCents: Number(vacationAmountInCents),
+            additionsInCents: Number(oneThirdBonusInCents),
+            grossTotalInCents: netTotalInCents,
+            netTotalInCents: netTotalInCents,
             status: "PAGO",
-            dataPagamento: new Date(),
-            observacoes: `Férias pagas referente ao período ${updated.periodoAquisitivoInicio.getFullYear()}/${updated.periodoAquisitivoFim.getFullYear()}`
+            paymentDate: new Date(),
+            notes: `Férias pagas referente ao período ${updated.vestingPeriodStart.getFullYear()}/${updated.vestingPeriodEnd.getFullYear()}`
           }
         })
 
         // Create the actual cash outflow
         await tx.financialTransaction.create({
           data: {
-            description: `Pagamento de Férias - ${updated.employee.name} - ${competenciaStr}`,
+            description: `Pagamento de Férias - ${updated.employee.name} - ${competenceMonth}`,
             type: "SAIDA",
-            valueInCents: Math.round(totalLiquido * 100),
-            category: "Pagamento Férias",
-            paymentMethod: "TRANSFERENCIA", // default assumption for automated
+            valueInCents: netTotalInCents,
+            category: ExpenseCategory.SALARIO,
+            paymentMethod: "TRANSFERENCIA", 
             date: new Date(),
             employeeId: updated.employeeId,
             rhPaymentId: rhPayment.id,
@@ -109,16 +110,25 @@ export async function PUT(
     const vacation = await prisma.vacation.update({
       where: { id },
       data: {
-        periodoAquisitivoInicio: periodoAquisitivoInicio ? new Date(periodoAquisitivoInicio) : undefined,
-        periodoAquisitivoFim: periodoAquisitivoFim ? new Date(periodoAquisitivoFim) : undefined,
-        diasDireito: diasDireito !== undefined ? Number(diasDireito) : undefined,
-        diasUtilizados: diasUtilizados !== undefined ? Number(diasUtilizados) : undefined,
-        dataInicio: dataInicio !== undefined ? (dataInicio ? new Date(dataInicio) : null) : undefined,
-        dataFim: dataFim !== undefined ? (dataFim ? new Date(dataFim) : null) : undefined,
-        valorFerias: valorFerias !== undefined ? (valorFerias ? Number(valorFerias) : null) : undefined,
-        adicionalUmTerco,
+        vestingPeriodStart: vestingPeriodStart ? new Date(vestingPeriodStart) : undefined,
+        vestingPeriodEnd: vestingPeriodEnd ? new Date(vestingPeriodEnd) : undefined,
+        entitledDays: entitledDays !== undefined ? Number(entitledDays) : undefined,
+        usedDays: usedDays !== undefined ? Number(usedDays) : undefined,
+        startDate: startDate !== undefined ? (startDate ? new Date(startDate) : null) : undefined,
+        endDate: endDate !== undefined ? (endDate ? new Date(endDate) : null) : undefined,
+        vacationAmountInCents: vacationAmountInCents !== undefined ? (vacationAmountInCents ? Number(vacationAmountInCents) : null) : undefined,
+        oneThirdBonusInCents,
         status,
       },
+    })
+
+    await createAuditLog({
+      action: "UPDATE",
+      entity: "Vacation",
+      entityId: id,
+      oldData: existing,
+      newData: vacation,
+      userId,
     })
 
     return NextResponse.json(vacation)

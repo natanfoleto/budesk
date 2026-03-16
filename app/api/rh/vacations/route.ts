@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const vacations = await prisma.vacation.findMany({
       where,
-      orderBy: { periodoAquisitivoInicio: "desc" },
+      orderBy: { vestingPeriodStart: "desc" },
       include: {
         employee: { select: { id: true, name: true } },
       },
@@ -36,32 +36,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       employeeId,
-      periodoAquisitivoInicio,
-      periodoAquisitivoFim,
-      diasDireito = 30,
-      diasUtilizados = 0,
-      dataInicio,
-      dataFim,
-      valorFerias,
+      vestingPeriodStart,
+      vestingPeriodEnd,
+      entitledDays = 30,
+      usedDays = 0,
+      startDate,
+      endDate,
+      vacationAmountInCents,
       status = "PREVISTA",
     } = body
 
-    let adicionalUmTerco = null
-    if (valorFerias) {
-      adicionalUmTerco = Number(valorFerias) / 3
+    let oneThirdBonusInCents = null
+    if (vacationAmountInCents) {
+      oneThirdBonusInCents = Math.round(Number(vacationAmountInCents) / 3)
     }
 
     const vacation = await prisma.vacation.create({
       data: {
         employeeId,
-        periodoAquisitivoInicio: new Date(periodoAquisitivoInicio),
-        periodoAquisitivoFim: new Date(periodoAquisitivoFim),
-        diasDireito: Number(diasDireito),
-        diasUtilizados: Number(diasUtilizados),
-        dataInicio: dataInicio ? new Date(dataInicio) : null,
-        dataFim: dataFim ? new Date(dataFim) : null,
-        valorFerias: valorFerias ? Number(valorFerias) : null,
-        adicionalUmTerco,
+        vestingPeriodStart: new Date(vestingPeriodStart),
+        vestingPeriodEnd: new Date(vestingPeriodEnd),
+        entitledDays: Number(entitledDays),
+        usedDays: Number(usedDays),
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        vacationAmountInCents: vacationAmountInCents ? Number(vacationAmountInCents) : null,
+        oneThirdBonusInCents,
         status,
       },
       include: {

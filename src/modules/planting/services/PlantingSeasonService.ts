@@ -42,8 +42,22 @@ export class PlantingSeasonService {
 
   static async getActiveSeason(db = prisma) {
     return db.plantingSeason.findFirst({
-      where: { active: true },
-      orderBy: { startDate: "desc" }
     })
+  }
+
+  static async delete(id: string, userId?: string, db = prisma) {
+    // Delete all related records first to satisfy foreign key constraints
+    await db.plantingProduction.deleteMany({ where: { seasonId: id } })
+    await db.dailyWage.deleteMany({ where: { seasonId: id } })
+    await db.driverAllocation.deleteMany({ where: { seasonId: id } })
+    await db.plantingArea.deleteMany({ where: { seasonId: id } })
+    await db.plantingExpense.deleteMany({ where: { seasonId: id } })
+    await db.workFront.deleteMany({ where: { seasonId: id } })
+
+    const season = await db.plantingSeason.delete({ where: { id } })
+    if (userId) {
+      await AuditService.logAction(db, "DELETE", "PlantingSeason", id, season as Prisma.InputJsonValue, userId)
+    }
+    return season
   }
 }

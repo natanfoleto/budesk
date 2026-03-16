@@ -1,12 +1,22 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Calendar, Edit, Plus, Target, Users } from "lucide-react"
+import { Calendar, Edit, Loader2,Plus, Target, Trash, Users } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription,CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -34,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   useCreateSeason,
   useCreateWorkFront,
+  useDeleteSeason,
   usePlantingSeasons,
   useUpdateSeason,
   useWorkFronts,
@@ -62,15 +73,15 @@ type FrontFormValues = z.infer<typeof frontSchema>
 export default function PlantingSeasonsPage() {
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null)
 
-  // Modals state
   const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false)
   const [isFrontModalOpen, setIsFrontModalOpen] = useState(false)
+  const [seasonToDelete, setSeasonToDelete] = useState<{ id: string; name: string } | null>(null)
 
   // Forms setups
   const seasonForm = useForm<SeasonFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(seasonSchema) as any,
-    defaultValues: { name: "", startDate: "", endDate: "", notes: "", active: true },
+    defaultValues: { name: "", startDate: "", endDate: "", notes: "", totalArea: undefined, active: true },
   })
 
   const frontForm = useForm<FrontFormValues>({
@@ -86,6 +97,7 @@ export default function PlantingSeasonsPage() {
   // Mutations
   const createSeasonMutation = useCreateSeason()
   const updateSeasonMutation = useUpdateSeason()
+  const deleteSeasonMutation = useDeleteSeason()
   const createFrontMutation = useCreateWorkFront()
 
   const onSaveSeason = (values: SeasonFormValues) => {
@@ -136,6 +148,18 @@ export default function PlantingSeasonsPage() {
     setIsSeasonModalOpen(true)
   }
 
+  const confirmDeleteSeason = () => {
+    if (!seasonToDelete) return
+    deleteSeasonMutation.mutate(seasonToDelete.id, {
+      onSuccess: () => {
+        setSeasonToDelete(null)
+        if (selectedSeasonId === seasonToDelete.id) {
+          setSelectedSeasonId(null)
+        }
+      },
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -146,6 +170,31 @@ export default function PlantingSeasonsPage() {
           </p>
         </div>
       </div>
+
+      <AlertDialog open={!!seasonToDelete} onOpenChange={(open) => !open && setSeasonToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar Safra</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja apagar a safra <strong>{seasonToDelete?.name}</strong>? Esta ação não pode ser desfeita e removerá todos os dados associados a ela (frentes de trabalho, apontamentos, gastos, etc).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteSeasonMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDeleteSeason()
+              }}
+              disabled={deleteSeasonMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteSeasonMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
+              Apagar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="grid gap-6 md:grid-cols-[1fr_2fr]">
         <Card>
@@ -277,9 +326,15 @@ export default function PlantingSeasonsPage() {
                           {season.endDate ? ` - ${new Date(season.endDate).toLocaleDateString("pt-BR")}` : " — Em andamento"}
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditSeason(season) }}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEditSeason(season) }}>
+                          <Edit className="size-3.5" />
+                        </Button>
+                        
+                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={(e) => { e.stopPropagation(); setSeasonToDelete({ id: season.id, name: season.name }) }}>
+                          <Trash className="size-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </li>
                 ))}

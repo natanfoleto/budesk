@@ -1,4 +1,4 @@
-import { AuditAction, Prisma } from "@prisma/client"
+import { AuditAction, ExpenseCategory, Prisma } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { maintenanceSchema } from "@/components/fleet/maintenance-schema"
@@ -106,7 +106,7 @@ export async function PUT(
         const transactionData = {
           description: `Manutenção - ${maintenance.vehicle.plate} - ${maintenance.category}`,
           type: "SAIDA" as const,
-          category: "Manutenção de Veículos",
+          category: ExpenseCategory.MANUTENCAO,
           valueInCents: estimatedCost,
           paymentMethod: paymentMethod || "TRANSFERENCIA",
           date: new Date(),
@@ -218,7 +218,7 @@ export async function DELETE(
       
       // If there's a payment/transaction, we might need to rollback.
       // Easiest is to just log deletion.
-      await AuditService.logAction(tx, AuditAction.DELETE, "Maintenance", maintenanceId, null, userId, existingMaintenance)
+      await AuditService.logAction(tx, AuditAction.DELETE, "Maintenance", maintenanceId, undefined, userId, existingMaintenance)
       
       return maintenance
     })

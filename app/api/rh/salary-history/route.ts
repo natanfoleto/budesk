@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const histories = await prisma.salaryHistory.findMany({
       where,
-      orderBy: { dataVigencia: "desc" },
+      orderBy: { effectiveDate: "desc" },
       include: {
         employee: { select: { id: true, name: true } },
       },
@@ -33,21 +33,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { employeeId, salarioAnterior, novoSalario, motivo, dataVigencia } = body
+    const { employeeId, previousSalaryInCents, newSalaryInCents, reason, effectiveDate } = body
 
-    const percentualAumento =
-      salarioAnterior > 0
-        ? (((novoSalario - salarioAnterior) / salarioAnterior) * 100).toFixed(2)
+    const increasePercentage =
+      previousSalaryInCents > 0
+        ? ((newSalaryInCents - previousSalaryInCents) / previousSalaryInCents) * 100
         : 0
 
     const history = await prisma.salaryHistory.create({
       data: {
         employeeId,
-        salarioAnterior,
-        novoSalario,
-        percentualAumento,
-        motivo: motivo || null,
-        dataVigencia: new Date(dataVigencia),
+        previousSalaryInCents,
+        newSalaryInCents,
+        increasePercentage,
+        reason: reason || null,
+        effectiveDate: new Date(effectiveDate),
       },
     })
 

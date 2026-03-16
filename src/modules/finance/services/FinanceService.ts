@@ -1,4 +1,4 @@
-import { PaymentMethod, Prisma, PrismaClient, TransactionType } from "@prisma/client"
+import { ExpenseCategory, PaymentMethod, Prisma, PrismaClient, TransactionType } from "@prisma/client"
 
 import prisma from "@/lib/prisma" // Fallback import, though we receive 'tx'
 
@@ -6,7 +6,7 @@ import { AuditService } from "../../audit/services/AuditService"
 
 export type RegisterTransactionDTO = {
   type: TransactionType;
-  category: string;
+  category: ExpenseCategory;
   amountInCents: number;
   paymentMethod: PaymentMethod;
   description: string;

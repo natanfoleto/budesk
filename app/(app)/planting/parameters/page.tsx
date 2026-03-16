@@ -12,10 +12,12 @@ import { usePlantingParameters, useSaveParameters } from "@/hooks/use-planting"
 import { formatCentsToReal } from "@/lib/utils"
 
 const DEFAULT_PARAMETER_KEYS = [
-  { key: "valor_metro_plantio", label: "Valor Plantio por Metro Linear", desc: "Pago ao funcionário por metro plantado" },
-  { key: "valor_metro_corte", label: "Valor Corte por Metro Linear", desc: "Pago ao funcionário por metro cortado" },
-  { key: "preco_diesel", label: "Preço do Diesel", desc: "Custo base usado na frota" },
-  { key: "valor_refeicao", label: "Valor da Refeição (Marmitex)", desc: "Custo base diário por refeição" },
+  { key: "valor_metro_plantio", label: "Valor Plantio por Metro Linear", desc: "Pago ao funcionário por metro plantado", isCurrency: true },
+  { key: "valor_metro_corte", label: "Valor Corte por Metro Linear", desc: "Pago ao funcionário por metro cortado", isCurrency: true },
+  { key: "preco_diesel", label: "Preço do Diesel", desc: "Custo base usado na frota", isCurrency: true },
+  { key: "valor_refeicao", label: "Valor da Refeição (Marmitex)", desc: "Custo base diário por refeição", isCurrency: true },
+  { key: "area_hectare_plantio", label: "Área Hectare Plantio", desc: "Metros lineares correspondentes a um hectare de plantio", isCurrency: false, default: 834 },
+  { key: "area_hectare_corte", label: "Área Hectare Corte", desc: "Metros lineares correspondentes a um hectare de corte", isCurrency: false, default: 1333 },
 ]
 
 export default function PlantingParametersPage() {
@@ -28,8 +30,11 @@ export default function PlantingParametersPage() {
   useEffect(() => {
     if (parameters) {
       const initialForm: Record<string, number> = {}
+      DEFAULT_PARAMETER_KEYS.forEach(k => {
+        initialForm[k.key] = k.default || 0
+      })
       parameters.forEach((p) => {
-        initialForm[p.key] = Number(p.value) || 0
+        initialForm[p.key] = Number(p.value) || initialForm[p.key] || 0
       })
       setParamsForm(initialForm)
     }
@@ -93,11 +98,16 @@ export default function PlantingParametersPage() {
                   <div className="relative">
                     <Input
                       id={item.key}
-                      placeholder="R$ 0,00"
-                      value={formatCentsToReal(paramsForm[item.key] || 0)}
+                      placeholder={item.isCurrency ? "R$ 0,00" : "0"}
+                      value={item.isCurrency ? formatCentsToReal(paramsForm[item.key] || 0) : (paramsForm[item.key] || "")}
                       onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "")
-                        setParamsForm({ ...paramsForm, [item.key]: Number(value) })
+                        if (item.isCurrency) {
+                          const value = e.target.value.replace(/\D/g, "")
+                          setParamsForm({ ...paramsForm, [item.key]: Number(value) })
+                        } else {
+                          const value = e.target.value.replace(/[^0-9.]/g, "")
+                          setParamsForm({ ...paramsForm, [item.key]: Number(value) })
+                        }
                       }}
                     />
                   </div>

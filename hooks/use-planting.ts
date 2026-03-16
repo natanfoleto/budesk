@@ -14,6 +14,7 @@ import {
   deleteExpense,
   deletePlantingArea,
   deleteProduction,
+  deleteSeason,
   getDailyWages,
   getDashboard,
   getDriverAllocations,
@@ -71,6 +72,18 @@ export const useUpdateSeason = () => {
   })
 }
 
+export const useDeleteSeason = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deleteSeason,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plantingSeasons"] })
+      toast.success("Safra removida com sucesso!")
+    },
+    onError: () => toast.error("Erro ao remover safra"),
+  })
+}
+
 // ─── Work Fronts ─────────────────────────────────────────────────────────────
 
 export const useWorkFronts = (seasonId?: string) => {
@@ -120,6 +133,32 @@ export const useCreateExpense = () => {
       queryClient.invalidateQueries({ queryKey: ["plantingExpenses"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
       toast.success("Gasto registrado com sucesso.")
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+}
+
+export const useUpdateExpense = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<PlantingExpenseFormData> }) => {
+      const response = await fetch('/api/planting/expenses', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, ...data }),
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Erro ao atualizar gasto')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plantingExpenses"] })
+      queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
+      toast.success("Gasto atualizado com sucesso.")
     },
     onError: (error: Error) => toast.error(error.message),
   })
