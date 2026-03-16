@@ -149,6 +149,7 @@ export interface WorkFrontFormData {
 }
 
 export interface PlantingProductionFormData {
+  id?: string
   date: string
   employeeId: string
   frontId: string

@@ -1,13 +1,20 @@
 "use client"
 
-import { Save } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Save, Scissors, Sprout } from "lucide-react"
+import React, { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -17,14 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { useEmployees } from "@/hooks/use-employees"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { useEmployees, useUpdateEmployee } from "@/hooks/use-employees"
 import { useCreateProduction, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
 import { formatCurrency } from "@/lib/utils"
 import { PlantingProduction, PlantingProductionFormData } from "@/types/planting"
@@ -36,12 +37,14 @@ interface PlantingTabProps {
 }
 
 type ProductionRecord = {
-  id?: string
+  plantingId?: string
+  cuttingId?: string
   employeeId: string
   employeeName: string
   plantingMeters: number
   cuttingMeters: number
   isClosed: boolean
+  plantingCategory: string
 }
 
 export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
@@ -53,6 +56,7 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
 
   // Fetch all active employees via shared hook
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
+  const updateEmployeeMutation = useUpdateEmployee()
 
   // Fetch parameters to get default prices
   const { data: parameters } = usePlantingParameters()
@@ -74,78 +78,121 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
       const state: Record<string, ProductionRecord> = {}
       
       // Initialize with all employees
-      employees.forEach((emp: { id: string; name: string }) => {
+      employees.forEach((emp: { id: string; name: string; plantingCategory?: string | null }) => {
         state[emp.id] = {
           employeeId: emp.id,
           employeeName: emp.name,
           plantingMeters: 0,
           cuttingMeters: 0,
-          isClosed: false
+          isClosed: false,
+          plantingCategory: emp.plantingCategory || ""
         }
       })
 
       // Populate existing values
+      let firstPlantingPrice = 0
+      let firstCuttingPrice = 0
+
       existingRecords.forEach((rec: PlantingProduction) => {
         if (state[rec.employeeId]) {
           if (rec.type === "PLANTIO") {
             state[rec.employeeId].plantingMeters = rec.meters || 0
-            state[rec.employeeId].id = rec.id 
-            state[rec.employeeId].isClosed = rec.isClosed
+            state[rec.employeeId].plantingId = rec.id 
+            state[rec.employeeId].isClosed = rec.isClosed || state[rec.employeeId].isClosed
+            if (rec.meterValueInCents > 0 && firstPlantingPrice === 0) {
+              firstPlantingPrice = rec.meterValueInCents
+            }
           } else if (rec.type === "CORTE") {
             state[rec.employeeId].cuttingMeters = rec.meters || 0
-            state[rec.employeeId].isClosed = rec.isClosed
+            state[rec.employeeId].cuttingId = rec.id
+            state[rec.employeeId].isClosed = rec.isClosed || state[rec.employeeId].isClosed
+            if (rec.meterValueInCents > 0 && firstCuttingPrice === 0) {
+              firstCuttingPrice = rec.meterValueInCents
+            }
           }
         }
       })
       
       setProductions(state)
       setIsEditing(false)
+
+      // Only set from records if the user hasn't typed anything yet or it's a fresh load
+      if (firstPlantingPrice > 0) setGlobalPlantingPrice((firstPlantingPrice / 100).toString())
+      if (firstCuttingPrice > 0) setGlobalCuttingPrice((firstCuttingPrice / 100).toString())
     }
   }, [employees, existingRecords])
 
+  const handleCategoryChange = (empId: string, category: string) => {
+    setIsEditing(true)
+    setProductions(prev => ({
+      ...prev,
+      [empId]: {
+        ...prev[empId],
+        plantingCategory: category
+      }
+    }))
+  }
+
   const handleSave = async () => {
-    const toSave: PlantingProductionFormData[] = []
+    const toSaveProductions: PlantingProductionFormData[] = []
+    const toUpdateEmployees: { id: string, category: string }[] = []
+
     Object.values(productions).forEach(p => {
-      // Always use 0 if not provided, backend should handle upsert/delete if needed
-      // Actually current implementation only saves if > 0
-      if (p.plantingMeters > 0) {
-        toSave.push({
+      // Production records
+      if (p.plantingMeters > 0 || p.plantingId) {
+        toSaveProductions.push({
+          id: p.plantingId,
           employeeId: p.employeeId,
           frontId: frontId,
           seasonId: seasonId,
           date: new Date(date).toISOString(),
           type: "PLANTIO",
           meters: p.plantingMeters,
-          meterValueInCents: globalPlantingPrice ? Math.round(Number(globalPlantingPrice) * 100) : 0
+          meterValueInCents: globalPlantingPrice ? Math.round(Number(globalPlantingPrice) * 100) : defaultPlantingPrice
         })
       }
-      if (p.cuttingMeters > 0) {
-        toSave.push({
+      if (p.cuttingMeters > 0 || p.cuttingId) {
+        toSaveProductions.push({
+          id: p.cuttingId,
           employeeId: p.employeeId,
           frontId: frontId,
           seasonId: seasonId,
           date: new Date(date).toISOString(),
           type: "CORTE",
           meters: p.cuttingMeters,
-          meterValueInCents: globalCuttingPrice ? Math.round(Number(globalCuttingPrice) * 100) : 0
+          meterValueInCents: globalCuttingPrice ? Math.round(Number(globalCuttingPrice) * 100) : defaultCuttingPrice
         })
+      }
+
+      // Category updates (if changed from the original employee data)
+      const originalEmp = employees?.find((e: { id: string; plantingCategory?: string | null }) => e.id === p.employeeId)
+      const originalCategory = originalEmp?.plantingCategory || ""
+      if (p.plantingCategory !== originalCategory) {
+        toUpdateEmployees.push({ id: p.employeeId, category: p.plantingCategory })
       }
     })
 
-    if (toSave.length === 0) {
-      toast.info("Nenhum valor preenchido para salvar.")
+    if (toSaveProductions.length === 0 && toUpdateEmployees.length === 0) {
+      toast.info("Nenhuma alteração para salvar.")
       return
     }
 
     try {
-      await Promise.all(toSave.map(payload => createProductionMutation.mutateAsync(payload)))
-      toast.success("Apontamentos salvos com sucesso!")
+      // Execute all updates in parallel
+      await Promise.all([
+        ...toSaveProductions.map(payload => createProductionMutation.mutateAsync(payload)),
+        ...toUpdateEmployees.map(emp => updateEmployeeMutation.mutateAsync({
+          id: emp.id,
+          data: { plantingCategory: emp.category }
+        }))
+      ])
+
+      toast.dismiss() // Consolidate multiple notifications from hooks
+      toast.success("Alterações salvas com sucesso!")
       setIsEditing(false)
-      setGlobalPlantingPrice("")
-      setGlobalCuttingPrice("")
       refetch()
     } catch {
-      // Error already handled by toast in hook
+      // Error handled by hooks
     }
   }
 
@@ -171,7 +218,22 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
     )
   }
 
-  const sortedEmployees = Object.values(productions).sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+  const sortedEmployees = Object.values(productions).sort((a, b) => {
+    // Sort by category: PLANTIO > CORTE > others
+    const catA = a.plantingCategory || "ZZ"
+    const catB = b.plantingCategory || "ZZ"
+    
+    if (catA !== catB) {
+      if (catA === "PLANTIO") return -1
+      if (catB === "PLANTIO") return 1
+      if (catA === "CORTE") return -1
+      if (catB === "CORTE") return 1
+      return catA.localeCompare(catB)
+    }
+    
+    // Then by name
+    return a.employeeName.localeCompare(b.employeeName)
+  })
 
   const currentPlantingPrice = globalPlantingPrice ? Number(globalPlantingPrice) * 100 : defaultPlantingPrice
   const currentCuttingPrice = globalCuttingPrice ? Number(globalCuttingPrice) * 100 : defaultCuttingPrice
@@ -237,7 +299,7 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Label className="text-sm font-medium whitespace-nowrap">Filtrar por:</Label>
-            <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val as any)}>
+            <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val as typeof typeFilter)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Selecione o filtro" />
               </SelectTrigger>
@@ -255,6 +317,7 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Funcionário</TableHead>
+                <TableHead className="w-[100px] text-center">Tipo</TableHead>
                 {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
                   <TableHead className="w-[120px] text-center">Plantio (m)</TableHead>
                 )}
@@ -270,64 +333,99 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
-                    <TableCell></TableCell>
+                    <TableCell className="flex justify-center py-2"><Skeleton className="h-8 w-16" /></TableCell>
+                    {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
+                      <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
+                    )}
+                    {(typeFilter === "ALL" || typeFilter === "CORTE") && (
+                      <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
+                    )}
+                    <TableCell><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : sortedEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     Nenhum funcionário ativo encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedEmployees.map((record) => {
+                sortedEmployees.map((record, index) => {
                   const currentPlantingPrice = globalPlantingPrice ? Number(globalPlantingPrice) * 100 : defaultPlantingPrice
                   const currentCuttingPrice = globalCuttingPrice ? Number(globalCuttingPrice) * 100 : defaultCuttingPrice
                   const estimatedTotalInCents = 
                     ((record.plantingMeters || 0) * currentPlantingPrice) + 
                     ((record.cuttingMeters || 0) * currentCuttingPrice)
 
+                  // Add separator between groups
+                  const showSeparator = index > 0 && 
+                    sortedEmployees[index - 1].plantingCategory === "PLANTIO" && 
+                    record.plantingCategory === "CORTE"
 
                   return (
-                    <TableRow key={record.employeeId} className={record.isClosed ? "bg-muted/50" : ""}>
-                      <TableCell className="font-medium">{record.employeeName}</TableCell>
-                      {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
-                        <TableCell>
-                          <Input
-                            type="number"
-                            className="h-8 text-center"
-                            value={record.plantingMeters || ""}
-                            onChange={(e) => handleInputChange(record.employeeId, "plantingMeters", e.target.value)}
-                            disabled={record.isClosed}
-                            placeholder="0"
-                          />
-                        </TableCell>
+                    <React.Fragment key={record.employeeId}>
+                      {showSeparator && (
+                        <TableRow className="hover:bg-transparent h-2">
+                          <TableCell colSpan={6} className="p-0 bg-muted">
+                          </TableCell>
+                        </TableRow>
                       )}
-                      {(typeFilter === "ALL" || typeFilter === "CORTE") && (
-                        <TableCell>
-                          <Input
-                            type="number"
-                            className="h-8 text-center"
-                            value={record.cuttingMeters || ""}
-                            onChange={(e) => handleInputChange(record.employeeId, "cuttingMeters", e.target.value)}
-                            disabled={record.isClosed}
-                            placeholder="0"
-                          />
+                      <TableRow className={record.isClosed ? "bg-muted/50" : ""}>
+                        <TableCell className="font-medium">{record.employeeName}</TableCell>
+                        <TableCell className="flex justify-center py-2">
+                          <ToggleGroup 
+                            type="single" 
+                            size="sm"
+                            value={record.plantingCategory || "NONE"} 
+                            onValueChange={(val) => {
+                              if (val) handleCategoryChange(record.employeeId, val === "NONE" ? "" : val)
+                            }}
+                          >
+                            <ToggleGroupItem value="PLANTIO" aria-label="Plantio" className="data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900 border border-transparent data-[state=on]:border-emerald-200">
+                              <Sprout className="h-3.5 w-3.5" />
+                            </ToggleGroupItem>
+                            <ToggleGroupItem value="CORTE" aria-label="Corte" className="data-[state=on]:bg-amber-100 data-[state=on]:text-amber-900 border border-transparent data-[state=on]:border-amber-200">
+                              <Scissors className="h-3.5 w-3.5" />
+                            </ToggleGroupItem>
+                          </ToggleGroup>
                         </TableCell>
-                      )}
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(Math.round(estimatedTotalInCents))}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {record.isClosed ? (
-                          <span className="text-xs text-muted-foreground">Fechado</span>
-                        ) : (
-                          <span className="text-xs text-green-600">Aberto</span>
+                        {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
+                          <TableCell>
+                            <Input
+                              type="number"
+                              className="h-8 text-center"
+                              value={record.plantingMeters || ""}
+                              onChange={(e) => handleInputChange(record.employeeId, "plantingMeters", e.target.value)}
+                              disabled={record.isClosed}
+                              placeholder="0"
+                            />
+                          </TableCell>
                         )}
-                      </TableCell>
-                    </TableRow>
+                        {(typeFilter === "ALL" || typeFilter === "CORTE") && (
+                          <TableCell>
+                            <Input
+                              type="number"
+                              className="h-8 text-center"
+                              value={record.cuttingMeters || ""}
+                              onChange={(e) => handleInputChange(record.employeeId, "cuttingMeters", e.target.value)}
+                              disabled={record.isClosed}
+                              placeholder="0"
+                            />
+                          </TableCell>
+                        )}
+                        <TableCell className="text-right font-medium">
+                          {formatCurrency(Math.round(estimatedTotalInCents))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {record.isClosed ? (
+                            <span className="text-xs text-muted-foreground">Fechado</span>
+                          ) : (
+                            <span className="text-xs text-green-600">Aberto</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
                   )
                 })
               )}
@@ -335,6 +433,7 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
             <TableHeader>
               <TableRow className="bg-muted/50 font-bold hover:bg-muted/50">
                 <TableCell className="text-right">Total</TableCell>
+                <TableCell></TableCell>
                 {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
                   <TableCell className="text-center">{totals.planting} m</TableCell>
                 )}

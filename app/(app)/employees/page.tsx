@@ -18,10 +18,14 @@ export default function EmployeesPage() {
   const deleteMutation = useDeleteEmployee()
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [formKey, setFormKey] = useState(0)
 
   const handleCreate = (data: EmployeeFormData) => {
     createMutation.mutate(data, {
-      onSuccess: () => setIsFormOpen(false),
+      onSuccess: () => {
+        setIsFormOpen(false)
+        setFormKey((prev) => prev + 1)
+      },
     })
   }
 
@@ -61,6 +65,7 @@ export default function EmployeesPage() {
       )}
 
       <EmployeeForm
+        key={formKey}
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         onSubmit={handleCreate}

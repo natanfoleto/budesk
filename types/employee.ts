@@ -23,6 +23,7 @@ export interface EmployeeFormData {
   shirtSize?: string;
   pantsSize?: string;
   shoeSize?: string;
+  plantingCategory?: string;
 }
 
 export interface EmploymentRecordFormData {

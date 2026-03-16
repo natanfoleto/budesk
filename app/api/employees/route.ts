@@ -31,6 +31,20 @@ export async function POST(request: NextRequest) {
       shirtSize, pantsSize, shoeSize, role, salaryInCents 
     } = body
 
+    // Validation: Duplicate document
+    if (document) {
+      const existingEmployee = await prisma.employee.findUnique({
+        where: { document }
+      })
+
+      if (existingEmployee) {
+        return NextResponse.json(
+          { error: "Já existe um funcionário cadastrado com este CPF/Documento" },
+          { status: 400 }
+        )
+      }
+    }
+
     const employee = await prisma.employee.create({
       data: {
         name,

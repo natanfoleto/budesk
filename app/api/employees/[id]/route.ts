@@ -47,7 +47,8 @@ export async function PUT(
     const body = await request.json()
     const { 
       name, email, phone, document, rg, birthDate, gender, 
-      shirtSize, pantsSize, shoeSize, role, salaryInCents, active 
+      shirtSize, pantsSize, shoeSize, role, salaryInCents, active,
+      plantingCategory
     } = body
 
     const oldData = await prisma.employee.findUnique({ where: { id } })
@@ -67,8 +68,9 @@ export async function PUT(
         shoeSize,
         role,
         salaryInCents,
-        active
-      }
+        active,
+        plantingCategory: plantingCategory || null
+      } as any
     })
 
     // Audit
