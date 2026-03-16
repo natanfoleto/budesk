@@ -18,8 +18,14 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const userId = request.headers.get("x-user-id")
+  const userRole = request.headers.get("x-user-role")
+
   if (!userId) {
     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
+  }
+
+  if (userRole !== "ROOT" && userRole !== "ADMIN") {
+    return NextResponse.json({ error: "Acesso negado. Somente administradores podem criar cargos." }, { status: 403 })
   }
 
   try {

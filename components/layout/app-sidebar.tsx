@@ -6,6 +6,7 @@ import {
   DollarSign, 
   FileText,
   LayoutDashboard, 
+  LayoutList, 
   Receipt, 
   Tractor,
   Truck,
@@ -47,7 +48,6 @@ const menuItems = [
     icon: Users,
     children: [
       { title: "Visão Geral", href: "/rh" },
-      { title: "Cargos", href: "/rh/jobs" },
       { title: "Pagamentos", href: "/rh/payments" },
       { title: "Férias", href: "/rh/vacations" },
       { title: "13º Salário", href: "/rh/thirteenth" },
@@ -207,6 +207,20 @@ export function AppSidebar({ userRole: initialRole }: AppSidebarProps) {
                 >
                   <Users className="h-4 w-4" />
                   Usuários
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/rh/jobs"
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    pathname === "/rh/jobs"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <LayoutList className="h-4 w-4" />
+                  Cargos
                 </Link>
               </li>
               <li>

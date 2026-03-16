@@ -3,7 +3,22 @@ import { NextResponse } from 'next/server'
 
 import { verifyJWT } from '@/lib/auth'
 
-const protectedRoutes = ['/dashboard', '/api/users', '/api/services', '/api/financial', '/api/employees', '/api/vehicles', '/api/accounts-payable', '/api/rh', '/api/auth/verify-password', '/api/planting']
+const protectedRoutes = [
+  '/dashboard', 
+  '/api/users', 
+  '/api/services', 
+  '/api/financial', 
+  '/api/employees', 
+  '/api/vehicles', 
+  '/api/accounts-payable', 
+  '/api/rh', 
+  '/api/auth/verify-password', 
+  '/api/planting',
+  '/api/jobs',
+  '/api/audit',
+  '/api/suppliers',
+  '/api/financial-transactions'
+]
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl

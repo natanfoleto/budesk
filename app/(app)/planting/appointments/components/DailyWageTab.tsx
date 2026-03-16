@@ -26,6 +26,7 @@ interface DailyWageTabProps {
   seasonId: string
   frontId: string
   date: string
+  employeeNameFilter?: string
 }
 
 type WageRecord = {
@@ -37,7 +38,7 @@ type WageRecord = {
   isClosed: boolean
 }
 
-export function DailyWageTab({ seasonId, frontId, date }: DailyWageTabProps) {
+export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "" }: DailyWageTabProps) {
   const [wages, setWages] = useState<Record<string, WageRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
 
@@ -150,7 +151,12 @@ export function DailyWageTab({ seasonId, frontId, date }: DailyWageTabProps) {
     )
   }
 
-  const sortedEmployees = Object.values(wages).sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+  const sortedEmployees = Object.values(wages)
+    .filter((a) =>
+      employeeNameFilter.trim() === "" ||
+      a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
+    )
+    .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
 
   return (
     <Card>

@@ -34,6 +34,7 @@ interface PlantingTabProps {
   seasonId: string
   frontId: string
   date: string
+  employeeNameFilter?: string
 }
 
 type ProductionRecord = {
@@ -47,7 +48,7 @@ type ProductionRecord = {
   plantingCategory: string
 }
 
-export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
+export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "" }: PlantingTabProps) {
   const [productions, setProductions] = useState<Record<string, ProductionRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [globalPlantingPrice, setGlobalPlantingPrice] = useState<string>("")
@@ -218,22 +219,34 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
     )
   }
 
-  const sortedEmployees = Object.values(productions).sort((a, b) => {
-    // Sort by category: PLANTIO > CORTE > others
-    const catA = a.plantingCategory || "ZZ"
-    const catB = b.plantingCategory || "ZZ"
-    
-    if (catA !== catB) {
-      if (catA === "PLANTIO") return -1
-      if (catB === "PLANTIO") return 1
-      if (catA === "CORTE") return -1
-      if (catB === "CORTE") return 1
-      return catA.localeCompare(catB)
-    }
-    
-    // Then by name
-    return a.employeeName.localeCompare(b.employeeName)
-  })
+  const sortedEmployees = Object.values(productions)
+    .filter((a) => {
+      const matchesName =
+        employeeNameFilter.trim() === "" ||
+        a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
+
+      const matchesType =
+        typeFilter === "ALL" ||
+        a.plantingCategory === typeFilter
+
+      return matchesName && matchesType
+    })
+    .sort((a, b) => {
+      // Sort by category: PLANTIO > CORTE > others
+      const catA = a.plantingCategory || "ZZ"
+      const catB = b.plantingCategory || "ZZ"
+
+      if (catA !== catB) {
+        if (catA === "PLANTIO") return -1
+        if (catB === "PLANTIO") return 1
+        if (catA === "CORTE") return -1
+        if (catB === "CORTE") return 1
+        return catA.localeCompare(catB)
+      }
+
+      // Then by name
+      return a.employeeName.localeCompare(b.employeeName)
+    })
 
   const currentPlantingPrice = globalPlantingPrice ? Number(globalPlantingPrice) * 100 : defaultPlantingPrice
   const currentCuttingPrice = globalCuttingPrice ? Number(globalCuttingPrice) * 100 : defaultCuttingPrice
@@ -277,7 +290,7 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
             <Input
               type="number"
               step="0.01"
-              placeholder="Padrão do sistema"
+              placeholder={`${(defaultPlantingPrice / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}
               className="h-8 max-w-[180px]"
               value={globalPlantingPrice}
               onChange={(e) => { setGlobalPlantingPrice(e.target.value); setIsEditing(true) }}
@@ -288,7 +301,7 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
             <Input
               type="number"
               step="0.01"
-              placeholder="Padrão do sistema"
+              placeholder={`${(defaultCuttingPrice / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}
               className="h-8 max-w-[180px]"
               value={globalCuttingPrice}
               onChange={(e) => { setGlobalCuttingPrice(e.target.value); setIsEditing(true) }}
@@ -447,6 +460,11 @@ export function PlantingTab({ seasonId, frontId, date }: PlantingTabProps) {
               </TableRow>
             </TableHeader>
           </Table>
+        </div>
+        <div className="flex justify-end mt-4">
+          <Button onClick={handleSave} disabled={!isEditing || createProductionMutation.isPending}>
+            <Save className="h-4 w-4" /> Salvar Alterações
+          </Button>
         </div>
       </CardContent>
     </Card>

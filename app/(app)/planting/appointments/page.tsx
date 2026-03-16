@@ -1,7 +1,7 @@
 "use client"
 
 import { format } from "date-fns"
-import { FilterX } from "lucide-react"
+import { ChevronLeft, ChevronRight, FilterX, Search } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useState } from "react"
 
@@ -34,6 +34,7 @@ function AppointmentsContent() {
   const [selectedFrontId, setSelectedFrontId] = useState<string>(searchParams.get("frontId") || "all")
   const [selectedDate, setSelectedDate] = useState<string>(searchParams.get("date") || format(new Date(), "yyyy-MM-dd"))
   const [activeTab, setActiveTab] = useState<string>(searchParams.get("tab") || "plantio")
+  const [employeeNameFilter, setEmployeeNameFilter] = useState<string>("")
 
   const { data: seasons } = usePlantingSeasons()
   const { data: fronts } = useWorkFronts(selectedSeasonId !== "all" ? selectedSeasonId : undefined)
@@ -75,7 +76,15 @@ function AppointmentsContent() {
     setSelectedFrontId("all")
     setSelectedDate(today)
     setActiveTab("plantio")
+    setEmployeeNameFilter("")
     router.replace(pathname, { scroll: false })
+  }
+
+  const handleDateStep = (direction: 1 | -1) => {
+    const current = new Date(selectedDate + "T12:00:00")
+    current.setDate(current.getDate() + direction)
+    const newDate = format(current, "yyyy-MM-dd")
+    handleDateChange(newDate)
   }
 
   return (
@@ -131,17 +140,50 @@ function AppointmentsContent() {
 
             <div className="space-y-2 flex-1 min-w-[200px]">
               <Label>Data Base do Apontamento</Label>
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => handleDateChange(e.target.value)}
-              />
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => handleDateStep(-1)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => handleDateStep(1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
-            <div className="flex pb-0.5">
-              <Button variant="outline" onClick={clearFilters} className="text-muted-foreground">
-                <FilterX className="h-4 w-4 mr-2" />
-                Limpar Filtros
+            <div className="space-y-2 flex-1 min-w-[200px]">
+              <Label>Buscar Funcionário</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Nome do funcionário..."
+                  className="pl-8"
+                  value={employeeNameFilter}
+                  onChange={(e) => setEmployeeNameFilter(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-end">
+              <Label className="invisible select-none text-sm">.</Label>
+              <Button variant="outline" onClick={clearFilters} className="text-muted-foreground w-full">
+                <FilterX className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -153,8 +195,8 @@ function AppointmentsContent() {
           <TabsTrigger value="plantio" className="text-base">Plantio &amp; Corte</TabsTrigger>
           <TabsTrigger value="diaria" className="text-base">Diárias</TabsTrigger>
           <TabsTrigger value="motorista" className="text-base">Motoristas (Frota)</TabsTrigger>
-          <TabsTrigger value="area" className="text-base">Controle de Área (ha)</TabsTrigger>
           <TabsTrigger value="presenca" className="text-base">Presença/Faltas</TabsTrigger>
+          <TabsTrigger value="area" className="text-base">Controle de Área (ha)</TabsTrigger>
         </TabsList>
 
         <div className="mt-4">
@@ -163,6 +205,7 @@ function AppointmentsContent() {
               seasonId={selectedSeasonId}
               frontId={selectedFrontId}
               date={selectedDate}
+              employeeNameFilter={employeeNameFilter}
             />
           </TabsContent>
           <TabsContent value="diaria" className="m-0">
@@ -170,6 +213,7 @@ function AppointmentsContent() {
               seasonId={selectedSeasonId}
               frontId={selectedFrontId}
               date={selectedDate}
+              employeeNameFilter={employeeNameFilter}
             />
           </TabsContent>
           <TabsContent value="motorista" className="m-0">
@@ -191,6 +235,7 @@ function AppointmentsContent() {
               seasonId={selectedSeasonId}
               frontId={selectedFrontId}
               date={selectedDate}
+              employeeNameFilter={employeeNameFilter}
             />
           </TabsContent>
         </div>

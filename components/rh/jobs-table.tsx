@@ -45,20 +45,20 @@ export function JobsTable({ jobs, onEdit, onDelete }: JobsTableProps) {
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       onClick={() => onEdit(job)}
                       className="cursor-pointer"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-4 w-4 text-muted-foreground" />
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       onClick={() => onDelete(job.id)}
-                      className="text-destructive hover:text-destructive cursor-pointer"
+                      className="cursor-pointer"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </div>
                 </TableCell>

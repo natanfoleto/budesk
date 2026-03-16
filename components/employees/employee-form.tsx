@@ -166,7 +166,7 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
                     <FormLabel>Cargo/Função</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="cursor-pointer">
+                        <SelectTrigger className="w-full cursor-pointer">
                           <SelectValue placeholder="Selecione um cargo" />
                         </SelectTrigger>
                       </FormControl>

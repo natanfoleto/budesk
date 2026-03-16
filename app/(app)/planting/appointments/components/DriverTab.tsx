@@ -1,8 +1,8 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { Plus, Trash } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Check, ChevronsUpDown, Plus, Trash } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -26,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useCreateDriverAllocation, useDriverCategories } from "@/hooks/use-planting"
-import { formatCurrency } from "@/lib/utils"
+import { cn, formatCentsToReal, formatCurrency, parseCurrencyToCents } from "@/lib/utils"
 
 interface DriverTabProps {
   seasonId: string
@@ -45,11 +45,16 @@ type DriverRecord = {
 
 export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
   const [allocations, setAllocations] = useState<DriverRecord[]>([])
-  
+
   // Form State
   const [selectedDriverId, setSelectedDriverId] = useState<string>("")
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("")
-  const [dailyValue, setDailyValue] = useState<number>(0)
+  const [dailyValueFormatted, setDailyValueFormatted] = useState<string>("")
+
+  // Typeahead state
+  const [driverSearch, setDriverSearch] = useState<string>("")
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const typeaheadRef = useRef<HTMLDivElement>(null)
 
   // Fetch all active employees
   const { data: employees } = useQuery({
@@ -89,6 +94,17 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
     }
   }, [existingRecords])
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (typeaheadRef.current && !typeaheadRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
   const addDriverMutation = useCreateDriverAllocation()
 
   const handleRemove = (_id: string) => {
@@ -101,6 +117,9 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
       return
     }
     const cat = categories?.find((c: { id: string; defaultDailyValueInCents: number }) => c.id === selectedCategoryId)
+    const dailyValueInCents = dailyValueFormatted
+      ? parseCurrencyToCents(dailyValueFormatted)
+      : cat?.defaultDailyValueInCents || 0
 
     addDriverMutation.mutate(
       {
@@ -109,13 +128,15 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
         frontId,
         seasonId,
         date: new Date(date).toISOString(),
-        valueInCents: dailyValue > 0 ? Math.round(dailyValue * 100) : cat?.defaultDailyValueInCents || 0,
+        valueInCents: dailyValueInCents,
       },
       {
         onSuccess: () => {
           refetch()
           setSelectedDriverId("")
+          setDriverSearch("")
           setSelectedCategoryId("")
+          setDailyValueFormatted("")
         }
       }
     )
@@ -125,9 +146,16 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
   useEffect(() => {
     if (selectedCategoryId && categories) {
       const cat = categories.find((c: { id: string; defaultDailyValueInCents: number }) => c.id === selectedCategoryId)
-      if (cat) setDailyValue(cat.defaultDailyValueInCents / 100)
+      if (cat) setDailyValueFormatted(formatCentsToReal(cat.defaultDailyValueInCents))
     }
   }, [selectedCategoryId, categories])
+
+  // Filtered employees for the typeahead
+  const filteredEmployees = (employees || []).filter((emp: { id: string; name: string }) =>
+    emp.name.toLowerCase().includes(driverSearch.toLowerCase())
+  )
+
+  const selectedEmployee = employees?.find((e: { id: string; name: string }) => e.id === selectedDriverId)
 
   if (seasonId === "all" || frontId === "all" || !date) {
     return (
@@ -150,21 +178,70 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex gap-4 mb-6">
-          <div className="flex-1">
+        <div className="flex gap-4 mb-6 items-end flex-wrap">
+          {/* Typeahead Driver Select */}
+          <div className="flex-1 min-w-[200px] space-y-2" ref={typeaheadRef}>
             <Label>Motorista</Label>
-            <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                {employees?.map((emp: { id: string; name: string }) => (
-                  <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="relative">
+              <button
+                type="button"
+                className={cn(
+                  "flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background",
+                  "placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring",
+                  "cursor-pointer text-left"
+                )}
+                onClick={() => {
+                  setIsDropdownOpen((prev) => !prev)
+                  setDriverSearch("")
+                }}
+              >
+                <span className={selectedEmployee ? "" : "text-muted-foreground"}>
+                  {selectedEmployee ? selectedEmployee.name : "Selecione..."}
+                </span>
+                <ChevronsUpDown className="h-4 w-4 text-muted-foreground shrink-0" />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                  <div className="p-2">
+                    <Input
+                      autoFocus
+                      placeholder="Pesquisar motorista..."
+                      value={driverSearch}
+                      onChange={(e) => setDriverSearch(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <ul className="max-h-48 overflow-y-auto py-1">
+                    {filteredEmployees.length === 0 ? (
+                      <li className="px-3 py-2 text-sm text-muted-foreground">Nenhum resultado.</li>
+                    ) : (
+                      filteredEmployees.map((emp: { id: string; name: string }) => (
+                        <li
+                          key={emp.id}
+                          className={cn(
+                            "flex items-center gap-2 cursor-pointer px-3 py-2 text-sm hover:bg-muted",
+                            selectedDriverId === emp.id && "bg-muted"
+                          )}
+                          onClick={() => {
+                            setSelectedDriverId(emp.id)
+                            setDriverSearch("")
+                            setIsDropdownOpen(false)
+                          }}
+                        >
+                          <Check className={cn("h-4 w-4", selectedDriverId === emp.id ? "opacity-100" : "opacity-0")} />
+                          {emp.name}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex-1">
+
+          {/* Category */}
+          <div className="flex-1 min-w-[160px] space-y-2">
             <Label>Categoria</Label>
             <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
               <SelectTrigger className="w-full">
@@ -177,18 +254,24 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-[150px]">
+
+          {/* Daily Value with currency formatting */}
+          <div className="w-[150px] space-y-2">
             <Label>Valor Diária</Label>
-            <Input 
-              type="number" 
-              step="0.01"
-              value={dailyValue || ""} 
-              onChange={(e) => setDailyValue(Number(e.target.value))} 
+            <Input
+              type="text"
+              placeholder="R$ 0,00"
+              value={dailyValueFormatted}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/\D/g, "")
+                setDailyValueFormatted(formatCentsToReal(Number(raw)))
+              }}
             />
           </div>
+
           <div className="flex items-end">
             <Button onClick={handleAdd} disabled={addDriverMutation.isPending}>
-              <Plus className="mr-2 h-4 w-4" /> Adicionar
+              <Plus className="h-4 w-4" /> Adicionar
             </Button>
           </div>
         </div>

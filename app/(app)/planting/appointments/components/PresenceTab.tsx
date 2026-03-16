@@ -31,6 +31,7 @@ interface PresenceTabProps {
   seasonId: string
   frontId: string
   date: string
+  employeeNameFilter?: string
 }
 
 type PresenceRecord = {
@@ -41,7 +42,7 @@ type PresenceRecord = {
   isClosed: boolean
 }
 
-export function PresenceTab({ seasonId, frontId, date }: PresenceTabProps) {
+export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "" }: PresenceTabProps) {
   const [records, setRecords] = useState<Record<string, PresenceRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
 
@@ -178,6 +179,10 @@ export function PresenceTab({ seasonId, frontId, date }: PresenceTabProps) {
               <TableBody>
                 {Object.values(records)
                   .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+                  .filter((rec) =>
+                    employeeNameFilter.trim() === "" ||
+                    rec.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
+                  )
                   .map((rec) => (
                     <TableRow key={rec.employeeId}>
                       <TableCell className="font-medium">{rec.employeeName}</TableCell>

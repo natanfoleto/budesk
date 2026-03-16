@@ -5,15 +5,21 @@ import prisma from "@/lib/prisma"
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = request.headers.get("x-user-id")
+  const userRole = request.headers.get("x-user-role")
+
   if (!userId) {
     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
   }
 
+  if (userRole !== "ROOT" && userRole !== "ADMIN") {
+    return NextResponse.json({ error: "Acesso negado" }, { status: 403 })
+  }
+
   try {
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const { name, description, active } = body
 
@@ -42,22 +48,29 @@ export async function PATCH(
 
     return NextResponse.json(job)
   } catch (error) {
-    console.error(`PATCH /api/jobs/${params.id} error:`, error)
+    const { id } = await params
+    console.error(`PATCH /api/jobs/${id} error:`, error)
     return NextResponse.json({ error: "Erro ao atualizar cargo" }, { status: 500 })
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = request.headers.get("x-user-id")
+  const userRole = request.headers.get("x-user-role")
+
   if (!userId) {
     return NextResponse.json({ error: "Usuário não identificado" }, { status: 401 })
   }
 
+  if (userRole !== "ROOT" && userRole !== "ADMIN") {
+    return NextResponse.json({ error: "Acesso negado" }, { status: 403 })
+  }
+
   try {
-    const { id } = params
+    const { id } = await params
 
     const oldJob = await prisma.job.findUnique({ where: { id } })
     if (!oldJob) {
@@ -97,7 +110,8 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Cargo excluído com sucesso" })
   } catch (error) {
-    console.error(`DELETE /api/jobs/${params.id} error:`, error)
+    const { id } = await params
+    console.error(`DELETE /api/jobs/${id} error:`, error)
     return NextResponse.json({ error: "Erro ao excluir cargo" }, { status: 500 })
   }
 }
