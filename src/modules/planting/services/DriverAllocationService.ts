@@ -3,26 +3,13 @@ import { Prisma } from "@prisma/client"
 import prisma from "@/lib/prisma"
 
 export class DriverAllocationService {
-  static async listCategories(db = prisma) {
-    return db.driverCategory.findMany({
-      orderBy: { name: "asc" }
-    })
-  }
-  
-  static async createCategory(data: Prisma.DriverCategoryCreateInput, db = prisma) {
-    return db.driverCategory.create({ data })
-  }
-  
-  static async updateCategory(id: string, data: Prisma.DriverCategoryUpdateInput, db = prisma) {
-    return db.driverCategory.update({ where: { id }, data })
-  }
-
-  static async list(filters: { seasonId?: string; frontId?: string; employeeId?: string; date?: Date }, db = prisma) {
+  static async list(filters: { seasonId?: string; frontId?: string; employeeId?: string; date?: Date; vehicleId?: string }, db = prisma) {
     const where: Prisma.DriverAllocationWhereInput = {}
     if (filters.seasonId) where.seasonId = filters.seasonId
     if (filters.frontId) where.frontId = filters.frontId
     if (filters.employeeId) where.employeeId = filters.employeeId
     if (filters.date) where.date = filters.date
+    if (filters.vehicleId) where.vehicleId = filters.vehicleId
 
     return db.driverAllocation.findMany({
       where,
@@ -30,7 +17,7 @@ export class DriverAllocationService {
       include: {
         employee: { select: { id: true, name: true } },
         front: { select: { id: true, name: true } },
-        category: true
+        vehicle: { select: { id: true, plate: true, model: true } }
       }
     })
   }
@@ -46,14 +33,6 @@ export class DriverAllocationService {
       })
     }
     
-    // Check if category exists to grab default value if not passed
-    if (!data.valueInCents && data.categoryId) {
-      const cat = await db.driverCategory.findUnique({ where: { id: data.categoryId } })
-      if (cat) {
-        data.valueInCents = cat.defaultDailyValueInCents
-      }
-    }
-
     return db.driverAllocation.create({ data })
   }
 

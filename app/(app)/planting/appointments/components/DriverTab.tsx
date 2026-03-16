@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useCreateDriverAllocation, useDriverCategories } from "@/hooks/use-planting"
+import { useCreateDriverAllocation } from "@/hooks/use-planting"
 import { cn, formatCentsToReal, formatCurrency, parseCurrencyToCents } from "@/lib/utils"
 
 interface DriverTabProps {
@@ -37,7 +37,8 @@ interface DriverTabProps {
 type DriverRecord = {
   id: string
   employeeId: string
-  categoryId: string
+  vehicleId?: string
+  categoryId?: string
   vehicleNamePlate: string
   dailyValueInCents: number
   isClosed: boolean
@@ -48,7 +49,7 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
 
   // Form State
   const [selectedDriverId, setSelectedDriverId] = useState<string>("")
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("")
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("")
   const [dailyValueFormatted, setDailyValueFormatted] = useState<string>("")
 
   // Typeahead state
@@ -66,8 +67,15 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
     }
   })
 
-  // Fetch driver categories via shared hook
-  const { data: categories } = useDriverCategories()
+  // Fetch vehicles
+  const { data: vehicles, isLoading: isLoadingVehicles } = useQuery({
+    queryKey: ["vehicles"],
+    queryFn: async () => {
+      const res = await fetch("/api/vehicles")
+      if (!res.ok) return []
+      return res.json() as Promise<{ id: string; plate: string; model: string | null }[]>
+    }
+  })
 
   // Fetch existing driver allocations
   const { data: existingRecords, isLoading, refetch } = useQuery({
@@ -83,11 +91,12 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
 
   useEffect(() => {
     if (existingRecords) {
-      setAllocations(existingRecords.map((r: { id: string; employeeId: string; categoryId: string; vehicle?: { plate: string }; valueInCents: number; isClosed: boolean }) => ({
+      setAllocations(existingRecords.map((r: { id: string; employeeId: string; vehicleId?: string; categoryId?: string; vehicle?: { plate: string; model: string }; valueInCents: number; isClosed: boolean }) => ({
         id: r.id,
         employeeId: r.employeeId,
+        vehicleId: r.vehicleId,
         categoryId: r.categoryId,
-        vehicleNamePlate: r.vehicle?.plate || "N/A",
+        vehicleNamePlate: r.vehicle ? `${r.vehicle.plate}${r.vehicle.model ? ` - ${r.vehicle.model}` : ""}` : "N/A",
         dailyValueInCents: r.valueInCents,
         isClosed: r.isClosed
       })))
@@ -112,22 +121,22 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
   }
 
   const handleAdd = () => {
-    if (!selectedDriverId || !selectedCategoryId) {
-      toast.error("Selecione motorista e categoria.")
+    if (!selectedDriverId || !selectedVehicleId) {
+      toast.error("Selecione motorista e frota.")
       return
     }
-    const cat = categories?.find((c: { id: string; defaultDailyValueInCents: number }) => c.id === selectedCategoryId)
+
     const dailyValueInCents = dailyValueFormatted
       ? parseCurrencyToCents(dailyValueFormatted)
-      : cat?.defaultDailyValueInCents || 0
+      : 0
 
     addDriverMutation.mutate(
       {
         employeeId: selectedDriverId,
-        categoryId: selectedCategoryId,
+        vehicleId: selectedVehicleId,
         frontId,
         seasonId,
-        date: new Date(date).toISOString(),
+        date: `${date}T12:00:00Z`, // Consistent UTC noon
         valueInCents: dailyValueInCents,
       },
       {
@@ -135,20 +144,12 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
           refetch()
           setSelectedDriverId("")
           setDriverSearch("")
-          setSelectedCategoryId("")
+          setSelectedVehicleId("")
           setDailyValueFormatted("")
         }
       }
     )
   }
-
-  // Auto-fill value when category changes
-  useEffect(() => {
-    if (selectedCategoryId && categories) {
-      const cat = categories.find((c: { id: string; defaultDailyValueInCents: number }) => c.id === selectedCategoryId)
-      if (cat) setDailyValueFormatted(formatCentsToReal(cat.defaultDailyValueInCents))
-    }
-  }, [selectedCategoryId, categories])
 
   // Filtered employees for the typeahead
   const filteredEmployees = (employees || []).filter((emp: { id: string; name: string }) =>
@@ -171,9 +172,9 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
-          <CardTitle className="text-lg">Motoristas e Veículos</CardTitle>
+          <CardTitle className="text-lg">Motoristas e Frota</CardTitle>
           <CardDescription>
-            Apontamento de motoristas (Tratorista, Motorista Caminhão, Lotação, etc).
+            Apontamento de motoristas vinculados a um veículo da frota.
           </CardDescription>
         </div>
       </CardHeader>
@@ -240,16 +241,18 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
             </div>
           </div>
 
-          {/* Category */}
+          {/* Vehicle / Fleet */}
           <div className="flex-1 min-w-[160px] space-y-2">
-            <Label>Categoria</Label>
-            <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+            <Label>Frota (Veículo)</Label>
+            <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione..." />
+                <SelectValue placeholder={isLoadingVehicles ? "Carregando..." : "Selecione..."} />
               </SelectTrigger>
               <SelectContent>
-                {categories?.map((cat: { id: string; name: string }) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                {vehicles?.map((v: { id: string; plate: string; model: string | null }) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.plate} {v.model ? `- ${v.model}` : ""}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -281,7 +284,7 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Motorista</TableHead>
-                <TableHead>Categoria</TableHead>
+                <TableHead>Frota / Veículo</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
@@ -300,11 +303,10 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
               ) : (
                 allocations.map((alloc) => {
                   const empObj = employees?.find((e: { id: string; name: string }) => e.id === alloc.employeeId)
-                  const catObj = categories?.find((c: { id: string; name: string }) => c.id === alloc.categoryId)
                   return (
                     <TableRow key={alloc.id} className={alloc.isClosed ? "opacity-60" : ""}>
                       <TableCell className="font-medium">{empObj?.name || "Desconhecido"}</TableCell>
-                      <TableCell>{catObj?.name || "-"}</TableCell>
+                      <TableCell>{alloc.vehicleNamePlate}</TableCell>
                       <TableCell className="text-right">{formatCurrency(alloc.dailyValueInCents)}</TableCell>
                       <TableCell className="text-right">
                         {!alloc.isClosed && (

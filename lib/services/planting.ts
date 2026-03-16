@@ -139,14 +139,7 @@ export const getDashboard = async (seasonId: string, filters?: { startDate?: str
   return res.json()
 }
 
-// ─── Driver Categories ───────────────────────────────────────────────────────
-
-export const getDriverCategories = async () => {
-  const res = await fetch(`${BASE_URL}/planting/driver-categories`)
-  if (!res.ok) throw new Error("Erro ao buscar categorias de motoristas")
-  return res.json()
-}
-
+// ─── Productions ─────────────────────────────────────────────────────────────
 // ─── Productions ─────────────────────────────────────────────────────────────
 
 export const getProductions = async (filters?: { seasonId?: string; frontId?: string; date?: string }) => {

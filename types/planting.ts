@@ -69,14 +69,14 @@ export interface DriverAllocation {
   id: string
   date: string
   employeeId: string
-  categoryId: string
+  vehicleId?: string
   frontId: string
   seasonId: string
   valueInCents: number
   notes: string | null
   isClosed: boolean
   employee?: { name: string }
-  category?: { name: string }
+  vehicle?: { plate: string; model: string | null }
   front?: { name: string }
 }
 
@@ -174,7 +174,7 @@ export interface DailyWageFormData {
 export interface DriverAllocationFormData {
   date: string
   employeeId: string
-  categoryId: string
+  vehicleId?: string
   frontId: string
   seasonId: string
   valueInCents: number

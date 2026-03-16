@@ -18,7 +18,6 @@ import {
   getDailyWages,
   getDashboard,
   getDriverAllocations,
-  getDriverCategories,
   getExpenses,
   getParameters,
   getPlantingAreas,
@@ -195,15 +194,6 @@ export const useSaveParameters = () => {
       toast.success("Parâmetros atualizados com sucesso")
     },
     onError: () => toast.error("Erro ao salvar parâmetros"),
-  })
-}
-
-// ─── Driver Categories ────────────────────────────────────────────────────────
-
-export const useDriverCategories = () => {
-  return useQuery({
-    queryKey: ["driverCategories"],
-    queryFn: getDriverCategories,
   })
 }
 
