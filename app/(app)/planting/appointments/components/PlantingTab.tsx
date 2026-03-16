@@ -35,6 +35,7 @@ interface PlantingTabProps {
   frontId: string
   date: string
   employeeNameFilter?: string
+  isPeriodClosed: boolean
 }
 
 type ProductionRecord = {
@@ -48,7 +49,7 @@ type ProductionRecord = {
   plantingCategory: string
 }
 
-export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "" }: PlantingTabProps) {
+export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", isPeriodClosed }: PlantingTabProps) {
   const [productions, setProductions] = useState<Record<string, ProductionRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [globalPlantingPrice, setGlobalPlantingPrice] = useState<string>("")
@@ -78,19 +79,19 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "" }
     if (employees && existingRecords) {
       const state: Record<string, ProductionRecord> = {}
       
-      // Initialize with all employees
+      // Initialize with all employees — isClosed driven by period status, not per-record
       employees.forEach((emp: { id: string; name: string; plantingCategory?: string | null }) => {
         state[emp.id] = {
           employeeId: emp.id,
           employeeName: emp.name,
           plantingMeters: 0,
           cuttingMeters: 0,
-          isClosed: false,
+          isClosed: isPeriodClosed,
           plantingCategory: emp.plantingCategory || ""
         }
       })
 
-      // Populate existing values
+      // Populate existing values (do NOT override isClosed — that comes from isPeriodClosed)
       let firstPlantingPrice = 0
       let firstCuttingPrice = 0
 
@@ -98,15 +99,13 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "" }
         if (state[rec.employeeId]) {
           if (rec.type === "PLANTIO") {
             state[rec.employeeId].plantingMeters = rec.meters || 0
-            state[rec.employeeId].plantingId = rec.id 
-            state[rec.employeeId].isClosed = rec.isClosed || state[rec.employeeId].isClosed
+            state[rec.employeeId].plantingId = rec.id
             if (rec.meterValueInCents > 0 && firstPlantingPrice === 0) {
               firstPlantingPrice = rec.meterValueInCents
             }
           } else if (rec.type === "CORTE") {
             state[rec.employeeId].cuttingMeters = rec.meters || 0
             state[rec.employeeId].cuttingId = rec.id
-            state[rec.employeeId].isClosed = rec.isClosed || state[rec.employeeId].isClosed
             if (rec.meterValueInCents > 0 && firstCuttingPrice === 0) {
               firstCuttingPrice = rec.meterValueInCents
             }
@@ -121,7 +120,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "" }
       if (firstPlantingPrice > 0) setGlobalPlantingPrice((firstPlantingPrice / 100).toString())
       if (firstCuttingPrice > 0) setGlobalCuttingPrice((firstCuttingPrice / 100).toString())
     }
-  }, [employees, existingRecords])
+  }, [employees, existingRecords, isPeriodClosed])
 
   const handleCategoryChange = (empId: string, category: string) => {
     setIsEditing(true)
@@ -146,7 +145,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "" }
           employeeId: p.employeeId,
           frontId: frontId,
           seasonId: seasonId,
-          date: new Date(date).toISOString(),
+          date: `${date}T12:00:00.000Z`,
           type: "PLANTIO",
           meters: p.plantingMeters,
           meterValueInCents: globalPlantingPrice ? Math.round(Number(globalPlantingPrice) * 100) : defaultPlantingPrice
@@ -158,7 +157,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "" }
           employeeId: p.employeeId,
           frontId: frontId,
           seasonId: seasonId,
-          date: new Date(date).toISOString(),
+          date: `${date}T12:00:00.000Z`,
           type: "CORTE",
           meters: p.cuttingMeters,
           meterValueInCents: globalCuttingPrice ? Math.round(Number(globalCuttingPrice) * 100) : defaultCuttingPrice
@@ -338,7 +337,6 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "" }
                   <TableHead className="w-[120px] text-center">Corte (m)</TableHead>
                 )}
                 <TableHead className="w-[120px] text-right">Valor (Est.)</TableHead>
-                <TableHead className="w-[80px] text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -429,13 +427,6 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "" }
                         )}
                         <TableCell className="text-right font-medium">
                           {formatCurrency(Math.round(estimatedTotalInCents))}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {record.isClosed ? (
-                            <span className="text-xs text-muted-foreground">Fechado</span>
-                          ) : (
-                            <span className="text-xs text-green-600">Aberto</span>
-                          )}
                         </TableCell>
                       </TableRow>
                     </React.Fragment>

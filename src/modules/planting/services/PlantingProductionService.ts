@@ -67,7 +67,31 @@ export class PlantingProductionService {
         }
       })
     }
-    
+
+    // For new records, check if the date falls within a closed period
+    if (data.date && data.seasonId) {
+      const recordDate = new Date(data.date)
+      // Build the fortnight boundaries for this record's date (in UTC)
+      const day = recordDate.getUTCDate()
+      const year = recordDate.getUTCFullYear()
+      const month = recordDate.getUTCMonth() // 0-based
+      const fortnightStart = day <= 15
+        ? new Date(Date.UTC(year, month, 1, 0, 0, 0, 0))
+        : new Date(Date.UTC(year, month, 16, 0, 0, 0, 0))
+      const fortnightEnd = day <= 15
+        ? new Date(Date.UTC(year, month, 15, 23, 59, 59, 999))
+        : new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999)) // last day of month
+
+      const closedInPeriod = await db.plantingProduction.findFirst({
+        where: {
+          seasonId: data.seasonId as string,
+          date: { gte: fortnightStart, lte: fortnightEnd },
+          isClosed: true,
+        }
+      })
+      if (closedInPeriod) throw new Error("Não é possível criar apontamentos em um período que já foi fechado.")
+    }
+
     return db.plantingProduction.create({
       data: {
         ...data,

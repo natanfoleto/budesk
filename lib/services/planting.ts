@@ -129,8 +129,12 @@ export const saveParameters = async (data: SaveParametersPayload): Promise<Plant
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-export const getDashboard = async (seasonId: string): Promise<PlantingDashboardMetrics> => {
-  const res = await fetch(`${BASE_URL}/planting/dashboard?seasonId=${seasonId}`)
+export const getDashboard = async (seasonId: string, filters?: { startDate?: string, endDate?: string }): Promise<PlantingDashboardMetrics> => {
+  const params = new URLSearchParams({ seasonId })
+  if (filters?.startDate) params.set("startDate", filters.startDate)
+  if (filters?.endDate) params.set("endDate", filters.endDate)
+  
+  const res = await fetch(`${BASE_URL}/planting/dashboard?${params.toString()}`)
   if (!res.ok) throw new Error("Erro ao buscar métricas do dashboard")
   return res.json()
 }

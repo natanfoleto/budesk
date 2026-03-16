@@ -1,15 +1,25 @@
 "use client"
 
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { endOfMonth, format, setDate,startOfMonth } from "date-fns"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { endOfMonth, format, setDate, startOfMonth } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { AlertTriangle, CalendarCheck,Lock } from "lucide-react"
+import { AlertTriangle, CalendarCheck, Lock, LockOpen } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter,CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -20,17 +30,20 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { usePlantingDashboard, usePlantingSeasons } from "@/hooks/use-planting"
+import { useUser } from "@/hooks/use-user"
 import { formatCurrency } from "@/lib/utils"
 
 export default function PlantingClosingPage() {
   const queryClient = useQueryClient()
+  const { data: currentUser } = useUser()
+  const isAdminOrRoot = currentUser?.role === "ROOT" || currentUser?.role === "ADMIN"
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("")
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"))
   const [selectedPeriod, setSelectedPeriod] = useState<"1-15" | "16-end">("1-15")
+  const [pendingAction, setPendingAction] = useState<"fechar" | "reabrir" | null>(null)
 
   const { data: seasons, isLoading: isLoadingSeasons } = usePlantingSeasons()
-  const { data: dashboardData, isLoading: isLoadingSummary } = usePlantingDashboard(selectedSeasonId)
-
+  
   // Auto-select active season
   if (seasons && !selectedSeasonId) {
     const active = seasons.find((s) => s.active)
@@ -38,19 +51,46 @@ export default function PlantingClosingPage() {
     else if (seasons.length > 0) setSelectedSeasonId(seasons[0].id)
   }
 
+  const buildDates = () => {
+    const baseDate = new Date(`${selectedMonth}-01T12:00:00Z`)
+    let startDateStr, endDateStr
+    if (selectedPeriod === "1-15") {
+      startDateStr = format(startOfMonth(baseDate), "yyyy-MM-dd")
+      endDateStr = format(setDate(baseDate, 15), "yyyy-MM-dd")
+    } else {
+      startDateStr = format(setDate(baseDate, 16), "yyyy-MM-dd")
+      endDateStr = format(endOfMonth(baseDate), "yyyy-MM-dd")
+    }
+    return { startDateStr, endDateStr }
+  }
+
+  const { startDateStr, endDateStr } = buildDates()
+
+  // Hooks for summaries
+  const { data: seasonSummary, isLoading: isLoadingSeasonSummary } = usePlantingDashboard(selectedSeasonId)
+  const { data: periodSummary, isLoading: isLoadingPeriodSummary } = usePlantingDashboard(
+    selectedSeasonId,
+    { startDate: startDateStr, endDate: endDateStr }
+  )
+
+  // Check if the selected period is already closed
+  const { data: periodStatus, isLoading: isCheckingStatus } = useQuery({
+    queryKey: ["periodStatus", selectedSeasonId, selectedMonth, selectedPeriod],
+    queryFn: async () => {
+      if (!selectedSeasonId) return { isClosed: false }
+      const res = await fetch(
+        `/api/planting/closing?seasonId=${selectedSeasonId}&startDate=${startDateStr}T00:00:00Z&endDate=${endDateStr}T23:59:59Z`
+      )
+      if (!res.ok) return { isClosed: false }
+      return res.json() as Promise<{ isClosed: boolean }>
+    },
+    enabled: !!selectedSeasonId,
+  })
+
+  const isClosed = periodStatus?.isClosed ?? false
+
   const closePeriodMutation = useMutation({
     mutationFn: async () => {
-      const baseDate = new Date(`${selectedMonth}-01T12:00:00Z`)
-      let startDateStr, endDateStr
-
-      if (selectedPeriod === "1-15") {
-        startDateStr = format(startOfMonth(baseDate), "yyyy-MM-dd")
-        endDateStr = format(setDate(baseDate, 15), "yyyy-MM-dd")
-      } else {
-        startDateStr = format(setDate(baseDate, 16), "yyyy-MM-dd")
-        endDateStr = format(endOfMonth(baseDate), "yyyy-MM-dd")
-      }
-
       const res = await fetch("/api/planting/closing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,7 +100,6 @@ export default function PlantingClosingPage() {
           endDate: `${endDateStr}T23:59:59Z`,
         }),
       })
-
       if (!res.ok) {
         const errorData = await res.json()
         throw new Error(errorData.error || "Falha ao fechar o período")
@@ -76,10 +115,39 @@ export default function PlantingClosingPage() {
     },
   })
 
-  const handleClose = () => {
-    if (confirm("Você tem certeza que deseja realizar o fechamento desta quinzena? Após o fechamento, os apontamentos (plantio, corte, área, diárias, gastos e motoristas) deste período NÃO poderão mais ser alterados ou excluídos.")) {
-      closePeriodMutation.mutate()
-    }
+  const reopenPeriodMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/planting/reopen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seasonId: selectedSeasonId,
+          startDate: `${startDateStr}T00:00:00Z`,
+          endDate: `${endDateStr}T23:59:59Z`,
+        }),
+      })
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || "Falha ao reabrir o período")
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries()
+      toast.success(data.message || "Período reaberto com sucesso.")
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+
+  const handleClose = () => setPendingAction("fechar")
+  const handleReopen = () => setPendingAction("reabrir")
+
+  const handleConfirm = () => {
+    if (pendingAction === "fechar") closePeriodMutation.mutate()
+    else if (pendingAction === "reabrir") reopenPeriodMutation.mutate()
+    setPendingAction(null)
   }
 
   const monthOptions = Array.from({ length: 6 }).map((_, i) => {
@@ -92,7 +160,7 @@ export default function PlantingClosingPage() {
   })
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Fechamento Quinzenal</h2>
@@ -102,12 +170,13 @@ export default function PlantingClosingPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Card 1: Seleção de Período */}
+        <Card className="lg:col-span-1 h-fit">
           <CardHeader>
             <CardTitle>Selecionar Período</CardTitle>
             <CardDescription>
-              Defina a safra, mês e quinzena que deseja realizar o fechamento (trava de registros).
+              Defina a quinzena que deseja gerenciar.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -158,76 +227,186 @@ export default function PlantingClosingPage() {
               </Select>
             </div>
 
-            <Alert variant="destructive" className="mt-4">
+            <Alert variant={isClosed ? "default" : "destructive"} className="mt-4">
               <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Atenção</AlertTitle>
-              <AlertDescription className="text-xs">
-                Esta ação é irreversível através do painel. Qualquer correção após o fechamento exigirá intervenção de um administrador no banco de dados.
-              </AlertDescription>
+              {isClosed ? (
+                <>
+                  <AlertTitle className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" /> Período Fechado
+                  </AlertTitle>
+                  <AlertDescription className="text-xs">
+                    Os apontamentos desta quinzena estão bloqueados para edição.
+                  </AlertDescription>
+                </>
+              ) : (
+                <>
+                  <AlertTitle>Período Aberto</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    Edições permitidas. Após o fechamento, apenas administradores podem reabrir.
+                  </AlertDescription>
+                </>
+              )}
             </Alert>
           </CardContent>
           <CardFooter>
-            <Button
-              className="w-full"
-              variant="destructive"
-              onClick={handleClose}
-              disabled={!selectedSeasonId || closePeriodMutation.isPending}
-            >
-              <Lock className="h-4 w-4" />
-              {closePeriodMutation.isPending ? "Processando Fechamento..." : "Realizar Fechamento"}
-            </Button>
+            {isCheckingStatus ? (
+              <Skeleton className="h-9 w-full" />
+            ) : isClosed ? (
+              isAdminOrRoot ? (
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={handleReopen}
+                  disabled={!selectedSeasonId || reopenPeriodMutation.isPending}
+                >
+                  <LockOpen className="h-4 w-4" />
+                  {reopenPeriodMutation.isPending ? "Reabrindo..." : "Reabrir Período"}
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground w-full text-center">Somente administradores podem reabrir.</p>
+              )
+            ) : (
+              <Button
+                className="w-full"
+                variant="destructive"
+                onClick={handleClose}
+                disabled={!selectedSeasonId || closePeriodMutation.isPending}
+              >
+                <Lock className="h-4 w-4" />
+                {closePeriodMutation.isPending ? "Processando..." : "Realizar Fechamento"}
+              </Button>
+            )}
           </CardFooter>
         </Card>
 
-        {/* Resumo da Safra */}
-        <Card className="bg-muted/30">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CalendarCheck className="h-5 w-5" />
-              Resumo Geral da Safra Selecionada
-            </CardTitle>
-            <CardDescription>
-              Valores acumulados em tempo real até o momento. Verifique no dashboard principal para mais detalhes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? (
-              <div className="space-y-4">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : !dashboardData ? (
-              <div className="text-center text-muted-foreground p-4">Selecione uma safra válida.</div>
-            ) : (
-              <div className="space-y-6">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Custo Total Acumulado</p>
-                  <p className="text-3xl font-bold tracking-tight">{formatCurrency(dashboardData.totalCostInCents)}</p>
+        <div className="lg:col-span-2 grid gap-6">
+          {/* Card 2: Resumo da Quinzena */}
+          <Card className={isClosed ? "border-amber-200 bg-amber-50/10" : "bg-muted/30"}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="h-5 w-5 text-primary" />
+                  Resumo da Quinzena
                 </div>
+                {isClosed ? (
+                  <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full font-semibold border border-amber-200 uppercase">
+                    Resumo Final (Fechado)
+                  </span>
+                ) : (
+                  <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 rounded-full font-semibold border border-green-200 uppercase">
+                    Até o Momento (Aberto)
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Métricas detalhadas para o período de {startDateStr} até {endDateStr}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingPeriodSummary ? (
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Área Plantada (ha)</p>
-                    <p className="text-xl font-semibold">{Number(dashboardData.totalHectares).toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Custo por Hectare</p>
-                    <p className="text-xl font-semibold">{formatCurrency(dashboardData.costPerHectareInCents)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Metragem (Plantio)</p>
-                    <p className="text-xl font-semibold">{Number(dashboardData.totalPlantingMeters).toFixed(0)}m</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Metragem (Corte)</p>
-                    <p className="text-xl font-semibold">{Number(dashboardData.totalCuttingMeters).toFixed(0)}m</p>
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : !periodSummary ? (
+                <div className="text-center text-muted-foreground p-4 text-sm italic">Nenhum dado encontrado para este período.</div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                    <div className="col-span-2 sm:col-span-1">
+                      <p className="text-sm font-medium text-muted-foreground">Custo no Período</p>
+                      <p className="text-3xl font-bold tracking-tight text-primary">{formatCurrency(periodSummary.totalCostInCents)}</p>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <p className="text-sm font-medium text-muted-foreground">Área Trabalhada</p>
+                      <p className="text-3xl font-bold tracking-tight">{Number(periodSummary.totalHectares).toFixed(2)} ha</p>
+                    </div>
+                    <div className="pt-2 border-t border-border">
+                      <p className="text-xs font-medium text-muted-foreground uppercase flex items-center gap-1">
+                        Metragem Plantio
+                      </p>
+                      <p className="text-xl font-semibold">{Number(periodSummary.totalPlantingMeters).toLocaleString()}m</p>
+                    </div>
+                    <div className="pt-2 border-t border-border">
+                      <p className="text-xs font-medium text-muted-foreground uppercase flex items-center gap-1">
+                        Metragem Corte
+                      </p>
+                      <p className="text-xl font-semibold">{Number(periodSummary.totalCuttingMeters).toLocaleString()}m</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Card 3: Resumo da Safra */}
+          <Card className="border-dashed border-muted-foreground/20">
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                Acumulado Geral da Safra
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingSeasonSummary ? (
+                <div className="grid grid-cols-3 gap-4">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : !seasonSummary ? (
+                <div className="text-center text-muted-foreground p-2 text-xs">Selecione uma safra válida.</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Custo Total</p>
+                    <p className="text-sm font-bold">{formatCurrency(seasonSummary.totalCostInCents)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Total Área</p>
+                    <p className="text-sm font-bold">{Number(seasonSummary.totalHectares).toFixed(2)} ha</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Plantio</p>
+                    <p className="text-sm font-bold">{Number(seasonSummary.totalPlantingMeters / 1000).toFixed(1)} km</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Corte</p>
+                    <p className="text-sm font-bold">{Number(seasonSummary.totalCuttingMeters / 1000).toFixed(1)} km</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={pendingAction !== null} onOpenChange={(open) => { if (!open) setPendingAction(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingAction === "fechar" ? "Fechar Período" : "Reabrir Período"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingAction === "fechar"
+                ? "Após o fechamento, os apontamentos deste período NÃO poderão mais ser alterados. Tem certeza?"
+                : "Os apontamentos voltarão a ser editáveis. Tem certeza que deseja reabrir este período?"
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant={pendingAction === "fechar" ? "destructive" : "default"}
+              className={pendingAction === "reabrir" ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
+              onClick={handleConfirm}
+            >
+              {pendingAction === "fechar" ? "Sim, fechar período" : "Sim, reabrir período"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -108,10 +108,10 @@ export const useCreateWorkFront = () => {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-export const usePlantingDashboard = (seasonId?: string) => {
+export const usePlantingDashboard = (seasonId?: string, filters?: { startDate?: string, endDate?: string }) => {
   return useQuery({
-    queryKey: ["plantingDashboard", seasonId],
-    queryFn: () => getDashboard(seasonId!),
+    queryKey: ["plantingDashboard", seasonId, filters?.startDate, filters?.endDate],
+    queryFn: () => getDashboard(seasonId!, filters),
     enabled: !!seasonId,
   })
 }

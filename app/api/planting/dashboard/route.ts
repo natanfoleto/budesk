@@ -6,12 +6,18 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const seasonId = searchParams.get('seasonId')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
     
     if (!seasonId) {
       return NextResponse.json({ error: "safra/seasonId is required" }, { status: 400 })
     }
 
-    const metrics = await PlantingDashboardService.getOverviewMetrics(seasonId)
+    const metrics = await PlantingDashboardService.getOverviewMetrics(
+      seasonId, 
+      startDate || undefined, 
+      endDate || undefined
+    )
     return NextResponse.json(metrics)
   } catch (error: unknown) {
     console.error("Error fetching dashboard metrics:", error)

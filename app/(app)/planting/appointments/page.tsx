@@ -1,7 +1,8 @@
 "use client"
 
+import { useQuery } from "@tanstack/react-query"
 import { format } from "date-fns"
-import { ChevronLeft, ChevronRight, FilterX, Search } from "lucide-react"
+import { ChevronLeft, ChevronRight, FilterX, Lock, Search } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useState } from "react"
 
@@ -38,6 +39,35 @@ function AppointmentsContent() {
 
   const { data: seasons } = usePlantingSeasons()
   const { data: fronts } = useWorkFronts(selectedSeasonId !== "all" ? selectedSeasonId : undefined)
+
+  // Determine which fortnight the current date belongs to and check if it's closed
+  const fortnightRange = (() => {
+    if (!selectedDate) return null
+    const day = Number(selectedDate.split("-")[2])
+    const ym = selectedDate.substring(0, 7) // "YYYY-MM"
+    if (day <= 15) {
+      return { start: `${ym}-01`, end: `${ym}-15` }
+    } else {
+      const [y, m] = ym.split("-").map(Number)
+      const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
+      return { start: `${ym}-16`, end: `${ym}-${String(last).padStart(2, "0")}` }
+    }
+  })()
+
+  const { data: periodStatus } = useQuery({
+    queryKey: ["periodStatus", selectedSeasonId, fortnightRange?.start, fortnightRange?.end],
+    queryFn: async () => {
+      if (selectedSeasonId === "all" || !fortnightRange) return { isClosed: false }
+      const res = await fetch(
+        `/api/planting/closing?seasonId=${selectedSeasonId}&startDate=${fortnightRange.start}T00:00:00Z&endDate=${fortnightRange.end}T23:59:59Z`
+      )
+      if (!res.ok) return { isClosed: false }
+      return res.json() as Promise<{ isClosed: boolean }>
+    },
+    enabled: selectedSeasonId !== "all" && !!fortnightRange,
+  })
+
+  const isPeriodClosed = periodStatus?.isClosed ?? false
 
   const updateFilters = (season: string, front: string, date: string, tab: string) => {
     const params = new URLSearchParams()
@@ -96,6 +126,13 @@ function AppointmentsContent() {
             Planilha de controle diário de Plantio, Corte, Diárias, Motoristas e Área.
           </p>
         </div>
+
+        {isPeriodClosed && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-200 text-amber-900 rounded-md font-semibold text-sm">
+            <Lock className="h-4 w-4" />
+            Quinzena fechada. Reabra para editar.
+          </div>
+        )}
       </div>
 
       <Card>
@@ -206,6 +243,7 @@ function AppointmentsContent() {
               frontId={selectedFrontId}
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
+              isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>
           <TabsContent value="diaria" className="m-0">
@@ -214,6 +252,7 @@ function AppointmentsContent() {
               frontId={selectedFrontId}
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
+              isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>
           <TabsContent value="motorista" className="m-0">
@@ -236,6 +275,7 @@ function AppointmentsContent() {
               frontId={selectedFrontId}
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
+              isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>
         </div>

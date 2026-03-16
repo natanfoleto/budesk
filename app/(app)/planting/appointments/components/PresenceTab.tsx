@@ -32,6 +32,15 @@ interface PresenceTabProps {
   frontId: string
   date: string
   employeeNameFilter?: string
+  isPeriodClosed: boolean
+}
+
+const PRESENCE_CONFIG: Record<string, { label: string; color: string }> = {
+  NENHUM:           { label: "Não Registrado",        color: "bg-gray-400" },
+  PRESENCA:         { label: "Presença (Diária Normal)", color: "bg-green-500" },
+  FALTA:            { label: "Falta Injustificada",    color: "bg-red-500" },
+  FALTA_JUSTIFICADA:{ label: "Falta Justificada",      color: "bg-yellow-500" },
+  ATESTADO:         { label: "Atestado Médico",        color: "bg-blue-500" },
 }
 
 type PresenceRecord = {
@@ -42,7 +51,7 @@ type PresenceRecord = {
   isClosed: boolean
 }
 
-export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "" }: PresenceTabProps) {
+export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", isPeriodClosed }: PresenceTabProps) {
   const [records, setRecords] = useState<Record<string, PresenceRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
 
@@ -66,7 +75,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "" }
           employeeId: emp.id,
           employeeName: emp.name,
           presence: "NENHUM",
-          isClosed: false
+          isClosed: isPeriodClosed
         }
       })
 
@@ -74,14 +83,14 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "" }
         if (state[rec.employeeId]) {
           state[rec.employeeId].id = rec.id
           state[rec.employeeId].presence = rec.presence
-          state[rec.employeeId].isClosed = rec.isClosed
+          // isClosed comes from isPeriodClosed, not per-record
         }
       })
       
       setRecords(state)
       setIsEditing(false)
     }
-  }, [employees, existingRecords])
+  }, [employees, existingRecords, isPeriodClosed])
 
   const handleSave = async () => {
     const toSave: DailyWageFormData[] = []
@@ -196,11 +205,14 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "" }
                             <SelectValue placeholder="Selecione..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="NENHUM">Não Registrado</SelectItem>
-                            <SelectItem value="PRESENCA">Presença (Diária Normal)</SelectItem>
-                            <SelectItem value="FALTA">Falta Injustificada</SelectItem>
-                            <SelectItem value="FALTA_JUSTIFICADA">Falta Justificada</SelectItem>
-                            <SelectItem value="ATESTADO">Atestado Médico</SelectItem>
+                            {Object.entries(PRESENCE_CONFIG).map(([value, { label, color }]) => (
+                              <SelectItem key={value} value={value}>
+                                <div className="flex items-center gap-2">
+                                  <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${color}`} />
+                                  {label}
+                                </div>
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </TableCell>

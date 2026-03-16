@@ -27,6 +27,7 @@ interface DailyWageTabProps {
   frontId: string
   date: string
   employeeNameFilter?: string
+  isPeriodClosed: boolean
 }
 
 type WageRecord = {
@@ -38,7 +39,7 @@ type WageRecord = {
   isClosed: boolean
 }
 
-export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "" }: DailyWageTabProps) {
+export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "", isPeriodClosed }: DailyWageTabProps) {
   const [wages, setWages] = useState<Record<string, WageRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
 
@@ -70,7 +71,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "" 
           employeeName: emp.name,
           presence: false,
           dailyValueInCents: defaultWageInCents,
-          isClosed: false
+          isClosed: isPeriodClosed
         }
       })
 
@@ -79,14 +80,14 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "" 
           state[rec.employeeId].id = rec.id
           state[rec.employeeId].presence = rec.presence === AttendanceType.PRESENCA
           state[rec.employeeId].dailyValueInCents = rec.valueInCents
-          state[rec.employeeId].isClosed = rec.isClosed
+          // isClosed comes from isPeriodClosed, not per-record
         }
       })
       
       setWages(state)
       setIsEditing(false)
     }
-  }, [employees, existingRecords, parameters])
+  }, [employees, existingRecords, parameters, isPeriodClosed])
 
   const handleSave = async () => {
     const toSave: DailyWageFormData[] = []
@@ -96,7 +97,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "" 
           employeeId: w.employeeId,
           frontId: frontId,
           seasonId: seasonId,
-          date: new Date(date).toISOString(),
+          date: `${date}T12:00:00.000Z`,
           presence: AttendanceType.PRESENCA,
           valueInCents: w.dailyValueInCents
         })
@@ -179,7 +180,6 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "" 
                 <TableHead>Funcionário</TableHead>
                 <TableHead className="w-[120px] text-center">Presença</TableHead>
                 <TableHead className="w-[150px] text-right">Valor Diária (R$)</TableHead>
-                <TableHead className="w-[100px] text-right">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -189,12 +189,11 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "" 
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-10 mx-auto" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
-                    <TableCell></TableCell>
                   </TableRow>
                 ))
               ) : sortedEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={3} className="h-24 text-center">
                     Nenhum funcionário encontrado.
                   </TableCell>
                 </TableRow>
@@ -219,13 +218,6 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "" 
                         disabled={!record.presence || record.isClosed}
                         placeholder="0.00"
                       />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {record.isClosed ? (
-                        <span className="text-xs text-muted-foreground">Fechado</span>
-                      ) : (
-                        <span className="text-xs text-green-600">Aberto</span>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))
