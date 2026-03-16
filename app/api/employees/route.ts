@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { 
       name, email, phone, document, rg, birthDate, gender, 
-      shirtSize, pantsSize, shoeSize, role, salaryInCents 
+      shirtSize, pantsSize, shoeSize, role, salaryInCents, jobId
     } = body
 
     // Validation: Duplicate document
@@ -58,8 +58,12 @@ export async function POST(request: NextRequest) {
         pantsSize,
         shoeSize,
         role,
+        jobId: jobId || null,
         salaryInCents,
         active: true
+      },
+      include: {
+        job: true
       }
     })
 

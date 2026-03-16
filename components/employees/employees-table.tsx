@@ -1,6 +1,5 @@
 "use client"
 
-import { Employee } from "@prisma/client"
 import { Edit, Trash2 } from "lucide-react"
 import Link from "next/link"
 
@@ -15,9 +14,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatCentsToReal } from "@/lib/utils"
+import { EmployeeWithDetails } from "@/types/employee"
 
 interface EmployeesTableProps {
-  employees: Employee[]
+  employees: EmployeeWithDetails[]
   onDelete: (id: string) => void
 }
 
@@ -43,14 +43,14 @@ export function EmployeesTable({ employees, onDelete }: EmployeesTableProps) {
               </TableCell>
             </TableRow>
           ) : (
-            employees.map((employee: Employee) => (
+            employees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell className="font-medium">
                   <Link href={`/employees/${employee.id}`} className="hover:underline">
                     {employee.name}
                   </Link>
                 </TableCell>
-                <TableCell>{employee.role}</TableCell>
+                <TableCell>{employee.job?.name || employee.role}</TableCell>
                 <TableCell>{employee.document}</TableCell>
                 <TableCell>{formatCentsToReal(employee.salaryInCents)}</TableCell>
                 <TableCell>

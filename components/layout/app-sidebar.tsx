@@ -47,6 +47,7 @@ const menuItems = [
     icon: Users,
     children: [
       { title: "Visão Geral", href: "/rh" },
+      { title: "Cargos", href: "/rh/jobs" },
       { title: "Pagamentos", href: "/rh/payments" },
       { title: "Férias", href: "/rh/vacations" },
       { title: "13º Salário", href: "/rh/thirteenth" },

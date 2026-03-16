@@ -11,6 +11,7 @@ export interface EmployeeWithDetails extends Employee {
   transactions?: FinancialTransaction[];
   employmentRecords?: EmploymentRecord[];
   contracts?: EmployeeContract[];
+  job?: { id: string; name: string };
 }
 
 export interface EmployeeFormData {
@@ -18,7 +19,8 @@ export interface EmployeeFormData {
   document?: string;
   email?: string;
   phone?: string;
-  role: string;
+  role?: string;
+  jobId?: string;
   salaryInCents: number;
   shirtSize?: string;
   pantsSize?: string;

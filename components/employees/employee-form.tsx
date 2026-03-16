@@ -28,6 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useJobs } from "@/hooks/use-jobs"
+import { Job } from "@/lib/services/jobs"
 import { formatCentsToReal, maskCPF, maskPhone } from "@/lib/utils"
 import { EmployeeWithDetails } from "@/types/employee"
 
@@ -36,7 +38,8 @@ const formSchema = z.object({
   document: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
-  role: z.string().min(1, "Cargo obrigatório"),
+  role: z.string().optional(),
+  jobId: z.string().min(1, "Cargo obrigatório"),
   salaryInCents: z.number().min(0, "Salário inválido"),
   shirtSize: z.string().optional(),
   pantsSize: z.string().optional(),
@@ -54,6 +57,8 @@ interface EmployeeFormProps {
 }
 
 export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoading }: EmployeeFormProps) {
+  const { data: jobs } = useJobs()
+  
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -62,6 +67,7 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
       email: "",
       phone: "",
       role: "",
+      jobId: "",
       salaryInCents: 0,
       shirtSize: "",
       pantsSize: "",
@@ -77,6 +83,7 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
         email: initialData.email || "",
         phone: initialData.phone || "",
         role: initialData.role || "",
+        jobId: initialData.jobId || "",
         salaryInCents: Number(initialData.salaryInCents) || 0,
         shirtSize: initialData.shirtSize || "",
         pantsSize: initialData.pantsSize || "",
@@ -89,21 +96,28 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
         email: "",
         phone: "",
         role: "",
+        jobId: "",
         salaryInCents: 0,
         shirtSize: "",
         pantsSize: "",
         shoeSize: "",
       })
     }
-  }, [initialData, form])
+  }, [initialData, form, open])
 
   const handleSubmit = (values: EmployeeFormData) => {
-    onSubmit(values)
+    // If a job is selected, we can also set the 'role' string for compatibility
+    const selectedJob = jobs?.find((j: Job) => j.id === values.jobId)
+    const dataWithRole = {
+      ...values,
+      role: selectedJob?.name || values.role
+    }
+    onSubmit(dataWithRole)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-1/2">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{initialData ? "Editar Funcionário" : "Novo Funcionário"}</DialogTitle>
         </DialogHeader>
@@ -145,14 +159,25 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                name="role"
+                name="jobId"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cargo/Função Atual</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <FormLabel>Cargo/Função</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="cursor-pointer">
+                          <SelectValue placeholder="Selecione um cargo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {jobs?.map((job: Job) => (
+                          <SelectItem key={job.id} value={job.id} className="cursor-pointer">
+                            {job.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

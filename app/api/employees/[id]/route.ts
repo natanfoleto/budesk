@@ -15,6 +15,7 @@ export async function GET(
     const employee = await prisma.employee.findUnique({
       where: { id },
       include: {
+        job: true,
         employmentRecords: { orderBy: { createdAt: "desc" } },
         contracts: { orderBy: { createdAt: "desc" } },
       }
@@ -48,7 +49,7 @@ export async function PUT(
     const { 
       name, email, phone, document, rg, birthDate, gender, 
       shirtSize, pantsSize, shoeSize, role, salaryInCents, active,
-      plantingCategory
+      plantingCategory, jobId
     } = body
 
     const oldData = await prisma.employee.findUnique({ where: { id } })
@@ -67,10 +68,14 @@ export async function PUT(
         pantsSize,
         shoeSize,
         role,
+        jobId: jobId || null,
         salaryInCents,
         active,
         plantingCategory: plantingCategory || null
-      } as any
+      },
+      include: {
+        job: true
+      }
     })
 
     // Audit

@@ -279,6 +279,7 @@ model Employee {
   pantsSize String?
   shoeSize  String?
   role          String?
+  jobId         String?  @map("job_id")
   salaryInCents Int      @map("salary_in_cents")
   active    Boolean  @default(true)
   plantingCategory String? @map("planting_category")
@@ -288,6 +289,7 @@ model Employee {
   standardEntryTime String? // "08:00"
   standardExitTime  String? // "17:00"
 
+  job               Job?     @relation(fields: [jobId], references: [id])
   advances          EmployeeAdvance[]
   transactions      FinancialTransaction[]
   employmentRecords EmploymentRecord[]
@@ -307,6 +309,19 @@ model Employee {
   driverAllocations   DriverAllocation[]
 
   @@map("employees")
+}
+
+model Job {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  employees   Employee[]
+
+  @@map("jobs")
 }
 
 model EmployeeAdvance {
