@@ -11,6 +11,7 @@ type TableCell = string | number | {
     fontStyle?: "normal" | "bold" | "italic" | "bolditalic"; 
     fillColor?: [number, number, number]; 
     halign?: 'left' | 'center' | 'right';
+    textColor?: [number, number, number];
   } 
 };
 
@@ -216,9 +217,25 @@ export class PlantingReportService {
 
       const dailyTotal = productions.filter(p => p.presence === "PRESENCA").reduce((acc: number, p) => acc + p.totalValueInCents, 0) + dailyWageValue
 
+      const isCompensatedFalta = compensations.some(c => c.falta === dateStr)
+      const isUsedNT = compensations.some(c => c.nt === dateStr)
+
+      let serviceCell: TableCell = services.join(", ")
+      if (isCompensatedFalta) {
+        serviceCell = {
+          content: services.join(", "),
+          styles: { textColor: [0, 150, 0] } // Green text for compensated Falta
+        }
+      } else if (isUsedNT) {
+        serviceCell = {
+          content: services.join(", "),
+          styles: { textColor: [255, 100, 100] } // Light red text for NT used for compensation
+        }
+      }
+
       tableData.push([
         format(date, "dd/MM/yyyy"),
-        services.join(", "),
+        serviceCell,
         dailyPlanting > 0 ? `${dailyPlanting}m` : "-",
         dailyCutting > 0 ? `${dailyCutting}m` : "-",
         dailyWageValue > 0 ? this.formatCurrency(dailyWageValue) : "-",
@@ -252,8 +269,21 @@ export class PlantingReportService {
 
     let currentY = doc.lastAutoTable.finalY + 15
 
+    const checkPageSpace = (heightNeeded: number) => {
+      const pageHeight = doc.internal.pageSize.getHeight()
+      if (currentY + heightNeeded > pageHeight - 20) {
+        doc.addPage()
+        currentY = 20
+        return true
+      }
+      return false
+    }
+
     // Traceability Section: Compensação de Faltas
     if (compensations.length > 0) {
+      const needed = 25 + (compensations.length * 7)
+      checkPageSpace(needed)
+
       doc.setFont("helvetica", "bold")
       doc.setFontSize(12)
       doc.text("Compensação de Faltas", 14, currentY)
@@ -280,6 +310,9 @@ export class PlantingReportService {
     }
 
     // Summary Section (Labor Statistics)
+    const summaryNeeded = 40
+    checkPageSpace(summaryNeeded)
+
     doc.setFont("helvetica", "bold")
     doc.setFontSize(12)
     doc.text("Resumo da Produção", 14, currentY)
@@ -337,21 +370,25 @@ export class PlantingReportService {
       margin: { left: 14 }
     })
 
+    currentY = doc.lastAutoTable.finalY + 15
+
     // Totals Box (Simplified and Color-Coded)
-    const boxY = doc.lastAutoTable.finalY + 15
+    const totalsNeeded = 50
+    checkPageSpace(totalsNeeded)
+
     doc.setFont("helvetica", "bold")
     doc.setFontSize(12)
-    doc.text("Totais", 14, boxY)
+    doc.text("Totais", 14, currentY)
     
     doc.setFontSize(12)
     doc.setTextColor(0)
-    doc.text(`Total Bruto: ${this.formatCurrency(totalBruto)}`, 14, boxY + 10)
+    doc.text(`Total Bruto: ${this.formatCurrency(totalBruto)}`, 14, currentY + 10)
     
     doc.setTextColor(200, 0, 0)
-    doc.text(`Total Adiantamentos: - ${this.formatCurrency(totalAdvances)}`, 14, boxY + 18)
+    doc.text(`Total Adiantamentos: - ${this.formatCurrency(totalAdvances)}`, 14, currentY + 18)
     
     doc.setTextColor(0, 100, 0)
-    doc.text(`Total Líquido: ${this.formatCurrency(totalBruto - totalAdvances)}`, 14, boxY + 26)
+    doc.text(`Total Líquido: ${this.formatCurrency(totalBruto - totalAdvances)}`, 14, currentY + 26)
 
     // Reset color for other operations
     doc.setTextColor(0)
@@ -359,8 +396,9 @@ export class PlantingReportService {
     // CLT Disclaimer
     doc.setFontSize(8)
     doc.setTextColor(100)
-    doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, boxY + 36)
-    doc.text("Os dias não trabalhados (ex: chuva) são utilizados para compensar faltas não justificadas.", 14, boxY + 41)
+    doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, currentY + 36)
+    doc.text("Os dias não trabalhados (ex: chuva) são utilizados para compensar faltas não justificadas.", 14, currentY + 41)
+    doc.text("Os dias Não Trabalhados que não foram abatidos por Faltas, serão pagos proporcionalmente ao salário registrado em carteira.", 14, currentY + 46)
 
     return doc.output("arraybuffer")
   }
