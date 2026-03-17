@@ -20,6 +20,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePlantingSeasons, useWorkFronts } from "@/hooks/use-planting"
 
+import { AdvanceTab } from "./components/AdvanceTab"
 import { AreaTab } from "./components/AreaTab"
 import { DailyWageTab } from "./components/DailyWageTab"
 import { DriverTab } from "./components/DriverTab"
@@ -127,12 +128,15 @@ function AppointmentsContent() {
           </p>
         </div>
 
-        {isPeriodClosed && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-200 text-amber-900 rounded-md font-semibold text-sm">
-            <Lock className="h-4 w-4" />
-            Quinzena fechada. Reabra para editar.
-          </div>
-        )}
+        <div className="flex items-center gap-4">
+          {isPeriodClosed && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-200 text-amber-900 rounded-md font-semibold text-sm">
+              <Lock className="h-4 w-4" />
+              Quinzena fechada.
+            </div>
+          )}
+          
+        </div>
       </div>
 
       <Card>
@@ -228,12 +232,13 @@ function AppointmentsContent() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-12">
-          <TabsTrigger value="plantio" className="text-base">Plantio &amp; Corte</TabsTrigger>
-          <TabsTrigger value="diaria" className="text-base">Diárias</TabsTrigger>
-          <TabsTrigger value="motorista" className="text-base">Motoristas (Frota)</TabsTrigger>
-          <TabsTrigger value="presenca" className="text-base">Presença/Faltas</TabsTrigger>
-          <TabsTrigger value="area" className="text-base">Controle de Área (ha)</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-6 h-12">
+          <TabsTrigger value="plantio" className="text-sm">Plantio & Corte</TabsTrigger>
+          <TabsTrigger value="diaria" className="text-sm">Diárias</TabsTrigger>
+          <TabsTrigger value="motorista" className="text-sm">Motoristas (Frota)</TabsTrigger>
+          <TabsTrigger value="presenca" className="text-sm">Presença/Faltas</TabsTrigger>
+          <TabsTrigger value="adiantamento" className="text-sm">Adiantamentos</TabsTrigger>
+          <TabsTrigger value="area" className="text-sm">Controle de Área (ha)</TabsTrigger>
         </TabsList>
 
         <div className="mt-4">
@@ -243,6 +248,7 @@ function AppointmentsContent() {
               frontId={selectedFrontId}
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
+              onEmployeeFilterChange={setEmployeeNameFilter}
               isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>
@@ -252,6 +258,7 @@ function AppointmentsContent() {
               frontId={selectedFrontId}
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
+              onEmployeeFilterChange={setEmployeeNameFilter}
               isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>
@@ -275,11 +282,23 @@ function AppointmentsContent() {
               frontId={selectedFrontId}
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
+              onEmployeeFilterChange={setEmployeeNameFilter}
+              isPeriodClosed={isPeriodClosed}
+            />
+          </TabsContent>
+          <TabsContent value="adiantamento" className="m-0">
+            <AdvanceTab
+              seasonId={selectedSeasonId}
+              frontId={selectedFrontId}
+              date={selectedDate}
+              employeeNameFilter={employeeNameFilter}
+              onEmployeeFilterChange={setEmployeeNameFilter}
               isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>
         </div>
       </Tabs>
+
     </div>
   )
 }

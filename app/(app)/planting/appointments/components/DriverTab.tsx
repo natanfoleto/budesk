@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { Check, ChevronsUpDown, Plus, Trash } from "lucide-react"
+import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -310,8 +310,8 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
                       <TableCell className="text-right">{formatCurrency(alloc.dailyValueInCents)}</TableCell>
                       <TableCell className="text-right">
                         {!alloc.isClosed && (
-                          <Button variant="ghost" size="icon" onClick={() => handleRemove(alloc.id)}>
-                            <Trash className="h-4 w-4 text-destructive" />
+                          <Button variant="outline" size="icon" onClick={() => handleRemove(alloc.id)}>
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
                         )}
                       </TableCell>

@@ -92,6 +92,20 @@ export interface PlantingArea {
   front?: { name: string }
 }
 
+export interface PlantingAdvance {
+  id: string
+  date: string
+  employeeId: string
+  frontId: string
+  seasonId: string
+  valueInCents: number
+  notes: string | null
+  discountInCurrentFortnight: boolean
+  isClosed: boolean
+  employee?: { name: string }
+  front?: { name: string }
+}
+
 export interface PlantingExpense {
   id: string
   date: string
@@ -162,6 +176,7 @@ export interface PlantingProductionFormData {
 }
 
 export interface DailyWageFormData {
+  id?: string
   date: string
   employeeId: string
   frontId: string
@@ -188,6 +203,17 @@ export interface PlantingAreaFormData {
   workedArea: number
   hectares: number
   notes?: string
+}
+
+export interface PlantingAdvanceFormData {
+  id?: string
+  date: string
+  employeeId: string
+  frontId: string
+  seasonId: string
+  valueInCents: number
+  notes?: string
+  discountInCurrentFortnight: boolean
 }
 
 export interface PlantingExpenseFormData {

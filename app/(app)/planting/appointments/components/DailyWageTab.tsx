@@ -1,7 +1,7 @@
 "use client"
 
 import { AttendanceType } from "@prisma/client"
-import { Save } from "lucide-react"
+import { Save, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -27,6 +27,7 @@ interface DailyWageTabProps {
   frontId: string
   date: string
   employeeNameFilter?: string
+  onEmployeeFilterChange?: (name: string) => void
   isPeriodClosed: boolean
 }
 
@@ -39,7 +40,7 @@ type WageRecord = {
   isClosed: boolean
 }
 
-export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "", isPeriodClosed }: DailyWageTabProps) {
+export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: DailyWageTabProps) {
   const [wages, setWages] = useState<Record<string, WageRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
 
@@ -109,6 +110,19 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
       return
     }
 
+    // Validation: Check if any employee has daily wage but is marked as absent in Presence
+    const employeesWithWage = new Set(toSave.map(p => p.employeeId))
+    const conflictAbsences = existingRecords?.filter((rec: DailyWage) => 
+      employeesWithWage.has(rec.employeeId) && 
+      rec.presence !== "PRESENCA"
+    ) || []
+
+    if (conflictAbsences.length > 0) {
+      const names = conflictAbsences.map((a: DailyWage) => a.employee?.name || "Funcionário").join(", ")
+      toast.error(`Não é possível registrar diária para: ${names}. Eles estão marcados com Falta/Atestado/Justificado neste dia.`)
+      return
+    }
+
     try {
       await Promise.all(toSave.map(payload => createDailyWageMutation.mutateAsync(payload)))
       toast.success("Diárias salvas com sucesso!")
@@ -169,7 +183,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
           </CardDescription>
         </div>
         <Button onClick={handleSave} disabled={!isEditing || createDailyWageMutation.isPending}>
-          <Save className="mr-2 h-4 w-4" /> Salvar Alterações
+          <Save className="h-4 w-4" /> Salvar Alterações
         </Button>
       </CardHeader>
       <CardContent>
@@ -200,7 +214,26 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
               ) : (
                 sortedEmployees.map((record) => (
                   <TableRow key={record.employeeId} className={record.isClosed ? "bg-muted/50" : ""}>
-                    <TableCell className="font-medium">{record.employeeName}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2 group">
+                        {record.employeeName}
+                        <button
+                          onClick={() => {
+                            if (onEmployeeFilterChange) {
+                              onEmployeeFilterChange(employeeNameFilter === record.employeeName ? "" : record.employeeName)
+                            }
+                          }}
+                          className={`p-1 rounded-md transition-colors cursor-pointer ${
+                            employeeNameFilter === record.employeeName 
+                              ? "bg-primary text-primary-foreground" 
+                              : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
+                          }`}
+                          title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
+                        >
+                          <Search className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center">
                       <Switch
                         checked={record.presence}

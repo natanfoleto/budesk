@@ -50,14 +50,16 @@ export const useCreateEmployee = () => {
   })
 }
 
-export const useUpdateEmployee = () => {
+export const useUpdateEmployee = (options?: { silent?: boolean }) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<EmployeeFormData> }) => updateEmployee(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] })
       queryClient.invalidateQueries({ queryKey: ["employee", variables.id] })
-      toast.success("Funcionário atualizado!")
+      if (!options?.silent) {
+        toast.success("Funcionário atualizado!")
+      }
     },
     onError: () => toast.error("Erro ao atualizar funcionário"),
   })

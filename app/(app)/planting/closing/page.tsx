@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { endOfMonth, format, setDate, startOfMonth } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { AlertTriangle, CalendarCheck, Lock, LockOpen } from "lucide-react"
+import { AlertTriangle, CalendarCheck, FileText, Lock, LockOpen } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -33,6 +33,8 @@ import { usePlantingDashboard, usePlantingSeasons } from "@/hooks/use-planting"
 import { useUser } from "@/hooks/use-user"
 import { formatCurrency } from "@/lib/utils"
 
+import { ReportModal } from "../appointments/components/ReportModal"
+
 export default function PlantingClosingPage() {
   const queryClient = useQueryClient()
   const { data: currentUser } = useUser()
@@ -41,6 +43,7 @@ export default function PlantingClosingPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"))
   const [selectedPeriod, setSelectedPeriod] = useState<"1-15" | "16-end">("1-15")
   const [pendingAction, setPendingAction] = useState<"fechar" | "reabrir" | null>(null)
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
 
   const { data: seasons, isLoading: isLoadingSeasons } = usePlantingSeasons()
   
@@ -167,6 +170,19 @@ export default function PlantingClosingPage() {
           <p className="text-muted-foreground">
             Bata os valores do período e trave as edições de apontamentos.
           </p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {isClosed && selectedSeasonId && (
+            <Button 
+              onClick={() => setIsReportModalOpen(true)}
+              variant="default"
+              className="bg-emerald-600 hover:bg-emerald-700 font-semibold"
+            >
+              <FileText className="h-4 w-4" />
+              Gerar Relatórios PDF
+            </Button>
+          )}
         </div>
       </div>
 
@@ -407,6 +423,16 @@ export default function PlantingClosingPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {selectedSeasonId && (
+        <ReportModal 
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          seasonId={selectedSeasonId}
+          startDate={startDateStr}
+          endDate={endDateStr}
+        />
+      )}
     </div>
   )
 }

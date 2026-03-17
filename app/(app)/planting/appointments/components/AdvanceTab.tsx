@@ -1,0 +1,460 @@
+"use client"
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { format } from "date-fns"
+import { Edit, Loader2, Plus, Search, Trash2 } from "lucide-react"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { useEmployees } from "@/hooks/use-employees"
+import { formatCentsToReal } from "@/lib/utils"
+import { PlantingAdvance, PlantingAdvanceFormData } from "@/types/planting"
+
+interface AdvanceTabProps {
+  seasonId: string
+  frontId: string
+  date: string
+  employeeNameFilter: string
+  onEmployeeFilterChange?: (name: string) => void
+  isPeriodClosed: boolean
+}
+
+type AdvanceFormValues = PlantingAdvanceFormData
+
+export function AdvanceTab({
+  seasonId,
+  frontId,
+  date,
+  employeeNameFilter,
+  onEmployeeFilterChange,
+  isPeriodClosed,
+}: AdvanceTabProps) {
+  const queryClient = useQueryClient()
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingAdvance, setEditingAdvance] = useState<PlantingAdvance | null>(null)
+
+  const { data: employees } = useEmployees()
+  
+  const { data: advances, isLoading } = useQuery<PlantingAdvance[]>({
+    queryKey: ["planting-advances", seasonId, frontId, date],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (seasonId !== "all") params.set("seasonId", seasonId)
+      if (frontId !== "all") params.set("frontId", frontId)
+      if (date) params.set("date", date)
+      
+      const res = await fetch(`/api/planting/advances?${params.toString()}`)
+      if (!res.ok) throw new Error("Failed to fetch advances")
+      return res.json()
+    },
+    enabled: seasonId !== "all",
+  })
+
+  const form = useForm<AdvanceFormValues>({
+    defaultValues: {
+      employeeId: "",
+      date: date || format(new Date(), "yyyy-MM-dd"),
+      valueInCents: 0,
+      notes: "",
+      discountInCurrentFortnight: true,
+      seasonId: seasonId !== "all" ? seasonId : "",
+      frontId: frontId !== "all" ? frontId : "",
+    },
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async (data: PlantingAdvanceFormData) => {
+      const res = await fetch("/api/planting/advances", {
+        method: "POST",
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to create advance")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["planting-advances"] })
+      toast.success("Adiantamento criado com sucesso")
+      setIsModalOpen(false)
+      form.reset()
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: PlantingAdvanceFormData) => {
+      const res = await fetch(`/api/planting/advances/${data.id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to update advance")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["planting-advances"] })
+      toast.success("Adiantamento atualizado com sucesso")
+      setIsModalOpen(false)
+      setEditingAdvance(null)
+      form.reset()
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/planting/advances/${id}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Failed to delete advance")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["planting-advances"] })
+      toast.success("Adiantamento excluído com sucesso")
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const onSubmit = (data: AdvanceFormValues) => {
+    const payload = {
+      ...data,
+      seasonId: seasonId !== "all" ? seasonId : data.seasonId,
+      frontId: frontId !== "all" ? frontId : data.frontId,
+    }
+
+    if (editingAdvance) {
+      updateMutation.mutate({ ...payload, id: editingAdvance.id })
+    } else {
+      createMutation.mutate(payload)
+    }
+  }
+
+  const handleEdit = (advance: PlantingAdvance) => {
+    setEditingAdvance(advance)
+    form.reset({
+      employeeId: advance.employeeId,
+      date: format(new Date(advance.date), "yyyy-MM-dd"),
+      valueInCents: advance.valueInCents,
+      notes: advance.notes || "",
+      discountInCurrentFortnight: advance.discountInCurrentFortnight,
+      seasonId: advance.seasonId,
+      frontId: advance.frontId,
+    })
+    setIsModalOpen(true)
+  }
+
+  const filteredAdvances = advances?.filter(a => 
+    a.employee?.name.toLowerCase().includes(employeeNameFilter.toLowerCase())
+  )
+
+  if (seasonId === "all") {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-lg">
+        <h3 className="text-lg font-medium">Selecione uma Safra</h3>
+        <p className="text-muted-foreground mt-1">Para gerenciar adiantamentos, selecione uma safra específica nos filtros acima.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Gestão de Adiantamentos</h3>
+        <Button 
+          onClick={() => {
+            setEditingAdvance(null)
+            form.reset({
+              employeeId: "",
+              date: date,
+              valueInCents: 0,
+              notes: "",
+              discountInCurrentFortnight: true,
+              seasonId: seasonId,
+              frontId: frontId !== "all" ? frontId : "",
+            })
+            setIsModalOpen(true)
+          }}
+          disabled={isPeriodClosed}
+        >
+          <Plus className="h-4 w-4" /> Novo Adiantamento
+        </Button>
+      </div>
+
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Funcionário</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Descontar agora?</TableHead>
+              <TableHead>Observação</TableHead>
+              <TableHead className="text-right w-[100px]">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Carregando adiantamentos...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredAdvances?.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  Nenhum adiantamento encontrado para esta data/filtros.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredAdvances?.map((adv) => (
+                <TableRow key={adv.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2 group">
+                      {adv.employee?.name}
+                      <button
+                        onClick={() => {
+                          if (onEmployeeFilterChange) {
+                            const name = adv.employee?.name || ""
+                            onEmployeeFilterChange(employeeNameFilter === name ? "" : name)
+                          }
+                        }}
+                        className={`p-1 rounded-md transition-colors cursor-pointer ${
+                          employeeNameFilter === adv.employee?.name 
+                            ? "bg-primary text-primary-foreground" 
+                            : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
+                        }`}
+                        title={employeeNameFilter === adv.employee?.name ? "Limpar filtro" : "Filtrar por este funcionário"}
+                      >
+                        <Search className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </TableCell>
+                  <TableCell>{format(new Date(adv.date), "dd/MM/yyyy")}</TableCell>
+                  <TableCell>
+                    {formatCentsToReal(adv.valueInCents)}
+                  </TableCell>
+                  <TableCell>
+                    {adv.discountInCurrentFortnight ? (
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                            Sim
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                            Posterior
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="max-w-[200px] truncate" title={adv.notes || ""}>
+                    {adv.notes || "-"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        onClick={() => handleEdit(adv)}
+                        disabled={isPeriodClosed}
+                      >
+                        <Edit className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => {
+                          if (confirm("Deseja realmente excluir este adiantamento?")) {
+                            deleteMutation.mutate(adv.id)
+                          }
+                        }}
+                        disabled={isPeriodClosed}
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{editingAdvance ? "Editar Adiantamento" : "Novo Adiantamento"}</DialogTitle>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+              <FormField
+                control={form.control}
+                name="employeeId"
+                rules={{ required: "Selecione um funcionário" }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Funcionário</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!!editingAdvance}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecione o funcionário" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {employees?.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="date"
+                  rules={{ required: "Selecione a data" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="valueInCents"
+                  rules={{ required: "Informe o valor", min: { value: 1, message: "Valor deve ser maior que zero" } }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="R$ 0,00" 
+                          value={formatCentsToReal(field.value)}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, "")
+                            field.onChange(Number(value))
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="discountInCurrentFortnight"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Descontar na quinzena atual
+                      </FormLabel>
+                      <FormDescription>
+                        Se marcado, este valor será subtraído no próximo fechamento.
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observação (opcional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Motivo do adiantamento..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {(createMutation.isPending || updateMutation.isPending) && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  {editingAdvance ? "Salvar Alterações" : "Criar Adiantamento"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

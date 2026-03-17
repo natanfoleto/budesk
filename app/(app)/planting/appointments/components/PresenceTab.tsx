@@ -1,7 +1,7 @@
 "use client"
 
 import { AttendanceType } from "@prisma/client"
-import { Save } from "lucide-react"
+import { Save, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -24,20 +24,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
-import { useCreateDailyWage, useDailyWages, useDeleteDailyWage } from "@/hooks/use-planting"
-import { DailyWage, DailyWageFormData } from "@/types/planting"
+import { useCreateDailyWage, useDailyWages, useDeleteDailyWage, usePlantingProductions } from "@/hooks/use-planting"
+import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
 
 interface PresenceTabProps {
   seasonId: string
   frontId: string
   date: string
   employeeNameFilter?: string
+  onEmployeeFilterChange?: (name: string) => void
   isPeriodClosed: boolean
 }
 
 const PRESENCE_CONFIG: Record<string, { label: string; color: string }> = {
-  NENHUM:           { label: "Não Registrado",        color: "bg-gray-400" },
-  PRESENCA:         { label: "Presença (Diária Normal)", color: "bg-green-500" },
+  PRESENCA:         { label: "Presença",               color: "bg-green-500" },
   FALTA:            { label: "Falta Injustificada",    color: "bg-red-500" },
   FALTA_JUSTIFICADA:{ label: "Falta Justificada",      color: "bg-yellow-500" },
   ATESTADO:         { label: "Atestado Médico",        color: "bg-blue-500" },
@@ -47,11 +47,12 @@ type PresenceRecord = {
   id?: string
   employeeId: string
   employeeName: string
-  presence: AttendanceType | "NENHUM"
+  presence: AttendanceType
+  valueInCents: number
   isClosed: boolean
 }
 
-export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", isPeriodClosed }: PresenceTabProps) {
+export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: PresenceTabProps) {
   const [records, setRecords] = useState<Record<string, PresenceRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
 
@@ -66,6 +67,12 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
   const createDailyWageMutation = useCreateDailyWage()
   const deleteDailyWageMutation = useDeleteDailyWage()
 
+  const { data: productions } = usePlantingProductions({
+    seasonId,
+    frontId,
+    date: date ? `${date}T00:00:00Z` : undefined
+  })
+
   useEffect(() => {
     if (employees && existingRecords) {
       const state: Record<string, PresenceRecord> = {}
@@ -74,7 +81,8 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
         state[emp.id] = {
           employeeId: emp.id,
           employeeName: emp.name,
-          presence: "NENHUM",
+          presence: "PRESENCA",
+          valueInCents: 0,
           isClosed: isPeriodClosed
         }
       })
@@ -83,7 +91,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
         if (state[rec.employeeId]) {
           state[rec.employeeId].id = rec.id
           state[rec.employeeId].presence = rec.presence
-          // isClosed comes from isPeriodClosed, not per-record
+          state[rec.employeeId].valueInCents = rec.valueInCents
         }
       })
       
@@ -97,21 +105,40 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
     const toDelete: string[] = []
 
     Object.values(records).forEach(r => {
-      // Save all explicitly set absences/presences
-      if (r.presence !== "NENHUM") {
-        toSave.push({
-          employeeId: r.employeeId,
-          frontId: frontId,
-          seasonId: seasonId,
-          date: new Date(date).toISOString(),
-          presence: r.presence as AttendanceType,
-          valueInCents: 0 // Absences, justified, medical certificates are 0 value. Presence value should be managed in the DailyWage tab
-        })
-      } else if (r.id) {
-        // If it was previously saved but now is 'NENHUM', we should delete it
-        toDelete.push(r.id)
-      }
+      // Save all current states. Defaulting to PRESENCA ensures every employee has a record.
+      toSave.push({
+        id: r.id,
+        employeeId: r.employeeId,
+        frontId: frontId,
+        seasonId: seasonId,
+        date: new Date(date).toISOString(),
+        presence: r.presence,
+        valueInCents: r.valueInCents
+      })
     })
+
+    // Validation: block setting Absence if production OR daily wage value exists
+    const toMarkAbsent = new Set(toSave.filter(s => s.presence !== "PRESENCA").map(s => s.employeeId))
+    
+    // Check productions (meters)
+    const productionConflicts = productions?.filter((p: PlantingProduction) => 
+      toMarkAbsent.has(p.employeeId) && (p.meters || 0) > 0
+    ) || []
+
+    // Check existing daily wage values
+    const wageConflicts = existingRecords?.filter((w: DailyWage) =>
+      toMarkAbsent.has(w.employeeId) && w.valueInCents > 0
+    ) || []
+
+    if (productionConflicts.length > 0 || wageConflicts.length > 0) {
+      const conflictNames = new Set([
+        ...productionConflicts.map((p: PlantingProduction) => p.employee?.name || "Funcionário"),
+        ...wageConflicts.map((w: DailyWage) => w.employee?.name || "Funcionário")
+      ])
+      const names = Array.from(conflictNames).join(", ")
+      toast.error(`Não é possível marcar falta para: ${names}. Eles já possuem produção ou diária registrada neste dia.`)
+      return
+    }
 
     if (toSave.length === 0 && toDelete.length === 0) {
       toast.info("Nenhuma alteração definida para salvar.")
@@ -140,7 +167,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
       ...prev,
       [empId]: {
         ...prev[empId],
-        presence: val as AttendanceType | "NENHUM"
+        presence: val as AttendanceType
       }
     }))
   }
@@ -194,7 +221,26 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
                   )
                   .map((rec) => (
                     <TableRow key={rec.employeeId}>
-                      <TableCell className="font-medium">{rec.employeeName}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2 group">
+                          {rec.employeeName}
+                          <button
+                            onClick={() => {
+                              if (onEmployeeFilterChange) {
+                                onEmployeeFilterChange(employeeNameFilter === rec.employeeName ? "" : rec.employeeName)
+                              }
+                            }}
+                            className={`p-1 rounded-md transition-colors cursor-pointer ${
+                              employeeNameFilter === rec.employeeName 
+                                ? "bg-primary text-primary-foreground" 
+                                : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
+                            }`}
+                            title={employeeNameFilter === rec.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
+                          >
+                            <Search className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Select 
                           value={rec.presence} 

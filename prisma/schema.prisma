@@ -303,10 +303,10 @@ model Employee {
   timeBank          TimeBank?
   attendanceRecords AttendanceRecord[]
 
-  // Plantio Relations
   plantingProductions PlantingProduction[]
   dailyWages          DailyWage[]
   driverAllocations   DriverAllocation[]
+  plantingAdvances    PlantingAdvance[]
 
   @@map("employees")
 }
@@ -769,6 +769,7 @@ model PlantingSeason {
   driverAllocations DriverAllocation[]
   plantingAreas PlantingArea[]
   plantingExpenses PlantingExpense[]
+  plantingAdvances PlantingAdvance[]
 
   @@map("planting_seasons")
 }
@@ -788,6 +789,7 @@ model WorkFront {
   driverAllocations DriverAllocation[]
   plantingAreas PlantingArea[]
   plantingExpenses PlantingExpense[]
+  plantingAdvances PlantingAdvance[]
 
   @@map("work_fronts")
 }
@@ -910,6 +912,29 @@ model PlantingExpense {
   @@index([date])
   @@index([category])
   @@map("planting_expenses")
+}
+
+model PlantingAdvance {
+  id              String   @id @default(cuid())
+  date            DateTime @db.Date
+  employeeId      String
+  frontId         String
+  seasonId        String
+  valueInCents    Int
+  notes           String?
+  discountInCurrentFortnight Boolean @default(true)
+  isClosed        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employee Employee       @relation(fields: [employeeId], references: [id])
+  front    WorkFront      @relation(fields: [frontId], references: [id])
+  season   PlantingSeason @relation(fields: [seasonId], references: [id])
+
+  @@index([date])
+  @@index([employeeId])
+  @@index([frontId])
+  @@map("planting_advances")
 }
 
 model PlantingParameter {

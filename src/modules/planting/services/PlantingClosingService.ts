@@ -32,12 +32,18 @@ export class PlantingClosingService {
         data: { isClosed: true }
       })
 
+      const countAdvances = await tx.plantingAdvance.updateMany({
+        where: { seasonId, date: { gte: startDate, lte: endDate }, isClosed: false },
+        data: { isClosed: true }
+      })
+
       return {
         productions: countProductions.count,
         wages: countWages.count,
         allocations: countAllocations.count,
         expenses: countExpenses.count,
-        areas: countAreas.count
+        areas: countAreas.count,
+        advances: countAdvances.count
       }
     })
   }
@@ -73,12 +79,18 @@ export class PlantingClosingService {
         data: { isClosed: false }
       })
 
+      const countAdvances = await tx.plantingAdvance.updateMany({
+        where: { seasonId, date: { gte: startDate, lte: endDate }, isClosed: true },
+        data: { isClosed: false }
+      })
+
       return {
         productions: countProductions.count,
         wages: countWages.count,
         allocations: countAllocations.count,
         expenses: countExpenses.count,
-        areas: countAreas.count
+        areas: countAreas.count,
+        advances: countAdvances.count
       }
     })
   }

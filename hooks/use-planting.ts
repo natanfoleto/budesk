@@ -131,7 +131,6 @@ export const useCreateExpense = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plantingExpenses"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Gasto registrado com sucesso.")
     },
     onError: (error: Error) => toast.error(error.message),
   })
@@ -157,7 +156,6 @@ export const useUpdateExpense = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plantingExpenses"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Gasto atualizado com sucesso.")
     },
     onError: (error: Error) => toast.error(error.message),
   })
@@ -170,7 +168,6 @@ export const useDeleteExpense = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plantingExpenses"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Registro removido.")
     },
     onError: () => toast.error("Erro ao remover gasto"),
   })
@@ -214,7 +211,6 @@ export const useCreateProduction = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plantingProductions"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Apontamento salvo!")
     },
     onError: (error: Error) => toast.error(error.message || "Erro ao salvar apontamento"),
   })
@@ -227,7 +223,6 @@ export const useDeleteProduction = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plantingProductions"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Apontamento removido.")
     },
     onError: () => toast.error("Erro ao remover apontamento"),
   })
@@ -250,7 +245,6 @@ export const useCreateDailyWage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dailyWages"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Diária salva!")
     },
     onError: (error: Error) => toast.error(error.message || "Erro ao salvar diária"),
   })
@@ -263,7 +257,6 @@ export const useDeleteDailyWage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dailyWages"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Diária removida.")
     },
     onError: () => toast.error("Erro ao remover diária"),
   })
@@ -286,7 +279,6 @@ export const useCreateDriverAllocation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["driverAllocations"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Alocação salva!")
     },
     onError: (error: Error) => toast.error(error.message || "Erro ao salvar alocação"),
   })
@@ -299,7 +291,6 @@ export const useDeleteDriverAllocation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["driverAllocations"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Alocação removida.")
     },
     onError: () => toast.error("Erro ao remover alocação"),
   })
@@ -322,7 +313,6 @@ export const useCreatePlantingArea = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plantingAreas"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Área registrada!")
     },
     onError: (error: Error) => toast.error(error.message || "Erro ao salvar área"),
   })
@@ -335,7 +325,6 @@ export const useDeletePlantingArea = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plantingAreas"] })
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
-      toast.success("Área removida.")
     },
     onError: () => toast.error("Erro ao remover área"),
   })

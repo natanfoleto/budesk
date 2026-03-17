@@ -1,6 +1,7 @@
 "use client"
 
-import { Save, Scissors, Sprout } from "lucide-react"
+import { Employee } from "@prisma/client"
+import { Save, Scissors, Search, Sprout } from "lucide-react"
 import React, { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -28,13 +29,14 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useEmployees, useUpdateEmployee } from "@/hooks/use-employees"
 import { useCreateProduction, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
 import { formatCurrency } from "@/lib/utils"
-import { PlantingProduction, PlantingProductionFormData } from "@/types/planting"
+import { DailyWage, PlantingProduction, PlantingProductionFormData } from "@/types/planting"
 
 interface PlantingTabProps {
   seasonId: string
   frontId: string
   date: string
   employeeNameFilter?: string
+  onEmployeeFilterChange?: (name: string) => void
   isPeriodClosed: boolean
 }
 
@@ -49,7 +51,7 @@ type ProductionRecord = {
   plantingCategory: string
 }
 
-export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", isPeriodClosed }: PlantingTabProps) {
+export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: PlantingTabProps) {
   const [productions, setProductions] = useState<Record<string, ProductionRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [globalPlantingPrice, setGlobalPlantingPrice] = useState<string>("")
@@ -58,7 +60,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
 
   // Fetch all active employees via shared hook
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
-  const updateEmployeeMutation = useUpdateEmployee()
+  const updateEmployeeMutation = useUpdateEmployee({ silent: true })
 
   // Fetch parameters to get default prices
   const { data: parameters } = usePlantingParameters()
@@ -80,7 +82,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
       const state: Record<string, ProductionRecord> = {}
       
       // Initialize with all employees — isClosed driven by period status, not per-record
-      employees.forEach((emp: { id: string; name: string; plantingCategory?: string | null }) => {
+      employees.forEach((emp: Employee) => { // Changed type to Employee
         state[emp.id] = {
           employeeId: emp.id,
           employeeName: emp.name,
@@ -165,7 +167,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
       }
 
       // Category updates (if changed from the original employee data)
-      const originalEmp = employees?.find((e: { id: string; plantingCategory?: string | null }) => e.id === p.employeeId)
+      const originalEmp = employees?.find((e: Employee) => e.id === p.employeeId)
       const originalCategory = originalEmp?.plantingCategory || ""
       if (p.plantingCategory !== originalCategory) {
         toUpdateEmployees.push({ id: p.employeeId, category: p.plantingCategory })
@@ -174,6 +176,19 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
 
     if (toSaveProductions.length === 0 && toUpdateEmployees.length === 0) {
       toast.info("Nenhuma alteração para salvar.")
+      return
+    }
+
+    // Validation: Check if any employee has production but is marked as absent in Presence
+    const employeesWithProduction = new Set(toSaveProductions.map(p => p.employeeId))
+    const absences = existingRecords?.filter((rec: DailyWage) => 
+      employeesWithProduction.has(rec.employeeId) && 
+      rec.presence !== "PRESENCA"
+    ) || []
+
+    if (absences.length > 0) {
+      const names = absences.map((a: DailyWage) => a.employee?.name || "Funcionário").join(", ")
+      toast.error(`Não é possível registrar produção para: ${names}. Eles estão marcados com Falta/Atestado/Justificado neste dia.`)
       return
     }
 
@@ -187,8 +202,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
         }))
       ])
 
-      toast.dismiss() // Consolidate multiple notifications from hooks
-      toast.success("Alterações salvas com sucesso!")
+      toast.success("Apontamentos salvos com sucesso!")
       setIsEditing(false)
       refetch()
     } catch {
@@ -370,9 +384,12 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                     ((record.cuttingMeters || 0) * currentCuttingPrice)
 
                   // Add separator between groups
-                  const showSeparator = index > 0 && 
-                    sortedEmployees[index - 1].plantingCategory === "PLANTIO" && 
-                    record.plantingCategory === "CORTE"
+                  const prevRecord = index > 0 ? sortedEmployees[index - 1] : null
+                  const showSeparator = prevRecord && (
+                    (prevRecord.plantingCategory === "PLANTIO" && record.plantingCategory === "CORTE") ||
+                    (prevRecord.plantingCategory === "PLANTIO" && !record.plantingCategory) ||
+                    (prevRecord.plantingCategory === "CORTE" && !record.plantingCategory)
+                  )
 
                   return (
                     <React.Fragment key={record.employeeId}>
@@ -383,14 +400,33 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                         </TableRow>
                       )}
                       <TableRow className={record.isClosed ? "bg-muted/50" : ""}>
-                        <TableCell className="font-medium">{record.employeeName}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2 group">
+                            {record.employeeName}
+                            <button
+                              onClick={() => {
+                                if (onEmployeeFilterChange) {
+                                  onEmployeeFilterChange(employeeNameFilter === record.employeeName ? "" : record.employeeName)
+                                }
+                              }}
+                              className={`p-1 rounded-md transition-colors cursor-pointer ${
+                                employeeNameFilter === record.employeeName 
+                                  ? "bg-primary text-primary-foreground" 
+                                  : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
+                              }`}
+                              title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
+                            >
+                              <Search className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </TableCell>
                         <TableCell className="flex justify-center py-2">
                           <ToggleGroup 
                             type="single" 
                             size="sm"
                             value={record.plantingCategory || "NONE"} 
                             onValueChange={(val) => {
-                              if (val) handleCategoryChange(record.employeeId, val === "NONE" ? "" : val)
+                              handleCategoryChange(record.employeeId, (val === "NONE" || !val) ? "" : val)
                             }}
                           >
                             <ToggleGroupItem value="PLANTIO" aria-label="Plantio" className="data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900 border border-transparent data-[state=on]:border-emerald-200">

@@ -54,25 +54,27 @@ export async function PUT(
 
     const oldData = await prisma.employee.findUnique({ where: { id } })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = {}
+    if (name !== undefined) updateData.name = name
+    if (email !== undefined) updateData.email = email || null
+    if (phone !== undefined) updateData.phone = phone || null
+    if (document !== undefined) updateData.document = document || null
+    if (rg !== undefined) updateData.rg = rg || null
+    if (birthDate !== undefined) updateData.birthDate = birthDate ? new Date(birthDate) : null
+    if (gender !== undefined) updateData.gender = gender
+    if (shirtSize !== undefined) updateData.shirtSize = shirtSize || null
+    if (pantsSize !== undefined) updateData.pantsSize = pantsSize
+    if (shoeSize !== undefined) updateData.shoeSize = shoeSize
+    if (role !== undefined) updateData.role = role
+    if (jobId !== undefined) updateData.jobId = jobId || null
+    if (salaryInCents !== undefined) updateData.salaryInCents = salaryInCents
+    if (active !== undefined) updateData.active = active
+    if (plantingCategory !== undefined) updateData.plantingCategory = plantingCategory || null
+
     const employee = await prisma.employee.update({
       where: { id },
-      data: {
-        name,
-        email: email || null,
-        phone: phone || null,
-        document: document || null,
-        rg: rg || null,
-        birthDate: birthDate ? new Date(birthDate) : undefined,
-        gender,
-        shirtSize: shirtSize || null,
-        pantsSize,
-        shoeSize,
-        role,
-        jobId: jobId || null,
-        salaryInCents,
-        active,
-        plantingCategory: plantingCategory || null
-      },
+      data: updateData,
       include: {
         job: true
       }
