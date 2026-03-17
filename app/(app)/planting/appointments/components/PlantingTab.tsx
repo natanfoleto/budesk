@@ -7,15 +7,14 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -27,7 +26,7 @@ import {
 } from "@/components/ui/table"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useEmployees, useUpdateEmployee } from "@/hooks/use-employees"
-import { useCreateProduction, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
+import { useCreateProduction, useDailyWages, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
 import { formatCurrency } from "@/lib/utils"
 import { DailyWage, PlantingProduction, PlantingProductionFormData } from "@/types/planting"
 
@@ -56,7 +55,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
   const [isEditing, setIsEditing] = useState(false)
   const [globalPlantingPrice, setGlobalPlantingPrice] = useState<string>("")
   const [globalCuttingPrice, setGlobalCuttingPrice] = useState<string>("")
-  const [typeFilter, setTypeFilter] = useState<"ALL" | "PLANTIO" | "CORTE">("ALL")
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(["PLANTIO", "CORTE", ""])
 
   // Fetch all active employees via shared hook
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
@@ -69,6 +68,13 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
 
   // Fetch existing productions via shared hook
   const { data: existingRecords, isLoading: isLoadingRecords, refetch } = usePlantingProductions({
+    seasonId,
+    frontId,
+    date: date ? `${date}T00:00:00Z` : undefined
+  })
+
+  // Fetch existing daily wages (for presence status) via shared hook
+  const { data: dailyWages } = useDailyWages({
     seasonId,
     frontId,
     date: date ? `${date}T00:00:00Z` : undefined
@@ -180,16 +186,18 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
     }
 
     // Validation: Check if any employee has production but is marked as absent in Presence
-    const employeesWithProduction = new Set(toSaveProductions.map(p => p.employeeId))
-    const absences = existingRecords?.filter((rec: DailyWage) => 
-      employeesWithProduction.has(rec.employeeId) && 
-      rec.presence !== "PRESENCA"
-    ) || []
-
-    if (absences.length > 0) {
-      const names = absences.map((a: DailyWage) => a.employee?.name || "Funcionário").join(", ")
-      toast.error(`Não é possível registrar produção para: ${names}. Eles estão marcados com Falta/Atestado/Justificado neste dia.`)
-      return
+    for (const p of toSaveProductions) {
+      if (p.meters && p.meters > 0) {
+        const wageRecord = dailyWages?.find((w: DailyWage) => w.employeeId === p.employeeId)
+        const presence = wageRecord?.presence || "PRESENCA"
+        
+        if (presence !== "PRESENCA") {
+          const empName = employees?.find(e => e.id === p.employeeId)?.name || "Funcionário"
+          const statusLabel = presence === "NAO_TRABALHADO" ? "Não Trabalhado" : "Falta/Atestado"
+          toast.error(`O funcionário ${empName} não pode registrar produção pois está marcado como ${statusLabel} neste dia.`)
+          return
+        }
+      }
     }
 
     try {
@@ -238,9 +246,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
         employeeNameFilter.trim() === "" ||
         a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
 
-      const matchesType =
-        typeFilter === "ALL" ||
-        a.plantingCategory === typeFilter
+      const matchesType = selectedCategories.includes(a.plantingCategory || "")
 
       return matchesName && matchesType
     })
@@ -270,10 +276,10 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
       acc.cutting += curr.cuttingMeters || 0
       
       let est = 0
-      if (typeFilter === "ALL" || typeFilter === "PLANTIO") {
+      if (selectedCategories.includes("PLANTIO")) {
         est += (curr.plantingMeters || 0) * currentPlantingPrice
       }
-      if (typeFilter === "ALL" || typeFilter === "CORTE") {
+      if (selectedCategories.includes("CORTE")) {
         est += (curr.cuttingMeters || 0) * currentCuttingPrice
       }
       acc.value += est
@@ -325,16 +331,45 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Label className="text-sm font-medium whitespace-nowrap">Filtrar por:</Label>
-            <Select value={typeFilter} onValueChange={(val) => setTypeFilter(val as typeof typeFilter)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Selecione o filtro" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Plantio e Corte</SelectItem>
-                <SelectItem value="PLANTIO">Apenas Plantio</SelectItem>
-                <SelectItem value="CORTE">Apenas Corte</SelectItem>
-              </SelectContent>
-            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-2">
+                  Tipo
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuCheckboxItem
+                  checked={selectedCategories.includes("PLANTIO")}
+                  onCheckedChange={(checked) => {
+                    setSelectedCategories(prev => 
+                      checked ? [...prev, "PLANTIO"] : prev.filter(c => c !== "PLANTIO")
+                    )
+                  }}
+                >
+                  Plantio
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={selectedCategories.includes("CORTE")}
+                  onCheckedChange={(checked) => {
+                    setSelectedCategories(prev => 
+                      checked ? [...prev, "CORTE"] : prev.filter(c => c !== "CORTE")
+                    )
+                  }}
+                >
+                  Corte
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={selectedCategories.includes("")}
+                  onCheckedChange={(checked) => {
+                    setSelectedCategories(prev => 
+                      checked ? [...prev, ""] : prev.filter(c => c !== "")
+                    )
+                  }}
+                >
+                  Sem tipo
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -344,10 +379,10 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
               <TableRow>
                 <TableHead>Funcionário</TableHead>
                 <TableHead className="w-[100px] text-center">Tipo</TableHead>
-                {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
+                {(selectedCategories.includes("PLANTIO")) && (
                   <TableHead className="w-[120px] text-center">Plantio (m)</TableHead>
                 )}
-                {(typeFilter === "ALL" || typeFilter === "CORTE") && (
+                {(selectedCategories.includes("CORTE")) && (
                   <TableHead className="w-[120px] text-center">Corte (m)</TableHead>
                 )}
                 <TableHead className="w-[120px] text-right">Valor (Est.)</TableHead>
@@ -359,10 +394,10 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                     <TableCell className="flex justify-center py-2"><Skeleton className="h-8 w-16" /></TableCell>
-                    {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
+                    {(selectedCategories.includes("PLANTIO")) && (
                       <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                     )}
-                    {(typeFilter === "ALL" || typeFilter === "CORTE") && (
+                    {(selectedCategories.includes("CORTE")) && (
                       <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                     )}
                     <TableCell><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
@@ -437,7 +472,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                             </ToggleGroupItem>
                           </ToggleGroup>
                         </TableCell>
-                        {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
+                        {(selectedCategories.includes("PLANTIO")) && (
                           <TableCell>
                             <Input
                               type="number"
@@ -449,7 +484,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                             />
                           </TableCell>
                         )}
-                        {(typeFilter === "ALL" || typeFilter === "CORTE") && (
+                        {(selectedCategories.includes("CORTE")) && (
                           <TableCell>
                             <Input
                               type="number"
@@ -474,10 +509,10 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
               <TableRow className="bg-muted/50 font-bold hover:bg-muted/50">
                 <TableCell className="text-right">Total</TableCell>
                 <TableCell></TableCell>
-                {(typeFilter === "ALL" || typeFilter === "PLANTIO") && (
+                {(selectedCategories.includes("PLANTIO")) && (
                   <TableCell className="text-center">{totals.planting} m</TableCell>
                 )}
-                {(typeFilter === "ALL" || typeFilter === "CORTE") && (
+                {(selectedCategories.includes("CORTE")) && (
                   <TableCell className="text-center">{totals.cutting} m</TableCell>
                 )}
                 <TableCell className="text-right text-emerald-600">

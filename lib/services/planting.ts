@@ -205,7 +205,7 @@ export const createDailyWage = async (data: DailyWageFormData) => {
 }
 
 export const deleteDailyWage = async (id: string) => {
-  const res = await fetch(`${BASE_URL}/planting/daily-wages/${id}`, {
+  const res = await fetch(`${BASE_URL}/planting/daily-wages?id=${id}`, {
     method: "DELETE",
   })
   if (!res.ok) throw new Error("Erro ao remover diária")

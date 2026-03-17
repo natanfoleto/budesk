@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
 import {
   Table,
   TableBody,
@@ -19,8 +18,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
-import { useCreateDailyWage, useDailyWages, usePlantingParameters } from "@/hooks/use-planting"
-import { DailyWage, DailyWageFormData, PlantingParameter } from "@/types/planting"
+import { useCreateDailyWage, useDailyWages } from "@/hooks/use-planting"
+import { formatCentsToReal } from "@/lib/utils"
+import { DailyWage, DailyWageFormData } from "@/types/planting"
 
 interface DailyWageTabProps {
   seasonId: string
@@ -35,8 +35,9 @@ type WageRecord = {
   id?: string
   employeeId: string
   employeeName: string
-  presence: boolean
-  dailyValueInCents: number
+  originalPresence?: AttendanceType
+  valueInCents: number
+  valueFormatted: string
   isClosed: boolean
 }
 
@@ -54,24 +55,19 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
     date: date ? `${date}T00:00:00Z` : undefined
   })
 
-  // Fetch standard values for default daily wage via shared hook
-  const { data: parameters } = usePlantingParameters()
-
   const createDailyWageMutation = useCreateDailyWage()
 
   useEffect(() => {
-    if (employees && existingRecords && parameters) {
+    if (employees && existingRecords) {
       const state: Record<string, WageRecord> = {}
       
-      const defaultWageParam = parameters?.find((p: PlantingParameter) => p.key === "valor_diaria")
-      const defaultWageInCents = defaultWageParam ? Number(defaultWageParam.value) : 9000 // default 90 BRL
-
       employees.forEach((emp: { id: string; name: string }) => {
         state[emp.id] = {
           employeeId: emp.id,
           employeeName: emp.name,
-          presence: false,
-          dailyValueInCents: defaultWageInCents,
+          originalPresence: undefined,
+          valueInCents: 0,
+          valueFormatted: "",
           isClosed: isPeriodClosed
         }
       })
@@ -79,79 +75,78 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
       existingRecords.forEach((rec: DailyWage) => {
         if (state[rec.employeeId]) {
           state[rec.employeeId].id = rec.id
-          state[rec.employeeId].presence = rec.presence === AttendanceType.PRESENCA
-          state[rec.employeeId].dailyValueInCents = rec.valueInCents
-          // isClosed comes from isPeriodClosed, not per-record
+          state[rec.employeeId].originalPresence = rec.presence
+          state[rec.employeeId].valueInCents = rec.valueInCents
+          state[rec.employeeId].valueFormatted = rec.valueInCents > 0 ? formatCentsToReal(rec.valueInCents) : ""
         }
       })
       
       setWages(state)
       setIsEditing(false)
     }
-  }, [employees, existingRecords, parameters, isPeriodClosed])
+  }, [employees, existingRecords, isPeriodClosed])
 
   const handleSave = async () => {
     const toSave: DailyWageFormData[] = []
-    Object.values(wages).forEach(w => {
-      if (w.presence) {
+
+    for (const r of Object.values(wages)) {
+      if (r.valueInCents > 0) {
+        // Validation: Must be PRESENCA
+        const presence = r.originalPresence || "PRESENCA"
+        if (presence !== "PRESENCA") {
+          toast.error(`O funcionário ${r.employeeName} não pode ter valor de diária pois está marcado como ${presence === "NAO_TRABALHADO" ? "Não Trabalhado" : "Falta/Atestado"} neste dia.`)
+          return
+        }
+      }
+
+      // If a record exists, we always update it (preserving the presence status)
+      if (r.id) {
         toSave.push({
-          employeeId: w.employeeId,
+          id: r.id,
+          employeeId: r.employeeId,
           frontId: frontId,
           seasonId: seasonId,
-          date: `${date}T12:00:00.000Z`,
-          presence: AttendanceType.PRESENCA,
-          valueInCents: w.dailyValueInCents
+          date: new Date(date).toISOString(),
+          presence: r.originalPresence || "PRESENCA",
+          valueInCents: r.valueInCents
+        })
+      } else if (r.valueInCents > 0) {
+        // If no record exists but user entered a value, create it as PRESENCA
+        toSave.push({
+          employeeId: r.employeeId,
+          frontId: frontId,
+          seasonId: seasonId,
+          date: new Date(date).toISOString(),
+          presence: "PRESENCA",
+          valueInCents: r.valueInCents
         })
       }
-    })
-
-    if (toSave.length === 0) {
-      toast.info("Nenhuma diária marcada.")
-      return
-    }
-
-    // Validation: Check if any employee has daily wage but is marked as absent in Presence
-    const employeesWithWage = new Set(toSave.map(p => p.employeeId))
-    const conflictAbsences = existingRecords?.filter((rec: DailyWage) => 
-      employeesWithWage.has(rec.employeeId) && 
-      rec.presence !== "PRESENCA"
-    ) || []
-
-    if (conflictAbsences.length > 0) {
-      const names = conflictAbsences.map((a: DailyWage) => a.employee?.name || "Funcionário").join(", ")
-      toast.error(`Não é possível registrar diária para: ${names}. Eles estão marcados com Falta/Atestado/Justificado neste dia.`)
-      return
     }
 
     try {
-      await Promise.all(toSave.map(payload => createDailyWageMutation.mutateAsync(payload)))
+      if (toSave.length > 0) {
+        await Promise.all(toSave.map(payload => createDailyWageMutation.mutateAsync(payload)))
+      }
       toast.success("Diárias salvas com sucesso!")
       setIsEditing(false)
       refetch()
     } catch {
-      // Error already handled by hook toast
+      // Error handled by hook
     }
   }
 
-  const handlePresenceChange = (empId: string, checked: boolean) => {
+  const handleValueChange = (empId: string, rawValue: string) => {
     setIsEditing(true)
-    setWages(prev => ({
-      ...prev,
-      [empId]: {
-        ...prev[empId],
-        presence: checked
-      }
-    }))
-  }
+    const digitsOnly = rawValue.replace(/\D/g, "")
+    const cents = digitsOnly ? Number(digitsOnly) : 0
+    const formatted = cents > 0 ? formatCentsToReal(cents) : ""
 
-  const handleValueChange = (empId: string, val: string) => {
-    setIsEditing(true)
-    const num = Number(val)
     setWages(prev => ({
       ...prev,
       [empId]: {
         ...prev[empId],
-        dailyValueInCents: isNaN(num) ? 0 : Math.round(num * 100)
+        valueInCents: cents,
+        valueFormatted: formatted
       }
     }))
   }
@@ -177,9 +172,9 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
-          <CardTitle className="text-lg">Diárias</CardTitle>
+          <CardTitle className="text-lg">Diárias (Valores)</CardTitle>
           <CardDescription>
-            Apontamento de diaristas na frente de trabalho para a data selecionada.
+            Lançamento financeiro das diárias. Não altera o status de falta/presença.
           </CardDescription>
         </div>
         <Button onClick={handleSave} disabled={!isEditing || createDailyWageMutation.isPending}>
@@ -192,7 +187,6 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
             <TableHeader>
               <TableRow>
                 <TableHead>Funcionário</TableHead>
-                <TableHead className="w-[120px] text-center">Presença</TableHead>
                 <TableHead className="w-[150px] text-right">Valor Diária (R$)</TableHead>
               </TableRow>
             </TableHeader>
@@ -201,13 +195,12 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-10 mx-auto" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-32 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : sortedEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center">
+                  <TableCell colSpan={2} className="h-24 text-center">
                     Nenhum funcionário encontrado.
                   </TableCell>
                 </TableRow>
@@ -234,22 +227,14 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                         </button>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center">
-                      <Switch
-                        checked={record.presence}
-                        onCheckedChange={(c) => handlePresenceChange(record.employeeId, c)}
-                        disabled={record.isClosed}
-                      />
-                    </TableCell>
                     <TableCell>
                       <Input
-                        type="number"
-                        step="0.01"
+                        type="text"
                         className="h-8 text-right"
-                        value={record.dailyValueInCents === 0 ? "" : (record.dailyValueInCents / 100).toFixed(2)}
+                        value={record.valueFormatted}
                         onChange={(e) => handleValueChange(record.employeeId, e.target.value)}
-                        disabled={!record.presence || record.isClosed}
-                        placeholder="0.00"
+                        disabled={record.isClosed}
+                        placeholder="R$ 0,00"
                       />
                     </TableCell>
                   </TableRow>

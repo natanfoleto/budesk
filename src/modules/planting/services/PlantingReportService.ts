@@ -114,8 +114,6 @@ export class PlantingReportService {
     doc.text(`Funcionário: ${employee.name}`, 14, 45)
     doc.setFont("helvetica", "normal")
 
-    // Daily production table
-    const tableData: TableCell[][] = []
     const dates = new Set<string>()
     employee.plantingProductions.forEach((p) => dates.add(this.getISODate(p.date)))
     employee.dailyWages.forEach((w) => dates.add(this.getISODate(w.date)))
@@ -123,6 +121,36 @@ export class PlantingReportService {
 
     const sortedDates = Array.from(dates).sort()
 
+    // 1. Identify and Pair Compensations (Chronological)
+    const allFaltas = sortedDates.filter(dateStr => {
+      const wages = employee.dailyWages.filter(w => this.getISODate(w.date) === dateStr)
+      const prods = employee.plantingProductions.filter(p => this.getISODate(p.date) === dateStr)
+      const hasPresence = prods.some(p => p.presence === "PRESENCA") || 
+                         wages.some(w => w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO") ||
+                         employee.driverAllocations.some(a => this.getISODate(a.date) === dateStr)
+      
+      if (hasPresence) return false
+      
+      const pType = wages.find(w => w.presence === "FALTA")?.presence || prods.find(p => p.presence === "FALTA")?.presence
+      return pType === "FALTA"
+    }).sort()
+
+    const allNT = sortedDates.filter(dateStr => {
+      return employee.dailyWages.some(w => this.getISODate(w.date) === dateStr && w.presence === "NAO_TRABALHADO")
+    }).sort()
+
+    const compensations: { falta: string, nt: string }[] = []
+    const maxCompensations = Math.min(allFaltas.length, allNT.length)
+    for (let i = 0; i < maxCompensations; i++) {
+      compensations.push({
+        falta: allFaltas[i],
+        nt: allNT[i]
+      })
+    }
+
+    // Daily production table
+    const tableData: TableCell[][] = []
+    
     let totalPlantingMeters = 0
     let totalCuttingMeters = 0
     let totalDailyWage = 0
@@ -155,10 +183,15 @@ export class PlantingReportService {
       })
 
       wages.forEach((w) => {
-        if (w.presence === "PRESENCA") {
-          dailyWageValue += w.valueInCents
-          services.push("Diária")
-          totalBruto += w.valueInCents
+        if (w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO") {
+          const isPresence = w.presence === "PRESENCA"
+          const hasValue = w.valueInCents > 0
+          
+          if (hasValue || !isPresence) {
+            dailyWageValue += w.valueInCents
+            services.push(isPresence ? "Diária" : "Não Trabalhado")
+            totalBruto += w.valueInCents
+          }
         } else {
           // Add label for absence/medical certificate
           let label = w.presence
@@ -217,44 +250,86 @@ export class PlantingReportService {
       margin: { top: 40 },
     })
 
+    let currentY = doc.lastAutoTable.finalY + 15
+
+    // Traceability Section: Compensação de Faltas
+    if (compensations.length > 0) {
+      doc.setFont("helvetica", "bold")
+      doc.setFontSize(12)
+      doc.text("Compensação de Faltas", 14, currentY)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(10)
+      
+      const compTableData = compensations.map(c => [
+        format(new Date(c.falta + "T12:00:00"), "dd/MM/yyyy"),
+        "Falta",
+        format(new Date(c.nt + "T12:00:00"), "dd/MM/yyyy")
+      ])
+
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Data da Falta", "Tipo", "Compensado por (Não Trabalhado)"]],
+        body: compTableData,
+        theme: "grid",
+        headStyles: { fillColor: [127, 140, 141] },
+        styles: { fontSize: 9 },
+        margin: { left: 14 }
+      })
+
+      currentY = doc.lastAutoTable.finalY + 15
+    }
+
     // Summary Section (Labor Statistics)
-    const finalY = doc.lastAutoTable.finalY + 15
     doc.setFont("helvetica", "bold")
     doc.setFontSize(12)
-    doc.text("Resumo da Produção", 14, finalY)
+    doc.text("Resumo da Produção", 14, currentY)
     doc.setFont("helvetica", "normal")
     doc.setFontSize(10)
 
-    const dailyPresenceCount = employee.dailyWages.filter(w => w.presence === "PRESENCA").length + 
+    const dailyPresenceCount = employee.dailyWages.filter(w => w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO").length + 
                              employee.driverAllocations.length
     
-    // Count days with ANY absence and NO presence
-    let absenceCount = 0
+    const notWorkedCount = allNT.length
+    
+    // Count days for stats
+    let justifiedAbsenceCount = 0
+    let atestadoCount = 0
     let workedDaysCount = 0
 
     sortedDates.forEach(dateStr => {
-      const hasPresence = employee.plantingProductions.some(p => this.getISODate(p.date) === dateStr && p.presence === "PRESENCA") ||
-                         employee.dailyWages.some(w => this.getISODate(w.date) === dateStr && w.presence === "PRESENCA") ||
-                         employee.driverAllocations.some(a => this.getISODate(a.date) === dateStr)
+      const wages = employee.dailyWages.filter(w => this.getISODate(w.date) === dateStr)
+      const prods = employee.plantingProductions.filter(p => this.getISODate(p.date) === dateStr)
 
-      const hasAbsence = employee.plantingProductions.some(p => this.getISODate(p.date) === dateStr && ["FALTA", "FALTA_JUSTIFICADA"].includes(p.presence)) ||
-                        employee.dailyWages.some(w => this.getISODate(w.date) === dateStr && ["FALTA", "FALTA_JUSTIFICADA"].includes(w.presence || ""))
+      const hasPresence = prods.some(p => p.presence === "PRESENCA") ||
+                         wages.some(w => w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO") ||
+                         employee.driverAllocations.some(a => this.getISODate(a.date) === dateStr)
 
       if (hasPresence) {
         workedDaysCount++
-      } else if (hasAbsence) {
-        absenceCount++
+      } else {
+        const presenceType = wages.find(w => ["FALTA_JUSTIFICADA", "ATESTADO"].includes(w.presence))?.presence || 
+                            prods.find(p => ["FALTA_JUSTIFICADA", "ATESTADO"].includes(p.presence))?.presence
+        
+        if (presenceType === "FALTA_JUSTIFICADA") justifiedAbsenceCount++
+        else if (presenceType === "ATESTADO") atestadoCount++
       }
     })
 
+    // Final unjustified absences after pairing
+    const finalAbsenceCount = allFaltas.length - compensations.length
+
     const summaryData = [
       ["Quantidade de diárias", dailyPresenceCount],
-      ["Quantidade de faltas", absenceCount],
+      ["Dias não trabalhados", notWorkedCount],
+      ["Dias compensados", compensations.length],
+      ["Quantidade de faltas", finalAbsenceCount],
+      ["Faltas justificadas", justifiedAbsenceCount],
+      ["Atestados médicos", atestadoCount],
       ["Total de dias trabalhados", workedDaysCount],
     ]
 
     autoTable(doc, {
-      startY: finalY + 5,
+      startY: currentY + 5,
       body: summaryData,
       theme: "plain",
       styles: { cellPadding: 1 },
@@ -281,6 +356,12 @@ export class PlantingReportService {
     // Reset color for other operations
     doc.setTextColor(0)
 
+    // CLT Disclaimer
+    doc.setFontSize(8)
+    doc.setTextColor(100)
+    doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, boxY + 36)
+    doc.text("Os dias não trabalhados (ex: chuva) são utilizados para compensar faltas não justificadas.", 14, boxY + 41)
+
     return doc.output("arraybuffer")
   }
 
@@ -301,6 +382,8 @@ export class PlantingReportService {
     doc.text("Relatório Consolidado da Quinzena", 14, 22)
     doc.setFontSize(10)
     doc.text(`Período: ${this.formatDateUTC(startDate)} a ${this.formatDateUTC(endDate)}`, 14, 30)
+    const pageWidth = doc.internal.pageSize.getWidth()
+    doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, pageWidth - 14, 30, { align: "right" })
 
     const tableData: TableCell[][] = []
     let grandTotalBruto = 0
@@ -312,6 +395,9 @@ export class PlantingReportService {
       let plantio = 0
       let corte = 0
       let diarias = 0
+      let faltas = 0
+      let faltasJustificadas = 0
+      let atestados = 0
       const presencas = new Set<string>()
 
       emp.plantingProductions.forEach((p) => {
@@ -324,10 +410,21 @@ export class PlantingReportService {
       })
 
       emp.dailyWages.forEach((w) => {
-        if (w.presence === "PRESENCA") {
+        const dateStr = this.getISODate(w.date)
+        if (w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO") {
           bruto += w.valueInCents
           diarias += w.valueInCents
-          presencas.add(this.getISODate(w.date))
+          presencas.add(dateStr)
+        } else {
+          // Avoid counting absence if there's presence on other tabs
+          const hasProduction = emp.plantingProductions.some(p => this.getISODate(p.date) === dateStr && p.presence === "PRESENCA")
+          const hasDriver = emp.driverAllocations.some(a => this.getISODate(a.date) === dateStr)
+          
+          if (!hasProduction && !hasDriver) {
+            if (w.presence === "FALTA") faltas++
+            else if (w.presence === "FALTA_JUSTIFICADA") faltasJustificadas++
+            else if (w.presence === "ATESTADO") atestados++
+          }
         }
       })
 
@@ -344,9 +441,22 @@ export class PlantingReportService {
       const liquido = bruto - adiantado
 
       if (bruto > 0 || adiantado > 0) {
+        const notWorkedCount = emp.dailyWages.filter(w => w.presence === "NAO_TRABALHADO").length
+        const compensatedFaltas = Math.min(faltas, notWorkedCount)
+        const finalFaltas = faltas - compensatedFaltas
+
+        const absenceGroup = [
+          finalFaltas > 0 ? `F: ${finalFaltas}` : null,
+          faltasJustificadas > 0 ? `FJ: ${faltasJustificadas}` : null,
+          atestados > 0 ? `A: ${atestados}` : null,
+          notWorkedCount > 0 ? `NT: ${notWorkedCount}` : null,
+          compensatedFaltas > 0 ? `C: ${compensatedFaltas}` : null
+        ].filter(Boolean).join("\n")
+
         tableData.push([
           emp.name,
           presencas.size,
+          absenceGroup || "-",
           `${plantio}m`,
           `${corte}m`,
           this.formatCurrency(diarias),
@@ -361,17 +471,27 @@ export class PlantingReportService {
 
     autoTable(doc, {
       startY: 40,
-      head: [["Funcionário", "Dias", "Plantio", "Corte", "Diárias", "Adiant.", "Bruto", "Líquido"]],
+      head: [["Funcionário", "Dias", "Faltas", "Plantio", "Corte", "Diárias", "Adiant.", "Bruto", "Líquido"]],
       body: tableData,
       theme: "grid",
       headStyles: { fillColor: [44, 62, 80] },
-      styles: { fontSize: 9 }
+      styles: { fontSize: 8, cellPadding: 2, valign: "middle" },
+      columnStyles: {
+        2: { cellWidth: 20 }
+      }
     })
 
     const finalY = doc.lastAutoTable.finalY + 10
     doc.setFont("helvetica", "bold")
     doc.text(`TOTAL GERAL BRUTO: ${this.formatCurrency(grandTotalBruto)}`, 14, finalY)
     doc.text(`TOTAL GERAL LÍQUIDO: ${this.formatCurrency(grandTotalLiquido)}`, 14, finalY + 7)
+
+    // CLT Disclaimer
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(8)
+    doc.setTextColor(100)
+    doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, finalY + 15)
+    doc.text("Os dias não trabalhados (ex: chuva) são utilizados para compensar faltas não justificadas.", 14, finalY + 20)
 
     return doc.output("arraybuffer")
   }

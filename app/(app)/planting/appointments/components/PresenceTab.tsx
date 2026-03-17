@@ -1,10 +1,20 @@
 "use client"
 
 import { AttendanceType } from "@prisma/client"
-import { Save, Search } from "lucide-react"
+import { CloudOff, Save, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -24,7 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
-import { useCreateDailyWage, useDailyWages, useDeleteDailyWage, usePlantingProductions } from "@/hooks/use-planting"
+import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
 import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
 
 interface PresenceTabProps {
@@ -36,13 +46,6 @@ interface PresenceTabProps {
   isPeriodClosed: boolean
 }
 
-const PRESENCE_CONFIG: Record<string, { label: string; color: string }> = {
-  PRESENCA:         { label: "Presença",               color: "bg-green-500" },
-  FALTA:            { label: "Falta Injustificada",    color: "bg-red-500" },
-  FALTA_JUSTIFICADA:{ label: "Falta Justificada",      color: "bg-yellow-500" },
-  ATESTADO:         { label: "Atestado Médico",        color: "bg-blue-500" },
-}
-
 type PresenceRecord = {
   id?: string
   employeeId: string
@@ -52,31 +55,40 @@ type PresenceRecord = {
   isClosed: boolean
 }
 
+const PRESENCE_CONFIG: Record<string, { label: string; color: string; textColor: string }> = {
+  PRESENCA: { label: "Presente", color: "bg-green-500", textColor: "text-white" },
+  FALTA: { label: "Falta", color: "bg-red-500", textColor: "text-white" },
+  FALTA_JUSTIFICADA: { label: "Falta Justificada", color: "bg-orange-500", textColor: "text-white" },
+  ATESTADO: { label: "Atestado", color: "bg-blue-500", textColor: "text-white" },
+  NAO_TRABALHADO: { label: "Não Trabalhado", color: "bg-slate-400", textColor: "text-white" }
+}
+
+const getPresenceLabel = (type: AttendanceType) => PRESENCE_CONFIG[type]?.label || type
+
 export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: PresenceTabProps) {
   const [records, setRecords] = useState<Record<string, PresenceRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
+  const [showConfirmBulk, setShowConfirmBulk] = useState(false)
 
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
-
   const { data: existingRecords, isLoading: isLoadingRecords, refetch } = useDailyWages({
     seasonId,
     frontId,
     date: date ? `${date}T00:00:00Z` : undefined
   })
-
-  const createDailyWageMutation = useCreateDailyWage()
-  const deleteDailyWageMutation = useDeleteDailyWage()
-
+  
   const { data: productions } = usePlantingProductions({
     seasonId,
     frontId,
     date: date ? `${date}T00:00:00Z` : undefined
   })
+  
+  const createDailyWageMutation = useCreateDailyWage()
 
   useEffect(() => {
     if (employees && existingRecords) {
       const state: Record<string, PresenceRecord> = {}
-
+      
       employees.forEach((emp: { id: string; name: string }) => {
         state[emp.id] = {
           employeeId: emp.id,
@@ -102,10 +114,24 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
 
   const handleSave = async () => {
     const toSave: DailyWageFormData[] = []
-    const toDelete: string[] = []
 
-    Object.values(records).forEach(r => {
-      // Save all current states. Defaulting to PRESENCA ensures every employee has a record.
+    for (const r of Object.values(records)) {
+      // Validation: If NOT PRESENCA, check for production or value conflicts
+      if (r.presence !== "PRESENCA") {
+        // Check current record's value
+        if (r.valueInCents > 0) {
+          toast.error(`O funcionário ${r.employeeName} não pode ser marcado como ${getPresenceLabel(r.presence)} pois possui valor de diária registrado.`)
+          return
+        }
+
+        // Check productions
+        const hasProduction = productions?.some((p: PlantingProduction) => p.employeeId === r.employeeId && (p.meters || 0) > 0)
+        if (hasProduction) {
+          toast.error(`O funcionário ${r.employeeName} não pode ser marcado como ${getPresenceLabel(r.presence)} pois possui metragem de plantio/corte registrada.`)
+          return
+        }
+      }
+
       toSave.push({
         id: r.id,
         employeeId: r.employeeId,
@@ -115,49 +141,15 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
         presence: r.presence,
         valueInCents: r.valueInCents
       })
-    })
-
-    // Validation: block setting Absence if production OR daily wage value exists
-    const toMarkAbsent = new Set(toSave.filter(s => s.presence !== "PRESENCA").map(s => s.employeeId))
-    
-    // Check productions (meters)
-    const productionConflicts = productions?.filter((p: PlantingProduction) => 
-      toMarkAbsent.has(p.employeeId) && (p.meters || 0) > 0
-    ) || []
-
-    // Check existing daily wage values
-    const wageConflicts = existingRecords?.filter((w: DailyWage) =>
-      toMarkAbsent.has(w.employeeId) && w.valueInCents > 0
-    ) || []
-
-    if (productionConflicts.length > 0 || wageConflicts.length > 0) {
-      const conflictNames = new Set([
-        ...productionConflicts.map((p: PlantingProduction) => p.employee?.name || "Funcionário"),
-        ...wageConflicts.map((w: DailyWage) => w.employee?.name || "Funcionário")
-      ])
-      const names = Array.from(conflictNames).join(", ")
-      toast.error(`Não é possível marcar falta para: ${names}. Eles já possuem produção ou diária registrada neste dia.`)
-      return
-    }
-
-    if (toSave.length === 0 && toDelete.length === 0) {
-      toast.info("Nenhuma alteração definida para salvar.")
-      return
     }
 
     try {
-      if (toSave.length > 0) {
-        await Promise.all(toSave.map(payload => createDailyWageMutation.mutateAsync(payload)))
-      }
-      if (toDelete.length > 0) {
-        await Promise.all(toDelete.map(id => deleteDailyWageMutation.mutateAsync(id)))
-      }
-      
-      toast.success("Presenças/Faltas salvas com sucesso!")
+      await Promise.all(toSave.map(payload => createDailyWageMutation.mutateAsync(payload)))
+      toast.success("Presenças salvas com sucesso!")
       setIsEditing(false)
       refetch()
     } catch {
-      // Error is handled by global toast
+      // Error handled by hook
     }
   }
 
@@ -172,70 +164,105 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
     }))
   }
 
+  const handleMarkAllNotWorked = () => {
+    setIsEditing(true)
+    const newState = { ...records }
+    Object.keys(newState).forEach(empId => {
+      newState[empId] = {
+        ...newState[empId],
+        presence: "NAO_TRABALHADO" as AttendanceType
+      }
+    })
+    setRecords(newState)
+    setShowConfirmBulk(false)
+  }
+
   if (seasonId === "all" || frontId === "all" || !date) {
     return (
       <Card>
         <CardContent className="flex h-40 items-center justify-center text-muted-foreground p-6">
-          Selecione a Safra, Frente de Trabalho e Data acima para gerenciar Presenças e Faltas.
+          Selecione a Safra, Frente de Trabalho e Data acima para gerenciar Presenças.
         </CardContent>
       </Card>
     )
   }
 
+  const sortedEmployees = Object.values(records)
+    .filter((a) =>
+      employeeNameFilter.trim() === "" ||
+      a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
+    )
+    .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div>
-          <CardTitle className="text-lg">Controle de Presença</CardTitle>
-          <CardDescription>
-            Marcação rápida de faltas e atestados. Se o funcionário recebeu diária normal, registre na aba Diárias.
-          </CardDescription>
-        </div>
-        <Button onClick={handleSave} disabled={!isEditing || createDailyWageMutation.isPending}>
-          <Save className="h-4 w-4" /> 
-          {createDailyWageMutation.isPending ? "Salvando..." : "Salvar"}
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {isLoadingEmployees || isLoadingRecords ? (
-          <div className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-lg">Presença e Faltas</CardTitle>
+            <CardDescription>
+              Controle de presença diária da equipe.
+            </CardDescription>
           </div>
-        ) : (
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowConfirmBulk(true)}
+              disabled={isPeriodClosed}
+              variant="outline"
+            >
+              <CloudOff className="h-4 w-4" />
+              Marcar todos Não Trabalhado
+            </Button>
+            <Button 
+              onClick={handleSave} 
+              disabled={!isEditing || createDailyWageMutation.isPending}
+            >
+              <Save className="h-4 w-4" />
+              Salvar Alterações
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Funcionário</TableHead>
-                  <TableHead className="w-[250px]">Status</TableHead>
+                  <TableHead className="w-[250px]">Status de Presença</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Object.values(records)
-                  .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
-                  .filter((rec) =>
-                    employeeNameFilter.trim() === "" ||
-                    rec.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
-                  )
-                  .map((rec) => (
-                    <TableRow key={rec.employeeId}>
+                {isLoadingEmployees || isLoadingRecords ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                      <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : sortedEmployees.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={2} className="h-24 text-center">
+                      Nenhum funcionário encontrado.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedEmployees.map((record) => (
+                    <TableRow key={record.employeeId} className={record.isClosed ? "bg-muted/50" : ""}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2 group">
-                          {rec.employeeName}
+                          {record.employeeName}
                           <button
                             onClick={() => {
                               if (onEmployeeFilterChange) {
-                                onEmployeeFilterChange(employeeNameFilter === rec.employeeName ? "" : rec.employeeName)
+                                onEmployeeFilterChange(employeeNameFilter === record.employeeName ? "" : record.employeeName)
                               }
                             }}
                             className={`p-1 rounded-md transition-colors cursor-pointer ${
-                              employeeNameFilter === rec.employeeName 
+                              employeeNameFilter === record.employeeName 
                                 ? "bg-primary text-primary-foreground" 
                                 : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
                             }`}
-                            title={employeeNameFilter === rec.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
+                            title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
                           >
                             <Search className="h-3 w-3" />
                           </button>
@@ -243,9 +270,9 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
                       </TableCell>
                       <TableCell>
                         <Select 
-                          value={rec.presence} 
-                          onValueChange={(val) => handlePresenceChange(rec.employeeId, val)}
-                          disabled={rec.isClosed}
+                          value={record.presence} 
+                          onValueChange={(val) => handlePresenceChange(record.employeeId, val)}
+                          disabled={record.isClosed}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Selecione..." />
@@ -263,19 +290,29 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
                         </Select>
                       </TableCell>
                     </TableRow>
-                  ))}
-                {Object.keys(records).length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center text-muted-foreground">
-                      Nenhum funcionário encontrado.
-                    </TableCell>
-                  </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={showConfirmBulk} onOpenChange={setShowConfirmBulk}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Ação em Massa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso alterará o status de todos os funcionários deste dia para <strong>Não Trabalhado</strong>. 
+              Você poderá ajustar individualmente após confirmar. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMarkAllNotWorked}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
