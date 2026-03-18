@@ -27,7 +27,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useEmployees, useUpdateEmployee } from "@/hooks/use-employees"
 import { useCreateProduction, useDailyWages, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
-import { formatCurrency } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 import { DailyWage, PlantingProduction, PlantingProductionFormData } from "@/types/planting"
 
 interface PlantingTabProps {
@@ -50,12 +50,20 @@ type ProductionRecord = {
   plantingCategory: string
 }
 
+const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
+  FALTA: { bg: "bg-red-50/50 hover:bg-red-50", text: "text-red-600", label: "FALTA" },
+  FALTA_JUSTIFICADA: { bg: "bg-orange-50/50 hover:bg-orange-50", text: "text-orange-600", label: "FALTA JUST." },
+  ATESTADO: { bg: "bg-blue-50/50 hover:bg-blue-50", text: "text-blue-600", label: "ATESTADO" },
+  NAO_TRABALHADO: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "NÃO TRAB." }
+}
+
 export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: PlantingTabProps) {
   const [productions, setProductions] = useState<Record<string, ProductionRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [globalPlantingPrice, setGlobalPlantingPrice] = useState<string>("")
   const [globalCuttingPrice, setGlobalCuttingPrice] = useState<string>("")
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(["PLANTIO", "CORTE", ""])
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [focusedEmployeeId, setFocusedEmployeeId] = useState<string | null>(null)
 
   // Fetch all active employees via shared hook
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
@@ -65,6 +73,8 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
   const { data: parameters } = usePlantingParameters()
   const defaultPlantingPrice = Number(parameters?.find(p => p.key === "valor_metro_plantio")?.value || 0)
   const defaultCuttingPrice = Number(parameters?.find(p => p.key === "valor_metro_corte")?.value || 0)
+  const areaHectareCorte = Number(parameters?.find(p => p.key === "area_hectare_corte")?.value || 1333)
+  const areaHectarePlantio = Number(parameters?.find(p => p.key === "area_hectare_plantio")?.value || 834)
 
   // Fetch existing productions via shared hook
   const { data: existingRecords, isLoading: isLoadingRecords, refetch } = usePlantingProductions({
@@ -83,52 +93,64 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
   const createProductionMutation = useCreateProduction()
 
   // Initialize table state
+  const [lastContext, setLastContext] = useState("")
+
   useEffect(() => {
+    const currentContext = `${seasonId}-${frontId}-${date}`
+    const isNewContext = currentContext !== lastContext
+
     if (employees && existingRecords) {
-      const state: Record<string, ProductionRecord> = {}
-      
-      // Initialize with all employees — isClosed driven by period status, not per-record
-      employees.forEach((emp: Employee) => { // Changed type to Employee
-        state[emp.id] = {
-          employeeId: emp.id,
-          employeeName: emp.name,
-          plantingMeters: 0,
-          cuttingMeters: 0,
-          isClosed: isPeriodClosed,
-          plantingCategory: emp.plantingCategory || ""
-        }
-      })
+      // Only override state if:
+      // 1. It's a completely new context (different day/front/season)
+      // 2. We're not currently editing (safe to sync with server)
+      // 3. The state is empty
+      if (isNewContext || !isEditing || Object.keys(productions).length === 0) {
+        const state: Record<string, ProductionRecord> = {}
+        
+        employees.forEach((emp: Employee) => {
+          state[emp.id] = {
+            employeeId: emp.id,
+            employeeName: emp.name,
+            plantingMeters: 0,
+            cuttingMeters: 0,
+            isClosed: isPeriodClosed,
+            plantingCategory: emp.plantingCategory || ""
+          }
+        })
 
-      // Populate existing values (do NOT override isClosed — that comes from isPeriodClosed)
-      let firstPlantingPrice = 0
-      let firstCuttingPrice = 0
+        let firstPlantingPrice = 0
+        let firstCuttingPrice = 0
 
-      existingRecords.forEach((rec: PlantingProduction) => {
-        if (state[rec.employeeId]) {
-          if (rec.type === "PLANTIO") {
-            state[rec.employeeId].plantingMeters = rec.meters || 0
-            state[rec.employeeId].plantingId = rec.id
-            if (rec.meterValueInCents > 0 && firstPlantingPrice === 0) {
-              firstPlantingPrice = rec.meterValueInCents
-            }
-          } else if (rec.type === "CORTE") {
-            state[rec.employeeId].cuttingMeters = rec.meters || 0
-            state[rec.employeeId].cuttingId = rec.id
-            if (rec.meterValueInCents > 0 && firstCuttingPrice === 0) {
-              firstCuttingPrice = rec.meterValueInCents
+        existingRecords.forEach((rec: PlantingProduction) => {
+          if (state[rec.employeeId]) {
+            if (rec.type === "PLANTIO") {
+              state[rec.employeeId].plantingMeters = Number(rec.meters || 0)
+              state[rec.employeeId].plantingId = rec.id
+              if (rec.meterValueInCents > 0 && firstPlantingPrice === 0) {
+                firstPlantingPrice = rec.meterValueInCents
+              }
+            } else if (rec.type === "CORTE") {
+              state[rec.employeeId].cuttingMeters = Number(rec.meters || 0)
+              state[rec.employeeId].cuttingId = rec.id
+              if (rec.meterValueInCents > 0 && firstCuttingPrice === 0) {
+                firstCuttingPrice = rec.meterValueInCents
+              }
             }
           }
+        })
+        
+        setProductions(state)
+        setLastContext(currentContext)
+        
+        // When changing context or loading for the first time, sync the global prices
+        if (isNewContext || Object.keys(productions).length === 0) {
+          setIsEditing(false)
+          setGlobalPlantingPrice(firstPlantingPrice > 0 ? (firstPlantingPrice / 100).toString() : "")
+          setGlobalCuttingPrice(firstCuttingPrice > 0 ? (firstCuttingPrice / 100).toString() : "")
         }
-      })
-      
-      setProductions(state)
-      setIsEditing(false)
-
-      // Only set from records if the user hasn't typed anything yet or it's a fresh load
-      if (firstPlantingPrice > 0) setGlobalPlantingPrice((firstPlantingPrice / 100).toString())
-      if (firstCuttingPrice > 0) setGlobalCuttingPrice((firstCuttingPrice / 100).toString())
+      }
     }
-  }, [employees, existingRecords, isPeriodClosed])
+  }, [employees, existingRecords, isPeriodClosed, seasonId, frontId, date])
 
   const handleCategoryChange = (empId: string, category: string) => {
     setIsEditing(true)
@@ -230,6 +252,21 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
     }))
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      const table = e.currentTarget.closest('table')
+      if (table) {
+        const inputs = Array.from(table.querySelectorAll('input:not([disabled])')) as HTMLInputElement[]
+        const index = inputs.indexOf(e.currentTarget)
+        if (index > -1 && index < inputs.length - 1) {
+          inputs[index + 1].focus()
+          inputs[index + 1].select()
+        }
+      }
+    }
+  }
+
   if (seasonId === "all" || frontId === "all" || !date) {
     return (
       <Card>
@@ -246,8 +283,8 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
         employeeNameFilter.trim() === "" ||
         a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
 
-      const matchesType = selectedCategories.includes(a.plantingCategory || "")
-
+      const matchesType = selectedCategories.length === 0 || selectedCategories.includes(a.plantingCategory || "")
+      
       return matchesName && matchesType
     })
     .sort((a, b) => {
@@ -270,24 +307,21 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
   const currentPlantingPrice = globalPlantingPrice ? Number(globalPlantingPrice) * 100 : defaultPlantingPrice
   const currentCuttingPrice = globalCuttingPrice ? Number(globalCuttingPrice) * 100 : defaultCuttingPrice
 
-  const totals = sortedEmployees.reduce(
-    (acc, curr) => {
-      acc.planting += curr.plantingMeters || 0
-      acc.cutting += curr.cuttingMeters || 0
-      
-      let est = 0
-      if (selectedCategories.includes("PLANTIO")) {
-        est += (curr.plantingMeters || 0) * currentPlantingPrice
-      }
-      if (selectedCategories.includes("CORTE")) {
-        est += (curr.cuttingMeters || 0) * currentCuttingPrice
-      }
-      acc.value += est
-
-      return acc
-    },
-    { planting: 0, cutting: 0, value: 0 }
-  )
+  const totalPlanting = sortedEmployees.reduce((sum, p) => sum + Number(p.plantingMeters || 0), 0)
+  const totalCutting = sortedEmployees.reduce((sum, p) => sum + Number(p.cuttingMeters || 0), 0)
+  const totalValue = sortedEmployees.reduce((sum, curr) => {
+    const showPlanting = selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")
+    const showCutting = selectedCategories.length === 0 || selectedCategories.includes("CORTE")
+    
+    let est = 0
+    if (showPlanting) {
+      est += Number(curr.plantingMeters || 0) * currentPlantingPrice
+    }
+    if (showCutting) {
+      est += Number(curr.cuttingMeters || 0) * currentCuttingPrice
+    }
+    return sum + est
+  }, 0)
 
   return (
     <Card>
@@ -379,10 +413,10 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
               <TableRow>
                 <TableHead>Funcionário</TableHead>
                 <TableHead className="w-[100px] text-center">Tipo</TableHead>
-                {(selectedCategories.includes("PLANTIO")) && (
+                {(selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")) && (
                   <TableHead className="w-[120px] text-center">Plantio (m)</TableHead>
                 )}
-                {(selectedCategories.includes("CORTE")) && (
+                {(selectedCategories.length === 0 || selectedCategories.includes("CORTE")) && (
                   <TableHead className="w-[120px] text-center">Corte (m)</TableHead>
                 )}
                 <TableHead className="w-[120px] text-right">Valor (Est.)</TableHead>
@@ -394,10 +428,10 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                     <TableCell className="flex justify-center py-2"><Skeleton className="h-8 w-16" /></TableCell>
-                    {(selectedCategories.includes("PLANTIO")) && (
+                    {(selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")) && (
                       <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                     )}
-                    {(selectedCategories.includes("CORTE")) && (
+                    {(selectedCategories.length === 0 || selectedCategories.includes("CORTE")) && (
                       <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                     )}
                     <TableCell><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
@@ -426,6 +460,10 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                     (prevRecord.plantingCategory === "CORTE" && !record.plantingCategory)
                   )
 
+                  const dailyWage = dailyWages?.find((dw: DailyWage) => dw.employeeId === record.employeeId)
+                  const isAbsent = dailyWage && dailyWage.presence !== "PRESENCA"
+                  const presenceType = dailyWage?.presence
+
                   return (
                     <React.Fragment key={record.employeeId}>
                       {showSeparator && (
@@ -434,25 +472,40 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                           </TableCell>
                         </TableRow>
                       )}
-                      <TableRow className={record.isClosed ? "bg-muted/50" : ""}>
+                      <TableRow 
+                        className={cn(
+                          record.isClosed && "bg-muted/50",
+                          record.employeeId === focusedEmployeeId && "bg-muted/90",
+                          isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg
+                        )}
+                      >
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2 group">
-                            {record.employeeName}
-                            <button
-                              onClick={() => {
-                                if (onEmployeeFilterChange) {
-                                  onEmployeeFilterChange(employeeNameFilter === record.employeeName ? "" : record.employeeName)
-                                }
-                              }}
-                              className={`p-1 rounded-md transition-colors cursor-pointer ${
-                                employeeNameFilter === record.employeeName 
-                                  ? "bg-primary text-primary-foreground" 
-                                  : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
-                              }`}
-                              title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
-                            >
-                              <Search className="h-3 w-3" />
-                            </button>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2 group">
+                              <span className={cn(isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.text, isAbsent && "font-bold")}>
+                                {record.employeeName}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  if (onEmployeeFilterChange) {
+                                    onEmployeeFilterChange(employeeNameFilter === record.employeeName ? "" : record.employeeName)
+                                  }
+                                }}
+                                className={`p-1 rounded-md transition-colors cursor-pointer ${
+                                  employeeNameFilter === record.employeeName 
+                                    ? "bg-primary text-primary-foreground" 
+                                    : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
+                                }`}
+                                title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
+                              >
+                                <Search className="h-3 w-3" />
+                              </button>
+                            </div>
+                            {isAbsent && presenceType && (
+                              <span className={cn("text-[10px] font-bold uppercase", ABSENCE_CONFIG[presenceType]?.text)}>
+                                {ABSENCE_CONFIG[presenceType]?.label || presenceType}
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="flex justify-center py-2">
@@ -472,25 +525,31 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                             </ToggleGroupItem>
                           </ToggleGroup>
                         </TableCell>
-                        {(selectedCategories.includes("PLANTIO")) && (
-                          <TableCell>
+                        {(selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")) && (
+                          <TableCell className="text-center">
                             <Input
                               type="number"
                               className="h-8 text-center"
                               value={record.plantingMeters || ""}
                               onChange={(e) => handleInputChange(record.employeeId, "plantingMeters", e.target.value)}
+                              onFocus={() => setFocusedEmployeeId(record.employeeId)}
+                              onBlur={() => setFocusedEmployeeId(null)}
+                              onKeyDown={handleKeyDown}
                               disabled={record.isClosed}
                               placeholder="0"
                             />
                           </TableCell>
                         )}
-                        {(selectedCategories.includes("CORTE")) && (
-                          <TableCell>
+                        {(selectedCategories.length === 0 || selectedCategories.includes("CORTE")) && (
+                          <TableCell className="text-center">
                             <Input
                               type="number"
                               className="h-8 text-center"
                               value={record.cuttingMeters || ""}
                               onChange={(e) => handleInputChange(record.employeeId, "cuttingMeters", e.target.value)}
+                              onFocus={() => setFocusedEmployeeId(record.employeeId)}
+                              onBlur={() => setFocusedEmployeeId(null)}
+                              onKeyDown={handleKeyDown}
                               disabled={record.isClosed}
                               placeholder="0"
                             />
@@ -509,14 +568,34 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
               <TableRow className="bg-muted/50 font-bold hover:bg-muted/50">
                 <TableCell className="text-right">Total</TableCell>
                 <TableCell></TableCell>
-                {(selectedCategories.includes("PLANTIO")) && (
-                  <TableCell className="text-center">{totals.planting} m</TableCell>
+                {(selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")) && (
+                  <TableCell className="text-center">
+                    <div className="flex flex-col items-center">
+                      <span>{totalPlanting} m</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">
+                        {(totalPlanting / areaHectarePlantio).toLocaleString("pt-BR", { 
+                          minimumFractionDigits: 3,
+                          maximumFractionDigits: 3 
+                        })} h
+                      </span>
+                    </div>
+                  </TableCell>
                 )}
-                {(selectedCategories.includes("CORTE")) && (
-                  <TableCell className="text-center">{totals.cutting} m</TableCell>
+                {(selectedCategories.length === 0 || selectedCategories.includes("CORTE")) && (
+                  <TableCell className="text-center">
+                    <div className="flex flex-col items-center">
+                      <span>{totalCutting} m</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">
+                        {(totalCutting / areaHectareCorte).toLocaleString("pt-BR", { 
+                          minimumFractionDigits: 3,
+                          maximumFractionDigits: 3 
+                        })} h
+                      </span>
+                    </div>
+                  </TableCell>
                 )}
                 <TableCell className="text-right text-emerald-600">
-                  {formatCurrency(Math.round(totals.value))}
+                  {formatCurrency(Math.round(totalValue))}
                 </TableCell>
                 <TableCell></TableCell>
               </TableRow>

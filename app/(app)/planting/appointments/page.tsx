@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePlantingSeasons, useWorkFronts } from "@/hooks/use-planting"
 
 import { AdvanceTab } from "./components/AdvanceTab"
-import { AreaTab } from "./components/AreaTab"
+import { ClosingTab } from "./components/ClosingTab"
 import { DailyWageTab } from "./components/DailyWageTab"
 import { DriverTab } from "./components/DriverTab"
 import { PlantingTab } from "./components/PlantingTab"
@@ -213,7 +213,7 @@ function AppointmentsContent() {
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Nome do funcionário..."
+                  placeholder="Nome do funcionário"
                   className="pl-8"
                   value={employeeNameFilter}
                   onChange={(e) => setEmployeeNameFilter(e.target.value)}
@@ -238,7 +238,7 @@ function AppointmentsContent() {
           <TabsTrigger value="motorista" className="text-sm">Motoristas (Frota)</TabsTrigger>
           <TabsTrigger value="presenca" className="text-sm">Presença/Faltas</TabsTrigger>
           <TabsTrigger value="adiantamento" className="text-sm">Adiantamentos</TabsTrigger>
-          <TabsTrigger value="area" className="text-sm">Controle de Área (ha)</TabsTrigger>
+          <TabsTrigger value="area" className="text-sm">Fechamento</TabsTrigger>
         </TabsList>
 
         <div className="mt-4">
@@ -270,7 +270,7 @@ function AppointmentsContent() {
             />
           </TabsContent>
           <TabsContent value="area" className="m-0">
-            <AreaTab
+            <ClosingTab
               seasonId={selectedSeasonId}
               frontId={selectedFrontId}
               date={selectedDate}

@@ -2,6 +2,7 @@ import {
   DailyWageFormData,
   DriverAllocationFormData,
   PlantingAreaFormData,
+  PlantingDashboardChartData,
   PlantingDashboardMetrics,
   PlantingExpense,
   PlantingExpenseFormData,
@@ -129,10 +130,16 @@ export const saveParameters = async (data: SaveParametersPayload): Promise<Plant
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-export const getDashboard = async (seasonId: string, filters?: { startDate?: string, endDate?: string }): Promise<PlantingDashboardMetrics> => {
+export const getDashboard = async (
+  seasonId: string, 
+  filters?: { startDate?: string; endDate?: string; mode?: "overview" | "periods" | "charts"; date?: string; days?: number }
+): Promise<PlantingDashboardMetrics | { today: PlantingDashboardMetrics; fortnight: PlantingDashboardMetrics; month: PlantingDashboardMetrics; general: PlantingDashboardMetrics } | PlantingDashboardChartData[]> => {
   const params = new URLSearchParams({ seasonId })
   if (filters?.startDate) params.set("startDate", filters.startDate)
   if (filters?.endDate) params.set("endDate", filters.endDate)
+  if (filters?.mode) params.set("mode", filters.mode)
+  if (filters?.date) params.set("date", filters.date)
+  if (filters?.days) params.set("days", filters.days.toString())
   
   const res = await fetch(`${BASE_URL}/planting/dashboard?${params.toString()}`)
   if (!res.ok) throw new Error("Erro ao buscar métricas do dashboard")
@@ -281,5 +288,18 @@ export const deletePlantingArea = async (id: string) => {
     method: "DELETE",
   })
   if (!res.ok) throw new Error("Erro ao remover área")
+  return res.json()
+}
+
+// ─── Advances ────────────────────────────────────────────────────────────────
+
+export const getAdvances = async (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+  const params = new URLSearchParams()
+  if (filters?.seasonId && filters.seasonId !== "all") params.set("seasonId", filters.seasonId)
+  if (filters?.frontId && filters.frontId !== "all") params.set("frontId", filters.frontId)
+  if (filters?.date) params.set("date", filters.date)
+  
+  const res = await fetch(`${BASE_URL}/planting/advances?${params.toString()}`)
+  if (!res.ok) throw new Error("Erro ao buscar adiantamentos")
   return res.json()
 }

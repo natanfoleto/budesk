@@ -1,13 +1,20 @@
 "use client"
 
-import { AttendanceType } from "@prisma/client"
+import { AttendanceType, Employee } from "@prisma/client"
 import { Save, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -19,7 +26,7 @@ import {
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDailyWage, useDailyWages } from "@/hooks/use-planting"
-import { formatCentsToReal } from "@/lib/utils"
+import { cn, formatCentsToReal } from "@/lib/utils"
 import { DailyWage, DailyWageFormData } from "@/types/planting"
 
 interface DailyWageTabProps {
@@ -31,19 +38,29 @@ interface DailyWageTabProps {
   isPeriodClosed: boolean
 }
 
-type WageRecord = {
+interface WageRecord {
   id?: string
   employeeId: string
   employeeName: string
-  originalPresence?: AttendanceType
+  originalPresence: AttendanceType | undefined
   valueInCents: number
   valueFormatted: string
   isClosed: boolean
+  plantingCategory: string
+}
+
+const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
+  FALTA: { bg: "bg-red-50/50 hover:bg-red-50", text: "text-red-600", label: "FALTA" },
+  FALTA_JUSTIFICADA: { bg: "bg-orange-50/50 hover:bg-orange-50", text: "text-orange-600", label: "FALTA JUST." },
+  ATESTADO: { bg: "bg-blue-50/50 hover:bg-blue-50", text: "text-blue-600", label: "ATESTADO" },
+  NAO_TRABALHADO: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "NÃO TRAB." }
 }
 
 export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: DailyWageTabProps) {
   const [wages, setWages] = useState<Record<string, WageRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [focusedEmployeeId, setFocusedEmployeeId] = useState<string | null>(null)
 
   // Fetch all active employees via shared hook
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
@@ -61,14 +78,15 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
     if (employees && existingRecords) {
       const state: Record<string, WageRecord> = {}
       
-      employees.forEach((emp: { id: string; name: string }) => {
+      employees.forEach((emp: Employee) => {
         state[emp.id] = {
           employeeId: emp.id,
           employeeName: emp.name,
           originalPresence: undefined,
           valueInCents: 0,
           valueFormatted: "",
-          isClosed: isPeriodClosed
+          isClosed: isPeriodClosed,
+          plantingCategory: emp.plantingCategory || ""
         }
       })
 
@@ -151,6 +169,21 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
     }))
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      const table = e.currentTarget.closest('table')
+      if (table) {
+        const inputs = Array.from(table.querySelectorAll('input:not([disabled])')) as HTMLInputElement[]
+        const index = inputs.indexOf(e.currentTarget)
+        if (index > -1 && index < inputs.length - 1) {
+          inputs[index + 1].focus()
+          inputs[index + 1].select()
+        }
+      }
+    }
+  }
+
   if (seasonId === "all" || frontId === "all" || !date) {
     return (
       <Card>
@@ -162,10 +195,15 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
   }
 
   const sortedEmployees = Object.values(wages)
-    .filter((a) =>
-      employeeNameFilter.trim() === "" ||
-      a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
-    )
+    .filter((a) => {
+      const matchesName =
+        employeeNameFilter.trim() === "" ||
+        a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
+      
+      const matchesType = selectedCategories.length === 0 || selectedCategories.includes(a.plantingCategory || "")
+
+      return matchesName && matchesType
+    })
     .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
 
   return (
@@ -182,6 +220,50 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
         </Button>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 flex flex-wrap gap-6 items-center rounded-md border p-3 bg-muted/20">
+          <div className="ml-auto flex items-center gap-2">
+            <Label className="text-sm font-medium whitespace-nowrap">Filtrar por:</Label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-2">
+                  Tipo
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuCheckboxItem
+                  checked={selectedCategories.includes("PLANTIO")}
+                  onCheckedChange={(checked) => {
+                    setSelectedCategories(prev => 
+                      checked ? [...prev, "PLANTIO"] : prev.filter(c => c !== "PLANTIO")
+                    )
+                  }}
+                >
+                  Plantio
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={selectedCategories.includes("CORTE")}
+                  onCheckedChange={(checked) => {
+                    setSelectedCategories(prev => 
+                      checked ? [...prev, "CORTE"] : prev.filter(c => c !== "CORTE")
+                    )
+                  }}
+                >
+                  Corte
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={selectedCategories.includes("")}
+                  onCheckedChange={(checked) => {
+                    setSelectedCategories(prev => 
+                      checked ? [...prev, ""] : prev.filter(c => c !== "")
+                    )
+                  }}
+                >
+                  Sem tipo
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -205,40 +287,64 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedEmployees.map((record) => (
-                  <TableRow key={record.employeeId} className={record.isClosed ? "bg-muted/50" : ""}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2 group">
-                        {record.employeeName}
-                        <button
-                          onClick={() => {
-                            if (onEmployeeFilterChange) {
-                              onEmployeeFilterChange(employeeNameFilter === record.employeeName ? "" : record.employeeName)
-                            }
-                          }}
-                          className={`p-1 rounded-md transition-colors cursor-pointer ${
-                            employeeNameFilter === record.employeeName 
-                              ? "bg-primary text-primary-foreground" 
-                              : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
-                          }`}
-                          title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
-                        >
-                          <Search className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="text"
-                        className="h-8 text-right"
-                        value={record.valueFormatted}
-                        onChange={(e) => handleValueChange(record.employeeId, e.target.value)}
-                        disabled={record.isClosed}
-                        placeholder="R$ 0,00"
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))
+                sortedEmployees.map((record) => {
+                  const presenceType = record.originalPresence
+                  const isAbsent = presenceType && presenceType !== "PRESENCA"
+
+                  return (
+                    <TableRow 
+                      key={record.employeeId} 
+                      className={cn(
+                        record.isClosed && "bg-muted/50",
+                        record.employeeId === focusedEmployeeId && "bg-muted/90",
+                        isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg
+                      )}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2 group">
+                            <span className={cn(isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.text, isAbsent && "font-bold")}>
+                              {record.employeeName}
+                            </span>
+                            <button
+                              onClick={() => {
+                                if (onEmployeeFilterChange) {
+                                  onEmployeeFilterChange(employeeNameFilter === record.employeeName ? "" : record.employeeName)
+                                }
+                              }}
+                              className={`p-1 rounded-md transition-colors cursor-pointer ${
+                                employeeNameFilter === record.employeeName 
+                                  ? "bg-primary text-primary-foreground" 
+                                  : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
+                              }`}
+                              title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
+                            >
+                              <Search className="h-3 w-3" />
+                            </button>
+                          </div>
+                          {isAbsent && presenceType && (
+                            <span className={cn("text-[10px] font-bold uppercase", ABSENCE_CONFIG[presenceType]?.text)}>
+                              {ABSENCE_CONFIG[presenceType]?.label || presenceType}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="text"
+                          className="h-8 text-right"
+                          value={record.valueFormatted}
+                          onChange={(e) => handleValueChange(record.employeeId, e.target.value)}
+                          onFocus={() => setFocusedEmployeeId(record.employeeId)}
+                          onBlur={() => setFocusedEmployeeId(null)}
+                          onKeyDown={handleKeyDown}
+                          disabled={record.isClosed}
+                          placeholder="R$ 0,00"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

@@ -15,6 +15,7 @@ import {
   deletePlantingArea,
   deleteProduction,
   deleteSeason,
+  getAdvances,
   getDailyWages,
   getDashboard,
   getDriverAllocations,
@@ -31,6 +32,8 @@ import {
   DailyWageFormData,
   DriverAllocationFormData,
   PlantingAreaFormData,
+  PlantingDashboardChartData,
+  PlantingDashboardMetrics,
   PlantingExpenseFormData,
   SaveParametersPayload,
   SeasonFormData,
@@ -107,11 +110,27 @@ export const useCreateWorkFront = () => {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-export const usePlantingDashboard = (seasonId?: string, filters?: { startDate?: string, endDate?: string }) => {
+export const usePlantingDashboard = (seasonId?: string, filters?: { startDate?: string; endDate?: string }) => {
   return useQuery({
     queryKey: ["plantingDashboard", seasonId, filters?.startDate, filters?.endDate],
-    queryFn: () => getDashboard(seasonId!, filters),
+    queryFn: () => getDashboard(seasonId!, filters) as Promise<PlantingDashboardMetrics>,
     enabled: !!seasonId,
+  })
+}
+
+export const usePlantingDashboardPeriods = (seasonId: string, date?: string) => {
+  return useQuery({
+    queryKey: ["plantingDashboardPeriods", seasonId, date],
+    queryFn: () => getDashboard(seasonId, { mode: "periods", date }) as Promise<{ today: PlantingDashboardMetrics; fortnight: PlantingDashboardMetrics; month: PlantingDashboardMetrics; general: PlantingDashboardMetrics }>,
+    enabled: !!seasonId && seasonId !== "all",
+  })
+}
+
+export const usePlantingDashboardCharts = (seasonId: string, days: number = 30) => {
+  return useQuery({
+    queryKey: ["plantingDashboardCharts", seasonId, days],
+    queryFn: () => getDashboard(seasonId, { mode: "charts", days }) as Promise<PlantingDashboardChartData[]>,
+    enabled: !!seasonId && seasonId !== "all",
   })
 }
 
@@ -327,5 +346,15 @@ export const useDeletePlantingArea = () => {
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
     },
     onError: () => toast.error("Erro ao remover área"),
+  })
+}
+
+// ─── Advances ────────────────────────────────────────────────────────────────
+
+export const usePlantingAdvances = (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+  return useQuery({
+    queryKey: ["plantingAdvances", filters?.seasonId, filters?.frontId, filters?.date],
+    queryFn: () => getAdvances(filters),
+    enabled: !!filters?.seasonId && filters.seasonId !== "all",
   })
 }

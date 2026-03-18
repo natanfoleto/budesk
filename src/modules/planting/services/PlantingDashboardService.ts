@@ -1,3 +1,5 @@
+import { endOfMonth, format, startOfMonth, subDays } from "date-fns"
+
 import prisma from "@/lib/prisma"
 
 export class PlantingDashboardService {
@@ -69,10 +71,129 @@ export class PlantingDashboardService {
       totalCuttingMeters,
       breakdown: {
         productions: (productionsPlanting._sum.totalValueInCents || 0) + (productionsCutting._sum.totalValueInCents || 0),
+        planting: productionsPlanting._sum.totalValueInCents || 0,
+        cutting: productionsCutting._sum.totalValueInCents || 0,
         wages: wages._sum.valueInCents || 0,
         allocations: allocations._sum.valueInCents || 0,
-        expenses: expenses._sum.totalValueInCents || 0
+        expenses: expenses._sum.totalValueInCents || 0,
+        advances: 0 // Advances aren't typically "costs" but "pre-payments", included if requested
       }
     }
+  }
+
+  /**
+   * Returns metrics for Today, Fortnight, Month, and Overall in one go
+   */
+  static async getPeriodMetrics(seasonId: string, baseDate: string = format(new Date(), "yyyy-MM-dd")) {
+    const d = new Date(baseDate + "T12:00:00")
+    const day = d.getDate()
+    
+    // Fortnight
+    const fnStart = day <= 15 ? startOfMonth(d) : new Date(d.getFullYear(), d.getMonth(), 16, 12)
+    const fnEnd = day <= 15 ? new Date(d.getFullYear(), d.getMonth(), 15, 12) : endOfMonth(d)
+
+    const [today, fortnight, month, general] = await Promise.all([
+      this.getOverviewMetrics(seasonId, baseDate, baseDate),
+      this.getOverviewMetrics(seasonId, format(fnStart, "yyyy-MM-dd"), format(fnEnd, "yyyy-MM-dd")),
+      this.getOverviewMetrics(seasonId, format(startOfMonth(d), "yyyy-MM-dd"), format(endOfMonth(d), "yyyy-MM-dd")),
+      this.getOverviewMetrics(seasonId)
+    ])
+
+    return { today, fortnight, month, general }
+  }
+
+  /**
+   * Returns aggregates for the last 30 days for charts
+   */
+  static async getChartData(seasonId: string, days = 30) {
+    const end = new Date()
+    const start = subDays(end, days - 1)
+    
+    // Fetch all records for the period once to avoid N+1
+    const [productions, wages, drivers, expenses] = await Promise.all([
+      prisma.plantingProduction.findMany({
+        where: { seasonId, date: { gte: start, lte: end } },
+        select: { date: true, totalValueInCents: true, meters: true, type: true }
+      }),
+      prisma.dailyWage.findMany({
+        where: { seasonId, date: { gte: start, lte: end } },
+        select: { date: true, valueInCents: true }
+      }),
+      prisma.driverAllocation.findMany({
+        where: { seasonId, date: { gte: start, lte: end } },
+        select: { date: true, valueInCents: true }
+      }),
+      prisma.plantingExpense.findMany({
+        where: { seasonId, date: { gte: start, lte: end } },
+        select: { date: true, totalValueInCents: true }
+      })
+    ])
+
+    const chartMap = new Map<string, {
+      date: string
+      cost: number
+      meters: number
+      planting: number
+      cutting: number
+      wages: number
+      drivers: number
+      expenses: number
+    }>()
+    
+    // Initialize days
+    for (let i = 0; i < days; i++) {
+      const dateStr = format(subDays(end, i), "yyyy-MM-dd")
+      chartMap.set(dateStr, {
+        date: dateStr,
+        cost: 0,
+        meters: 0,
+        planting: 0,
+        cutting: 0,
+        wages: 0,
+        drivers: 0,
+        expenses: 0
+      })
+    }
+
+    // Aggregate
+    productions.forEach(p => {
+      const dateStr = p.date.toISOString().split('T')[0]
+      const day = chartMap.get(dateStr)
+      if (day) {
+        day.cost += p.totalValueInCents
+        day.meters += Number(p.meters || 0)
+        if (p.type === 'PLANTIO') day.planting += Number(p.meters || 0)
+        else day.cutting += Number(p.meters || 0)
+      }
+    })
+
+    wages.forEach(w => {
+      const dateStr = w.date.toISOString().split('T')[0]
+      const day = chartMap.get(dateStr)
+      if (day) {
+        day.cost += w.valueInCents
+        day.wages += w.valueInCents
+      }
+    })
+
+    drivers.forEach(d => {
+      const dateStr = d.date.toISOString().split('T')[0]
+      const day = chartMap.get(dateStr)
+      if (day) {
+        day.cost += d.valueInCents
+        day.drivers += d.valueInCents
+      }
+    })
+
+    expenses.forEach(e => {
+      const dateStr = e.date.toISOString().split('T')[0]
+      const day = chartMap.get(dateStr)
+      if (day) {
+        day.cost += e.totalValueInCents
+        day.expenses += e.totalValueInCents
+      }
+    })
+
+    return Array.from(chartMap.values()).sort((a, b) => a.date.localeCompare(b.date))
   }
 }

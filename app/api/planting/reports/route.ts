@@ -71,6 +71,16 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    if (type === "closing") {
+      const pdf = await PlantingReportService.generateClosingReport(seasonId, startDate, endDate)
+      return new NextResponse(pdf, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="relatorio_fechamento_${startDateStr}_${endDateStr}.pdf"`
+        }
+      })
+    }
+
     return NextResponse.json({ error: "Invalid report type" }, { status: 400 })
   } catch (error: unknown) {
     console.error("Error generating reports:", error)

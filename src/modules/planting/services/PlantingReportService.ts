@@ -4,6 +4,8 @@ import autoTable from "jspdf-autotable"
 
 import prisma from "@/lib/prisma"
 
+import { PlantingDashboardService } from "./PlantingDashboardService"
+
 type TableCell = string | number | { 
   content: string | number; 
   colSpan?: number; 
@@ -530,6 +532,80 @@ export class PlantingReportService {
     doc.setTextColor(100)
     doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, finalY + 15)
     doc.text("Os dias não trabalhados (ex: chuva) são utilizados para compensar faltas não justificadas.", 14, finalY + 20)
+
+    return doc.output("arraybuffer")
+  }
+
+  static async generateClosingReport(seasonId: string, startDate: Date, endDate: Date) {
+    const metrics = await PlantingDashboardService.getOverviewMetrics(
+      seasonId, 
+      this.getISODate(startDate), 
+      this.getISODate(endDate)
+    )
+
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+
+    // Header
+    doc.setFontSize(22)
+    doc.setTextColor(41, 128, 185)
+    doc.text("Resumo de Fechamento - Plantio Manual", pageWidth / 2, 25, { align: "center" })
+    
+    doc.setFontSize(10)
+    doc.setTextColor(100)
+    doc.text(`Período: ${this.formatDateUTC(startDate)} a ${this.formatDateUTC(endDate)}`, pageWidth / 2, 32, { align: "center" })
+    doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, pageWidth - 14, 32, { align: "right" })
+
+    // 1. Principal Metrics Cards
+    autoTable(doc, {
+      startY: 45,
+      head: [["Métrica", "Valor"]],
+      body: [
+        ["Custo Total no Período", this.formatCurrency(metrics.totalCostInCents)],
+        ["Área Trabalhada", `${Number(metrics.totalHectares).toFixed(2)} ha`],
+        ["Produção Total (Metros)", `${metrics.totalMeters.toLocaleString()}m`],
+        ["Metragem de Plantio", `${metrics.totalPlantingMeters.toLocaleString()}m`],
+        ["Metragem de Corte", `${metrics.totalCuttingMeters.toLocaleString()}m`],
+        ["Custo Automático por Hectare", this.formatCurrency(metrics.costPerHectareInCents)],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [41, 128, 185] },
+      columnStyles: { 0: { fontStyle: "bold", cellWidth: 80 } }
+    })
+
+    // 2. Cost Breakdown
+    doc.setFontSize(14)
+    doc.setTextColor(0)
+    doc.setFont("helvetica", "bold")
+    doc.text("Detalhamento por Categoria", 14, doc.lastAutoTable.finalY + 15)
+
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 20,
+      head: [["Categoria", "Valor Acumulado", "Representação (%)"]],
+      body: [
+        ["Plantio", this.formatCurrency(metrics.breakdown.planting), `${((metrics.breakdown.planting / metrics.totalCostInCents) * 100 || 0).toFixed(1)}%`],
+        ["Corte", this.formatCurrency(metrics.breakdown.cutting), `${((metrics.breakdown.cutting / metrics.totalCostInCents) * 100 || 0).toFixed(1)}%`],
+        ["Diárias", this.formatCurrency(metrics.breakdown.wages), `${((metrics.breakdown.wages / metrics.totalCostInCents) * 100 || 0).toFixed(1)}%`],
+        ["Motoristas (Frota)", this.formatCurrency(metrics.breakdown.allocations), `${((metrics.breakdown.allocations / metrics.totalCostInCents) * 100 || 0).toFixed(1)}%`],
+        ["Gastos Operacionais", this.formatCurrency(metrics.breakdown.expenses), `${((metrics.breakdown.expenses / metrics.totalCostInCents) * 100 || 0).toFixed(1)}%`],
+      ],
+      theme: "striped",
+      headStyles: { fillColor: [52, 73, 94] },
+      columnStyles: { 0: { fontStyle: "bold" }, 2: { halign: "center" } }
+    })
+
+    // 3. Totals Summary
+    const finalY = doc.lastAutoTable.finalY + 20
+    doc.setDrawColor(41, 128, 185)
+    doc.setLineWidth(1)
+    doc.line(14, finalY, pageWidth - 14, finalY)
+    
+    doc.setFontSize(16)
+    doc.text(`TOTAL GERAL: ${this.formatCurrency(metrics.totalCostInCents)}`, 14, finalY + 12)
+    
+    doc.setFontSize(8)
+    doc.setTextColor(120)
+    doc.text("Este relatório é um consolidado automático das métricas de apontamento.", 14, finalY + 22)
 
     return doc.output("arraybuffer")
   }

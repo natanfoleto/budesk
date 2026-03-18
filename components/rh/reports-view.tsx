@@ -95,7 +95,7 @@ export function ReportsView() {
                       tickFormatter={(value) => `R$${value/1000}k`}
                     />
                     <Tooltip 
-                      formatter={(value: number | string | undefined) => formatCurrency(Number(value) || 0)}
+                      formatter={(value: number | string | readonly (number | string)[] | undefined) => formatCurrency(Number(value) || 0)}
                       cursor={{fill: 'transparent'}}
                     />
                     <Legend />

@@ -40,7 +40,7 @@ export function FinancialCharts({ expensesByCategory }: FinancialChartsProps) {
               tickFormatter={(value) => `R$${value}`}
             />
             <Tooltip 
-              formatter={(value: number | undefined) => formatCurrency(value || 0)}
+              formatter={(value: number | string | readonly (number | string)[] | undefined) => formatCurrency(Number(value) || 0)}
               cursor={{ fill: 'transparent' }}
             />
             <Bar dataKey="amount" fill="#adfa1d" radius={[4, 4, 0, 0]} name="Valor" />

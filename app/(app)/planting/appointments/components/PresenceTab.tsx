@@ -1,6 +1,6 @@
 "use client"
 
-import { AttendanceType } from "@prisma/client"
+import { AttendanceType, Employee } from "@prisma/client"
 import { CloudOff, Save, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -18,12 +18,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
+import { cn } from "@/lib/utils"
 import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
 
 interface PresenceTabProps {
@@ -46,13 +48,14 @@ interface PresenceTabProps {
   isPeriodClosed: boolean
 }
 
-type PresenceRecord = {
+interface PresenceRecord {
   id?: string
   employeeId: string
   employeeName: string
   presence: AttendanceType
   valueInCents: number
   isClosed: boolean
+  plantingCategory: string
 }
 
 const PRESENCE_CONFIG: Record<string, { label: string; color: string; textColor: string }> = {
@@ -69,6 +72,8 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
   const [records, setRecords] = useState<Record<string, PresenceRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [showConfirmBulk, setShowConfirmBulk] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [focusedEmployeeId, setFocusedEmployeeId] = useState<string | null>(null)
 
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
   const { data: existingRecords, isLoading: isLoadingRecords, refetch } = useDailyWages({
@@ -89,13 +94,14 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
     if (employees && existingRecords) {
       const state: Record<string, PresenceRecord> = {}
       
-      employees.forEach((emp: { id: string; name: string }) => {
+      employees.forEach((emp: Employee) => {
         state[emp.id] = {
           employeeId: emp.id,
           employeeName: emp.name,
           presence: "PRESENCA",
           valueInCents: 0,
-          isClosed: isPeriodClosed
+          isClosed: isPeriodClosed,
+          plantingCategory: emp.plantingCategory || ""
         }
       })
 
@@ -164,12 +170,24 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
     }))
   }
 
+  const sortedEmployees = Object.values(records)
+    .filter((a) => {
+      const matchesName =
+        employeeNameFilter.trim() === "" ||
+        a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
+      
+      const matchesType = selectedCategories.length === 0 || selectedCategories.includes(a.plantingCategory || "")
+
+      return matchesName && matchesType
+    })
+    .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+
   const handleMarkAllNotWorked = () => {
     setIsEditing(true)
     const newState = { ...records }
-    Object.keys(newState).forEach(empId => {
-      newState[empId] = {
-        ...newState[empId],
+    sortedEmployees.forEach(emp => {
+      newState[emp.employeeId] = {
+        ...newState[emp.employeeId],
         presence: "NAO_TRABALHADO" as AttendanceType
       }
     })
@@ -186,13 +204,6 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
       </Card>
     )
   }
-
-  const sortedEmployees = Object.values(records)
-    .filter((a) =>
-      employeeNameFilter.trim() === "" ||
-      a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
-    )
-    .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
 
   return (
     <>
@@ -223,6 +234,50 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex flex-wrap gap-6 items-center rounded-md border p-3 bg-muted/20">
+            <div className="ml-auto flex items-center gap-2">
+              <Label className="text-sm font-medium whitespace-nowrap">Filtrar por:</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 gap-2">
+                    Tipo
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuCheckboxItem
+                    checked={selectedCategories.includes("PLANTIO")}
+                    onCheckedChange={(checked) => {
+                      setSelectedCategories(prev => 
+                        checked ? [...prev, "PLANTIO"] : prev.filter(c => c !== "PLANTIO")
+                      )
+                    }}
+                  >
+                    Plantio
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={selectedCategories.includes("CORTE")}
+                    onCheckedChange={(checked) => {
+                      setSelectedCategories(prev => 
+                        checked ? [...prev, "CORTE"] : prev.filter(c => c !== "CORTE")
+                      )
+                    }}
+                  >
+                    Corte
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={selectedCategories.includes("")}
+                    onCheckedChange={(checked) => {
+                      setSelectedCategories(prev => 
+                        checked ? [...prev, ""] : prev.filter(c => c !== "")
+                      )
+                    }}
+                  >
+                    Sem tipo
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -247,7 +302,13 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
                   </TableRow>
                 ) : (
                   sortedEmployees.map((record) => (
-                    <TableRow key={record.employeeId} className={record.isClosed ? "bg-muted/50" : ""}>
+                    <TableRow 
+                      key={record.employeeId} 
+                      className={cn(
+                        record.isClosed && "bg-muted/50",
+                        record.employeeId === focusedEmployeeId && "bg-muted/90"
+                      )}
+                    >
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2 group">
                           {record.employeeName}
@@ -273,6 +334,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
                           value={record.presence} 
                           onValueChange={(val) => handlePresenceChange(record.employeeId, val)}
                           disabled={record.isClosed}
+                          onOpenChange={(open) => setFocusedEmployeeId(open ? record.employeeId : null)}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Selecione..." />
@@ -303,7 +365,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Ação em Massa</AlertDialogTitle>
             <AlertDialogDescription>
-              Isso alterará o status de todos os funcionários deste dia para <strong>Não Trabalhado</strong>. 
+              Isso alterará o status de todos os funcionários visíveis na tabela para <strong>Não Trabalhado</strong>. 
               Você poderá ajustar individualmente após confirmar. Deseja continuar?
             </AlertDialogDescription>
           </AlertDialogHeader>

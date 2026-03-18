@@ -139,10 +139,24 @@ export interface PlantingDashboardMetrics {
   totalCuttingMeters: number
   breakdown: {
     productions: number
+    planting: number
+    cutting: number
     wages: number
     allocations: number
     expenses: number
+    advances: number
   }
+}
+
+export interface PlantingDashboardChartData {
+  date: string
+  cost: number
+  meters: number
+  planting: number
+  cutting: number
+  wages: number
+  drivers: number
+  expenses: number
 }
 
 // Form Data Types
