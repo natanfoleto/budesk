@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -207,9 +207,14 @@ export function AdvanceTab({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Gestão de Adiantamentos</h3>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div>
+          <CardTitle className="text-lg">Gestão de Adiantamentos</CardTitle>
+          <CardDescription>
+            Gerencie os adiantamentos financeiros solicitados pelos funcionários.
+          </CardDescription>
+        </div>
         <Button 
           onClick={() => {
             setEditingAdvance(null)
@@ -228,109 +233,111 @@ export function AdvanceTab({
         >
           <Plus className="h-4 w-4" /> Novo Adiantamento
         </Button>
-      </div>
+      </CardHeader>
 
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Funcionário</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead>Descontar agora?</TableHead>
-              <TableHead>Observação</TableHead>
-              <TableHead className="text-right w-[100px]">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                <TableHead>Funcionário</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Descontar agora?</TableHead>
+                <TableHead>Observação</TableHead>
+                <TableHead className="text-right w-[100px]">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     Carregando adiantamentos...
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : filteredAdvances?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  Nenhum adiantamento encontrado para esta data/filtros.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredAdvances?.map((adv) => (
-                <TableRow key={adv.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2 group">
-                      {adv.employee?.name}
-                      <button
-                        onClick={() => {
-                          if (onEmployeeFilterChange) {
-                            const name = adv.employee?.name || ""
-                            onEmployeeFilterChange(employeeNameFilter === name ? "" : name)
-                          }
-                        }}
-                        className={`p-1 rounded-md transition-colors cursor-pointer ${
-                          employeeNameFilter === adv.employee?.name 
-                            ? "bg-primary text-primary-foreground" 
-                            : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
-                        }`}
-                        title={employeeNameFilter === adv.employee?.name ? "Limpar filtro" : "Filtrar por este funcionário"}
-                      >
-                        <Search className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </TableCell>
-                  <TableCell>{format(new Date(adv.date), "dd/MM/yyyy")}</TableCell>
-                  <TableCell>
-                    {formatCentsToReal(adv.valueInCents)}
-                  </TableCell>
-                  <TableCell>
-                    {adv.discountInCurrentFortnight ? (
-                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                            Sim
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-                            Posterior
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={adv.notes || ""}>
-                    {adv.notes || "-"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={() => handleEdit(adv)}
-                        disabled={isPeriodClosed}
-                      >
-                        <Edit className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => {
-                          if (confirm("Deseja realmente excluir este adiantamento?")) {
-                            deleteMutation.mutate(adv.id)
-                          }
-                        }}
-                        disabled={isPeriodClosed}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+              ) : filteredAdvances?.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  Nenhum adiantamento encontrado para esta data/filtros.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredAdvances?.map((adv) => (
+                  <TableRow key={adv.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2 group">
+                        {adv.employee?.name}
+                        <button
+                          onClick={() => {
+                            if (onEmployeeFilterChange) {
+                              const name = adv.employee?.name || ""
+                              onEmployeeFilterChange(employeeNameFilter === name ? "" : name)
+                            }
+                          }}
+                          className={`p-1 rounded-md transition-colors cursor-pointer ${
+                            employeeNameFilter === adv.employee?.name 
+                              ? "bg-primary text-primary-foreground" 
+                              : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
+                          }`}
+                          title={employeeNameFilter === adv.employee?.name ? "Limpar filtro" : "Filtrar por este funcionário"}
+                        >
+                          <Search className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </TableCell>
+                    <TableCell>{format(new Date(adv.date), "dd/MM/yyyy")}</TableCell>
+                    <TableCell>
+                      {formatCentsToReal(adv.valueInCents)}
+                    </TableCell>
+                    <TableCell>
+                      {adv.discountInCurrentFortnight ? (
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                            Sim
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                            Posterior
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate" title={adv.notes || ""}>
+                      {adv.notes || "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => handleEdit(adv)}
+                          disabled={isPeriodClosed}
+                        >
+                          <Edit className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => {
+                            if (confirm("Deseja realmente excluir este adiantamento?")) {
+                              deleteMutation.mutate(adv.id)
+                            }
+                          }}
+                          disabled={isPeriodClosed}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -455,6 +462,6 @@ export function AdvanceTab({
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   )
 }

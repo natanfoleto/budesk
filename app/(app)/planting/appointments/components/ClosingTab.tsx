@@ -13,7 +13,7 @@ import {
   usePlantingParameters, 
   usePlantingProductions, 
 } from "@/hooks/use-planting"
-import { formatCentsToReal } from "@/lib/utils"
+import { cn, formatCentsToReal } from "@/lib/utils"
 import { DailyWage, DriverAllocation, PlantingAdvance, PlantingProduction } from "@/types/planting"
 
 interface ClosingTabProps {
@@ -224,9 +224,9 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
     advances: getAdvancesMetrics(mAdvances)
   }
 
-  const SectionHeader = ({ title, icon }: { title: string, icon?: React.ReactNode }) => (
-    <div className="col-span-full border-b pb-1 flex items-center gap-2">
-      <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{title}</span>
+  const SectionHeader = ({ title, icon, bgClass = "text-muted-foreground" }: { title: string, icon?: React.ReactNode, bgClass?: string }) => (
+    <div className={cn("col-span-full border-b pb-1.5 pt-1.5 px-2 flex items-center gap-2 rounded-t-md", bgClass)}>
+      <span className="text-xs font-bold uppercase tracking-widest">{title}</span>
       {icon}
     </div>
   )
@@ -278,20 +278,6 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between px-1">
-        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Fechamento do Período</h3>
-        <Button 
-          variant="default" 
-          size="sm" 
-          className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-2"
-          onClick={handleDownloadReport}
-          disabled={isGenerating}
-        >
-          {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
-          Gerar Relatório PDF
-        </Button>
-      </div>
-
       <Card className="border-primary/20 bg-primary/5 py-3">
         <CardHeader className="px-3 py-1">
           <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -322,7 +308,7 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
 
       <div className="space-y-10">
         <div className="space-y-1">
-          <SectionHeader title="Plantio & Corte" />
+          <SectionHeader title="Plantio & Corte" bgClass="bg-emerald-100/50 text-emerald-900 border-emerald-200" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5">
             <MetricGroup title="Custo (Est.) Plantio" daily={todayProd.plantingCost} general={generalProd.plantingCost} isCurrency />
             <MetricGroup title="Custo (Est.) Corte" daily={todayProd.cuttingCost} general={generalProd.cuttingCost} isCurrency />
@@ -334,7 +320,7 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
         </div>
 
         <div className="space-y-1">
-          <SectionHeader title="Diárias & Motoristas" />
+          <SectionHeader title="Diárias & Motoristas" bgClass="bg-orange-100/50 text-orange-900 border-orange-200" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5">
             <MetricGroup title="Total Diárias" daily={todayWages.count} general={generalWages.count} />
             <MetricGroup title="Total Diárias Motoristas" daily={todayDrivers.count} general={generalDrivers.count} />
@@ -344,7 +330,7 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
         </div>
 
         <div className="space-y-1">
-          <SectionHeader title="Presença / Faltas" />
+          <SectionHeader title="Presença / Faltas" bgClass="bg-blue-100/50 text-blue-900 border-blue-200" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5">
             <MetricGroup title="Total Presenças" daily={todayWages.count} general={generalWages.count} />
             <MetricGroup title="Total Faltas" daily={todayWages.absences} general={generalWages.absences} />
@@ -355,12 +341,24 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
         </div>
 
         <div className="space-y-1">
-          <SectionHeader title="Adiantamentos" />
+          <SectionHeader title="Adiantamentos" bgClass="bg-red-100/50 text-red-900 border-red-200" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5">
             <MetricGroup title="Total Adiantamentos" daily={todayAdvances.count} general={generalAdvances.count} />
             <MetricGroup title="Custo (Est.) Adiantamentos" daily={todayAdvances.cost} general={generalAdvances.cost} isCurrency />
           </div>
         </div>
+      </div>
+
+      <div className="flex items-center justify-end px-1">
+        <Button 
+          variant="default"
+          className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-2"
+          onClick={handleDownloadReport}
+          disabled={isGenerating}
+        >
+          {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+          Gerar Relatório PDF
+        </Button>
       </div>
     </div>
   )
