@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"
 
 import prisma from "@/lib/prisma"
+import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
 
 import { PlantingDashboardService } from "./PlantingDashboardService"
 
@@ -38,6 +39,11 @@ interface AdvanceRecord {
   discountInCurrentFortnight: boolean
 }
 
+interface EmploymentRecord {
+  terminationDate: Date | string | null
+  admissionDate: Date | string
+}
+
 interface EmployeeWithReportData {
   id: string
   name: string
@@ -45,6 +51,7 @@ interface EmployeeWithReportData {
   dailyWages: WageRecord[]
   driverAllocations: WageRecord[]
   plantingAdvances: AdvanceRecord[]
+  employmentRecords: EmploymentRecord[]
 }
 
 // Extend jsPDF with autotable types
@@ -80,6 +87,10 @@ export class PlantingReportService {
     const employee = (await prisma.employee.findUnique({
       where: { id: employeeId },
       include: {
+        employmentRecords: {
+          orderBy: { admissionDate: 'desc' },
+          take: 1,
+        },
         plantingProductions: {
           where: { seasonId, date: { gte: startDate, lte: endDate } },
           orderBy: { date: "asc" },
@@ -113,8 +124,16 @@ export class PlantingReportService {
 
     // Employee Data
     doc.setFontSize(12)
-    doc.setFont("helvetica", "bold")
+    const terminationDate = employee.employmentRecords?.[0]?.terminationDate
     doc.text(`Funcionário: ${employee.name}`, 14, 45)
+    
+    if (terminationDate) {
+      doc.setFontSize(9)
+      doc.setTextColor(150, 0, 0)
+      doc.text(`Contrato encerrado em ${this.formatDateUTC(new Date(terminationDate))}`, 14, 50)
+      doc.setTextColor(0)
+    }
+    
     doc.setFont("helvetica", "normal")
 
     const dates = new Set<string>()
@@ -122,7 +141,9 @@ export class PlantingReportService {
     employee.dailyWages.forEach((w) => dates.add(this.getISODate(w.date)))
     employee.driverAllocations.forEach((a) => dates.add(this.getISODate(a.date)))
 
-    const sortedDates = Array.from(dates).sort()
+    const sortedDates = Array.from(dates)
+      .filter(dateStr => isEmployeeActiveAtDate(dateStr, terminationDate))
+      .sort()
 
     // 1. Identify and Pair Compensations (Chronological)
     const allFaltas = sortedDates.filter(dateStr => {
@@ -261,7 +282,7 @@ export class PlantingReportService {
     ])
 
     autoTable(doc, {
-      startY: 55,
+      startY: terminationDate ? 60 : 55,
       head: [["Data", "Serviço", "Plantio", "Corte", "Diária", "Adiant.", "Total Dia"]],
       body: tableData,
       theme: "striped",
@@ -399,16 +420,19 @@ export class PlantingReportService {
     doc.setFontSize(8)
     doc.setTextColor(100)
     doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, currentY + 36)
-    doc.text("Os dias não trabalhados (ex: chuva) são utilizados para compensar faltas não justificadas.", 14, currentY + 41)
-    doc.text("Os dias Não Trabalhados que não foram abatidos por Faltas, serão pagos proporcionalmente ao salário registrado em carteira.", 14, currentY + 46)
+    doc.text("Os dias de chuva não trabalhados são utilizados para compensar faltas não justificadas.", 14, currentY + 41)
+    doc.text("Os dias de chuva não trabalhados que não foram compensados por faltas, serão pagos proporcionalmente ao salário registrado em carteira.", 14, currentY + 46)
 
     return doc.output("arraybuffer")
   }
 
   static async generateConsolidatedReport(seasonId: string, startDate: Date, endDate: Date) {
     const employees = (await prisma.employee.findMany({
-      where: { active: true },
       include: {
+        employmentRecords: {
+          orderBy: { admissionDate: 'desc' },
+          take: 1,
+        },
         plantingProductions: { where: { seasonId, date: { gte: startDate, lte: endDate } } },
         dailyWages: { where: { seasonId, date: { gte: startDate, lte: endDate } } },
         driverAllocations: { where: { seasonId, date: { gte: startDate, lte: endDate } } },
@@ -429,7 +453,13 @@ export class PlantingReportService {
     let grandTotalBruto = 0
     let grandTotalLiquido = 0
 
-    employees.forEach(emp => {
+    // Filter employees based on termination date relative to report period
+    const filteredEmployees = employees.filter(emp => {
+      const terminationDate = emp.employmentRecords[0]?.terminationDate
+      return shouldShowEmployeeInMonth(startDate, terminationDate)
+    }).sort((a, b) => a.name.localeCompare(b.name))
+
+    filteredEmployees.forEach(emp => {
       let bruto = 0
       let adiantado = 0
       let plantio = 0
@@ -440,7 +470,10 @@ export class PlantingReportService {
       let atestados = 0
       const presencas = new Set<string>()
 
+      const terminationDate = emp.employmentRecords[0]?.terminationDate
+
       emp.plantingProductions.forEach((p) => {
+        if (!isEmployeeActiveAtDate(p.date, terminationDate)) return
         if (p.presence === "PRESENCA") {
           bruto += p.totalValueInCents
           if (p.type === "PLANTIO") plantio += Number(p.meters || 0)
@@ -450,6 +483,7 @@ export class PlantingReportService {
       })
 
       emp.dailyWages.forEach((w) => {
+        if (!isEmployeeActiveAtDate(w.date, terminationDate)) return
         const dateStr = this.getISODate(w.date)
         if (w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO") {
           bruto += w.valueInCents
@@ -469,12 +503,14 @@ export class PlantingReportService {
       })
 
       emp.driverAllocations.forEach((a) => {
+        if (!isEmployeeActiveAtDate(a.date, terminationDate)) return
         bruto += a.valueInCents
         diarias += a.valueInCents
         presencas.add(this.getISODate(a.date))
       })
 
       emp.plantingAdvances.forEach((adv) => {
+        if (!isEmployeeActiveAtDate(adv.date, terminationDate)) return
         adiantado += adv.valueInCents
       })
 

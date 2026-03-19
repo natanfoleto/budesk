@@ -1,6 +1,5 @@
 "use client"
 
-import { Employee } from "@prisma/client"
 import { CircleSlash, Save, Scissors, Search, Sprout } from "lucide-react"
 import React, { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -29,6 +28,8 @@ import {
 import { useEmployees, useUpdateEmployee } from "@/hooks/use-employees"
 import { useCreateProduction, useDailyWages, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCurrency } from "@/lib/utils"
+import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
+import { EmployeeWithDetails } from "@/types/employee"
 import { DailyWage, PlantingProduction, PlantingProductionFormData } from "@/types/planting"
 
 interface PlantingTabProps {
@@ -49,6 +50,8 @@ type ProductionRecord = {
   cuttingMeters: number
   isClosed: boolean
   plantingCategory: string
+  isTerminated: boolean
+  terminationDate?: string | Date | null
 }
 
 const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
@@ -109,14 +112,19 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
       if (isNewContext || !isEditing || Object.keys(productions).length === 0) {
         const state: Record<string, ProductionRecord> = {}
         
-        employees.forEach((emp: Employee) => {
+        // Filter employees based on termination date
+        const filteredEmployees = (employees as EmployeeWithDetails[] || []).filter(emp => shouldShowEmployeeInMonth(date, emp.terminationDate))
+
+        filteredEmployees.forEach((emp) => {
           state[emp.id] = {
             employeeId: emp.id,
             employeeName: emp.name,
             plantingMeters: 0,
             cuttingMeters: 0,
             isClosed: isPeriodClosed,
-            plantingCategory: emp.plantingCategory || ""
+            plantingCategory: emp.plantingCategory || "",
+            isTerminated: !isEmployeeActiveAtDate(date, emp.terminationDate),
+            terminationDate: emp.terminationDate
           }
         })
 
@@ -197,7 +205,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
       }
 
       // Category updates (if changed from the original employee data)
-      const originalEmp = employees?.find((e: Employee) => e.id === p.employeeId)
+      const originalEmp = (employees as EmployeeWithDetails[])?.find((e) => e.id === p.employeeId)
       const originalCategory = originalEmp?.plantingCategory || ""
       if (p.plantingCategory !== originalCategory) {
         toUpdateEmployees.push({ id: p.employeeId, category: p.plantingCategory })
@@ -476,6 +484,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                   const dailyWage = dailyWages?.find((dw: DailyWage) => dw.employeeId === record.employeeId)
                   const isAbsent = dailyWage && dailyWage.presence !== "PRESENCA"
                   const presenceType = dailyWage?.presence
+                  const isTerminated = record.isTerminated || record.isClosed
 
                   return (
                     <React.Fragment key={record.employeeId}>
@@ -489,7 +498,8 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                         className={cn(
                           record.isClosed && "bg-muted/50",
                           isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg,
-                          record.employeeId === focusedEmployeeId && "bg-slate-200/60"
+                          record.employeeId === focusedEmployeeId && "bg-slate-200/60",
+                          isTerminated && "opacity-60 bg-slate-50"
                         )}
                       >
                         <TableCell className="font-medium">
@@ -522,13 +532,29 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                           </div>
                         </TableCell>
                         <TableCell className="px-2 text-center">
-                          {dailyWage && dailyWage.valueInCents > 0 && (
-                            <div className="flex items-center justify-center" title={`Diária: ${formatCurrency(dailyWage.valueInCents)}`}>
-                              <div className="bg-orange-100 text-orange-700 text-[9px] font-black px-1 py-0.5 rounded border border-orange-200 shadow-sm whitespace-nowrap">
-                                {formatCurrency(dailyWage.valueInCents).replace(",00", "")}
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            {isTerminated && record.terminationDate && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="bg-slate-100 text-slate-600 text-[9px] font-black px-1 py-0.5 rounded border border-slate-200 shadow-sm whitespace-nowrap cursor-help">
+                                      ENCERRADO
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Contrato encerrado em {new Date(new Date(record.terminationDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {dailyWage && dailyWage.valueInCents > 0 && (
+                              <div title={`Diária: ${formatCurrency(dailyWage.valueInCents)}`}>
+                                <div className="bg-orange-100 text-orange-700 text-[9px] font-black px-1 py-0.5 rounded border border-orange-200 shadow-sm whitespace-nowrap">
+                                  {formatCurrency(dailyWage.valueInCents).replace(",00", "")}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="flex justify-center py-2">
                           <ToggleGroup 
@@ -538,6 +564,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                             onValueChange={(val) => {
                               handleCategoryChange(record.employeeId, (val === "NONE" || !val) ? "" : val)
                             }}
+                            disabled={isTerminated}
                           >
                             <ToggleGroupItem value="PLANTIO" aria-label="Plantio" className="data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900 border border-transparent data-[state=on]:border-emerald-200">
                               <Sprout className="h-3.5 w-3.5" />
@@ -555,7 +582,8 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                               onFocus={() => setFocusedEmployeeId(record.employeeId)}
                               onBlur={() => setFocusedEmployeeId(null)}
                               onKeyDownCustom={(e) => handleKeyDown(e, record.employeeId, "plantingMeters")}
-                              disabled={record.isClosed}
+                              disabled={isTerminated}
+                              className={cn("h-8 text-right w-24", isTerminated && "bg-slate-100 cursor-not-allowed")}
                             />
                           </TableCell>
                         )}

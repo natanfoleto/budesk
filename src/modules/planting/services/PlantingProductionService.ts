@@ -48,6 +48,36 @@ export class PlantingProductionService {
       }
     }
 
+    // Validate termination date
+    if (data.employeeId && data.date) {
+      const employee = await db.employee.findUnique({
+        where: { id: data.employeeId },
+        include: {
+          employmentRecords: {
+            orderBy: { admissionDate: 'desc' },
+            take: 1,
+          },
+        },
+      })
+
+      const terminationDate = employee?.employmentRecords[0]?.terminationDate
+      if (terminationDate) {
+        const recordDate = new Date(data.date as string | number | Date)
+        const termDate = new Date(terminationDate as string | number | Date)
+        
+        // Reset times for comparison (UTC to be consistent with database and frontend logic)
+        recordDate.setUTCHours(0, 0, 0, 0)
+        termDate.setUTCHours(0, 0, 0, 0)
+
+        if (recordDate > termDate) {
+          const formattedTermDate = termDate.getUTCDate().toString().padStart(2, '0') + '/' + 
+                                  (termDate.getUTCMonth() + 1).toString().padStart(2, '0') + '/' + 
+                                  termDate.getUTCFullYear()
+          throw new Error(`Não é possível registrar apontamentos para este funcionário após a data de encerramento (${formattedTermDate}).`)
+        }
+      }
+    }
+
     // Calcular total
     const meters = data.meters ? Number(data.meters) : 0
     const totalValueInCents = Math.round(meters * meterValueInCents)

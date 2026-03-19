@@ -9,8 +9,20 @@ export async function GET() {
   try {
     const employees = await prisma.employee.findMany({
       orderBy: { name: "asc" },
+      include: {
+        employmentRecords: {
+          orderBy: { admissionDate: "desc" },
+          take: 1
+        }
+      }
     })
-    return NextResponse.json(employees)
+
+    const formattedEmployees = employees.map(emp => ({
+      ...emp,
+      terminationDate: emp.employmentRecords[0]?.terminationDate || null
+    }))
+
+    return NextResponse.json(formattedEmployees)
   } catch (error) {
     console.log(error)
     

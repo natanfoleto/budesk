@@ -1,5 +1,3 @@
-import { Employee } from "@prisma/client"
-
 import {
   AdvanceFormData,
   ContractFormData,
@@ -9,7 +7,7 @@ import {
 
 const BASE_URL = "/api"
 
-export const getEmployees = async (): Promise<Employee[]> => {
+export const getEmployees = async (): Promise<EmployeeWithDetails[]> => {
   const res = await fetch(`${BASE_URL}/employees`)
   if (!res.ok) throw new Error("Erro ao buscar funcionários")
   return res.json()

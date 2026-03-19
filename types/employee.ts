@@ -12,6 +12,7 @@ export interface EmployeeWithDetails extends Employee {
   employmentRecords?: EmploymentRecord[];
   contracts?: EmployeeContract[];
   job?: { id: string; name: string };
+  terminationDate?: string | Date | null;
 }
 
 export interface EmployeeFormData {

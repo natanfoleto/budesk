@@ -1,6 +1,6 @@
 "use client"
 
-import { AttendanceType, Employee } from "@prisma/client"
+import { AttendanceType } from "@prisma/client"
 import { CircleSlash, Save, Scissors, Search, Sprout } from "lucide-react"
 import React, { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -27,6 +27,8 @@ import {
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCentsToReal } from "@/lib/utils"
+import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
+import { EmployeeWithDetails } from "@/types/employee"
 import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
 
 interface DailyWageTabProps {
@@ -42,8 +44,11 @@ interface WageRecord {
   id?: string
   employeeId: string
   employeeName: string
-  originalPresence: AttendanceType | undefined
-  valueInCents: number
+  presence: AttendanceType
+  notes: string
+  isTerminated: boolean
+  terminationDate?: string | Date | null
+  value: number // Value in real (e.g., 100.50)
   valueFormatted: string
   isClosed: boolean
   plantingCategory: string
@@ -60,7 +65,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
   const [wages, setWages] = useState<Record<string, WageRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [focusedEmployeeId, setFocusedEmployeeId] = useState<string | null>(null)
+  const [highlightedRow, setHighlightedRow] = useState<string | null>(null)
   const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch all active employees via shared hook
@@ -86,41 +91,41 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
     if (employees && existingRecords) {
       const state: Record<string, WageRecord> = {}
       
-      employees.forEach((emp: Employee) => {
+      // Filter employees based on termination date
+      const filteredEmployees = (employees as EmployeeWithDetails[] || []).filter(emp => shouldShowEmployeeInMonth(date, emp.terminationDate))
+
+      filteredEmployees.forEach((emp) => {
+        const existing = (existingRecords as DailyWage[] || []).find((dw) => dw.employeeId === emp.id)
         state[emp.id] = {
+          id: existing?.id,
           employeeId: emp.id,
           employeeName: emp.name,
-          originalPresence: undefined,
-          valueInCents: 0,
-          valueFormatted: "",
+          value: existing?.valueInCents ? existing.valueInCents / 100 : 0,
+          presence: existing?.presence || "PRESENCA",
+          notes: existing?.notes || "",
+          isTerminated: !isEmployeeActiveAtDate(date, emp.terminationDate),
+          terminationDate: emp.terminationDate,
+          valueFormatted: existing?.valueInCents ? formatCentsToReal(existing.valueInCents) : "",
           isClosed: isPeriodClosed,
           plantingCategory: emp.plantingCategory || ""
-        }
-      })
-
-      existingRecords.forEach((rec: DailyWage) => {
-        if (state[rec.employeeId]) {
-          state[rec.employeeId].id = rec.id
-          state[rec.employeeId].originalPresence = rec.presence
-          state[rec.employeeId].valueInCents = rec.valueInCents
-          state[rec.employeeId].valueFormatted = rec.valueInCents > 0 ? formatCentsToReal(rec.valueInCents) : ""
         }
       })
       
       setWages(state)
       setIsEditing(false)
     }
-  }, [employees, existingRecords, isPeriodClosed])
+  }, [employees, existingRecords, isPeriodClosed, date])
 
   const handleSave = async () => {
     const toSave: DailyWageFormData[] = []
 
     for (const r of Object.values(wages)) {
-      if (r.valueInCents > 0) {
+      const valueInCents = Math.round(r.value * 100)
+
+      if (valueInCents > 0) {
         // Validation: Must be PRESENCA
-        const presence = r.originalPresence || "PRESENCA"
-        if (presence !== "PRESENCA") {
-          toast.error(`O funcionário ${r.employeeName} não pode ter valor de diária pois está marcado como ${presence === "NAO_TRABALHADO" ? "Não Trabalhado" : "Falta/Atestado"} neste dia.`)
+        if (r.presence !== "PRESENCA") {
+          toast.error(`O funcionário ${r.employeeName} não pode ter valor de diária pois está marcado como ${r.presence === "NAO_TRABALHADO" ? "Não Trabalhado" : "Falta/Atestado"} neste dia.`)
           return
         }
       }
@@ -133,18 +138,18 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
           frontId: frontId,
           seasonId: seasonId,
           date: new Date(date).toISOString(),
-          presence: r.originalPresence || "PRESENCA",
-          valueInCents: r.valueInCents
+          presence: r.presence,
+          valueInCents: valueInCents
         })
-      } else if (r.valueInCents > 0) {
-        // If no record exists but user entered a value, create it as PRESENCA
+      } else if (valueInCents > 0 || r.presence !== "PRESENCA") {
+        // If no record exists but user entered a value or changed presence, create it
         toSave.push({
           employeeId: r.employeeId,
           frontId: frontId,
           seasonId: seasonId,
           date: new Date(date).toISOString(),
-          presence: "PRESENCA",
-          valueInCents: r.valueInCents
+          presence: r.presence,
+          valueInCents: valueInCents
         })
       }
     }
@@ -161,56 +166,30 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
     }
   }
 
-  const handleValueChange = (empId: string, rawValue: string) => {
+  const updateLocalWage = (empId: string, field: keyof WageRecord, rawValue: string | number | AttendanceType) => {
     setIsEditing(true)
-    const digitsOnly = rawValue.replace(/\D/g, "")
-    const cents = digitsOnly ? Number(digitsOnly) : 0
-    const formatted = cents > 0 ? formatCentsToReal(cents) : ""
+    setWages(prev => {
+      const currentRecord = prev[empId]
+      let updatedValue = rawValue
+      let updatedValueFormatted = currentRecord.valueFormatted
 
-    setWages(prev => ({
-      ...prev,
-      [empId]: {
-        ...prev[empId],
-        valueInCents: cents,
-        valueFormatted: formatted
+      if (field === "value") {
+        const valueStr = String(rawValue)
+        const digitsOnly = valueStr.replace(/[^0-9,.]/g, "").replace(",", ".")
+        const numericValue = parseFloat(digitsOnly)
+        updatedValue = isNaN(numericValue) ? 0 : numericValue
+        updatedValueFormatted = updatedValue > 0 ? formatCentsToReal(Math.round(updatedValue * 100)) : ""
       }
-    }))
-  }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, employeeId: string) => {
-    if (e.key === "Enter") {
-      e.preventDefault()
-      const filteredAndSortedEmployees = Object.values(wages)
-        .filter((a: WageRecord) => {
-          const matchesName =
-            employeeNameFilter.trim() === "" ||
-            a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
-          
-          const matchesType = selectedCategories.length === 0 || selectedCategories.includes(a.plantingCategory || "")
-
-          return matchesName && matchesType
-        })
-        .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
-
-      const isLastEmployee = filteredAndSortedEmployees[filteredAndSortedEmployees.length - 1]?.employeeId === employeeId
-      
-      if (isLastEmployee) {
-        saveButtonRef.current?.focus()
-      } else {
-        const table = e.currentTarget.closest('table')
-        if (table) {
-          const inputs = Array.from(table.querySelectorAll('input:not([disabled])')) as HTMLInputElement[]
-          const index = inputs.indexOf(e.currentTarget)
-          if (index > -1 && index < inputs.length - 1) {
-            inputs[index + 1].focus()
-            // (inputs[index + 1] as HTMLInputElement).select() // select is not available on generic element if not cast
-            if ('select' in inputs[index + 1]) {
-              (inputs[index + 1] as HTMLInputElement).select()
-            }
-          }
+      return {
+        ...prev,
+        [empId]: {
+          ...currentRecord,
+          [field]: updatedValue,
+          ...(field === "value" && { valueFormatted: updatedValueFormatted })
         }
       }
-    }
+    })
   }
 
   if (seasonId === "all" || frontId === "all" || !date) {
@@ -296,8 +275,8 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
             <TableHeader>
               <TableRow>
                 <TableHead>Funcionário</TableHead>
-                <TableHead className="w-[60px] px-2 text-center"></TableHead>
-                <TableHead className="w-[150px] text-right">Valor Diária (R$)</TableHead>
+                <TableHead className="w-[100px] text-center"></TableHead>
+                <TableHead className="w-[120px] text-right">Valor Diária (R$)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -305,7 +284,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                    <TableCell className="px-2"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-32 ml-auto" /></TableCell>
                   </TableRow>
                 ))
@@ -316,23 +295,26 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedEmployees.map((record) => {
-                  const presenceType = record.originalPresence
-                  const isAbsent = presenceType && presenceType !== "PRESENCA"
+                sortedEmployees.map((record, index) => {
+                  const isTerminated = record.isTerminated
+                  const employeeProductions = (productions as PlantingProduction[])?.filter((p) => p.employeeId === record.employeeId && (p.meters || 0) > 0)
+                  const metrage = employeeProductions?.length > 0
+                  const types = Array.from(new Set(employeeProductions?.map((p) => p.type) || []))
 
                   return (
                     <TableRow 
                       key={record.employeeId} 
                       className={cn(
+                        highlightedRow === record.employeeId ? "bg-accent/40" : "",
+                        isTerminated && "opacity-60 bg-slate-50",
                         record.isClosed && "bg-muted/50",
-                        isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg,
-                        record.employeeId === focusedEmployeeId && "bg-slate-200/60"
+                        record.presence && record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.bg,
                       )}
                     >
                       <TableCell className="font-medium">
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-2 group">
-                            <span className={cn(isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.text, isAbsent && "font-bold")}>
+                            <span className={cn(record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.text, record.presence !== "PRESENCA" && "font-bold")}>
                               {record.employeeName}
                             </span>
                             <button
@@ -351,37 +333,72 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                               <Search className="h-3 w-3" />
                             </button>
                           </div>
-                          {isAbsent && presenceType && (
-                            <span className={cn("text-[10px] font-bold uppercase", ABSENCE_CONFIG[presenceType]?.text)}>
-                              {ABSENCE_CONFIG[presenceType]?.label || presenceType}
+                          {record.presence !== "PRESENCA" && (
+                            <span className={cn("text-[10px] font-bold uppercase", ABSENCE_CONFIG[record.presence]?.text)}>
+                              {ABSENCE_CONFIG[record.presence]?.label}
                             </span>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="px-2 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          {productions?.some((p: PlantingProduction) => p.employeeId === record.employeeId && p.type === "PLANTIO" && (p.meters || 0) > 0) && (
-                            <div title="Possui metragem de Plantio">
-                              <Sprout className="h-3.5 w-3.5 text-emerald-600" />
-                            </div>
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          {isTerminated && record.terminationDate && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="bg-slate-100 text-slate-600 text-[9px] font-black px-1 py-0.5 rounded border border-slate-200 shadow-sm whitespace-nowrap cursor-help">
+                                    ENCERRADO
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Contrato encerrado em {new Date(new Date(record.terminationDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
-                          {productions?.some((p: PlantingProduction) => p.employeeId === record.employeeId && p.type === "CORTE" && (p.meters || 0) > 0) && (
-                            <div title="Possui metragem de Corte">
-                              <Scissors className="h-3.5 w-3.5 text-amber-600" />
+                          {metrage && types.length > 0 && (
+                            <div className="flex gap-0.5">
+                              {types.map((type) => (
+                                <span key={`${record.employeeId}-${type}`} className={cn(
+                                  "flex items-center justify-center w-5 h-5 rounded-full border",
+                                  type === "PLANTIO" ? "bg-emerald-50 border-emerald-200 text-emerald-600" : "bg-amber-50 border-amber-200 text-amber-600"
+                                )}>
+                                  {type === "PLANTIO" ? <Sprout className="h-3 w-3" /> : <Scissors className="h-3 w-3" />}
+                                </span>
+                              ))}
                             </div>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="text"
-                          className="h-8 text-right"
+                          type="text" // Changed to text to allow custom formatting
+                          className={cn("h-8 text-right w-24", isTerminated && "bg-slate-100 cursor-not-allowed")}
                           value={record.valueFormatted}
-                          onChange={(e) => handleValueChange(record.employeeId, e.target.value)}
-                          onFocus={() => setFocusedEmployeeId(record.employeeId)}
-                          onBlur={() => setFocusedEmployeeId(null)}
-                          onKeyDown={(e) => handleKeyDown(e, record.employeeId)}
-                          disabled={record.isClosed}
+                          onChange={(e) => updateLocalWage(record.employeeId, "value", e.target.value)}
+                          onFocus={(e) => {
+                            setHighlightedRow(record.employeeId)
+                            e.target.select()
+                          }}
+                          onBlur={() => setHighlightedRow(null)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && index === sortedEmployees.length - 1 && saveButtonRef.current) {
+                              e.preventDefault()
+                              saveButtonRef.current.focus()
+                            } else if (e.key === "Enter") {
+                              e.preventDefault()
+                              const table = e.currentTarget.closest('table')
+                              if (table) {
+                                const inputs = Array.from(table.querySelectorAll('input:not([disabled])')) as HTMLInputElement[]
+                                const currentInputIndex = inputs.indexOf(e.currentTarget)
+                                if (currentInputIndex > -1 && currentInputIndex < inputs.length - 1) {
+                                  inputs[currentInputIndex + 1].focus()
+                                  inputs[currentInputIndex + 1].select()
+                                }
+                              }
+                            }
+                          }}
+                          disabled={isTerminated || record.isClosed || record.presence !== "PRESENCA"}
                           placeholder="R$ 0,00"
                         />
                       </TableCell>
