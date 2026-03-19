@@ -367,7 +367,7 @@ export function AdvanceTab({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {employees?.map((emp) => (
+                        {employees?.data.map((emp) => (
                           <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
                         ))}
                       </SelectContent>

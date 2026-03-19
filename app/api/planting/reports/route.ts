@@ -30,7 +30,15 @@ export async function GET(req: NextRequest) {
       if (!isClosed) {
         return NextResponse.json({ error: "Para gerar o relatório mensal, as duas quinzenas do mês precisam estar fechadas." }, { status: 400 })
       }
+
+      // Force full month dates
+      startDate.setUTCDate(1)
+      endDate.setUTCMonth(startDate.getUTCMonth() + 1, 0)
+      endDate.setUTCHours(23, 59, 59, 999)
     }
+
+    const dateRangeSuffix = `${startDate.toISOString().split("T")[0]}_${endDate.toISOString().split("T")[0]}`
+    const periodType = isMonthly ? "mensal" : "quinzenal"
 
     if (type === "individual") {
       if (!employeeId) return NextResponse.json({ error: "employeeId is required for individual report" }, { status: 400 })
@@ -39,26 +47,36 @@ export async function GET(req: NextRequest) {
       return new NextResponse(pdf, {
         headers: {
           "Content-Type": "application/pdf",
-          "Content-Disposition": `attachment; filename="relatorio_individual_${employeeId}.pdf"`
+          "Content-Disposition": `attachment; filename="relatorio_individual_plantio_${periodType}_${dateRangeSuffix}.pdf"`
         }
       })
     }
 
     if (type === "consolidated") {
-      const pdf = await PlantingReportService.generateConsolidatedReport(seasonId, startDate, endDate)
+      const pdf = await PlantingReportService.generateConsolidatedReport(seasonId, startDate, endDate, isMonthly)
       return new NextResponse(pdf, {
         headers: {
           "Content-Type": "application/pdf",
-          "Content-Disposition": `attachment; filename="relatorio_consolidado.pdf"`
+          "Content-Disposition": `attachment; filename="relatorio_geral_plantio_${periodType}_${dateRangeSuffix}.pdf"`
         }
       })
     }
 
     if (type === "all-zip") {
-      const employees = await prisma.employee.findMany({
-        where: { active: true },
-        select: { id: true, name: true }
+      const { shouldShowEmployeeInMonth } = await import("@/lib/utils/planting-utils")
+      const allEmployees = await prisma.employee.findMany({
+        include: {
+          employmentRecords: {
+            orderBy: { admissionDate: 'desc' },
+            take: 1
+          }
+        }
       })
+
+      const employees = allEmployees.filter(emp => {
+        const termDate = emp.employmentRecords[0]?.terminationDate
+        return shouldShowEmployeeInMonth(startDate, termDate)
+      }).sort((a, b) => a.name.localeCompare(b.name))
 
       const zip = new JSZip()
       
@@ -78,7 +96,7 @@ export async function GET(req: NextRequest) {
       return new NextResponse(zipContent as unknown as BodyInit, {
         headers: {
           "Content-Type": "application/zip",
-          "Content-Disposition": 'attachment; filename="relatorios_quinzena.zip"'
+          "Content-Disposition": `attachment; filename="relatorios_individuais_plantio_${periodType}_${dateRangeSuffix}.zip"`
         }
       })
     }

@@ -1,24 +1,89 @@
-"use client"
+'use client'
 
-import { Loader2,Plus } from "lucide-react"
-import { useState } from "react"
+import { FilterX, Loader2, Plus, Search } from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useState } from 'react'
 
-import { EmployeeForm } from "@/components/employees/employee-form"
-import { EmployeesTable } from "@/components/employees/employees-table"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
-import { useCreateEmployee, useDeleteEmployee, useEmployees } from "@/hooks/use-employees"
-import { EmployeeFormData } from "@/types/employee"
+import { EmployeeForm } from '@/components/employees/employee-form'
+import { EmployeesTable } from '@/components/employees/employees-table'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  useCreateEmployee,
+  useDeleteEmployee,
+  useEmployees,
+} from '@/hooks/use-employees'
+import { useJobs } from '@/hooks/use-jobs'
+import { Job } from '@/lib/services/jobs'
+import { EmployeeFormData } from '@/types/employee'
 
-export default function EmployeesPage() {
+function EmployeesContent() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
   const [isFormOpen, setIsFormOpen] = useState(false)
-  
-  const { data: employees, isLoading } = useEmployees()
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [formKey, setFormKey] = useState(0)
+
+  // Filter and Pagination state from URL
+  const name = searchParams.get('name') || ''
+  const jobId = searchParams.get('jobId') || ''
+  const cpf = searchParams.get('cpf') || ''
+  const status = searchParams.get('status') || 'all'
+  const page = Number(searchParams.get('page')) || 1
+
+  const { data: jobs } = useJobs()
+  const limit = Number(searchParams.get('limit')) || 10
+
+  const { data: response, isLoading } = useEmployees({
+    name,
+    jobId: jobId === '' ? undefined : jobId,
+    cpf,
+    status: status === 'all' ? undefined : status,
+    page,
+    limit,
+  })
+
   const createMutation = useCreateEmployee()
   const deleteMutation = useDeleteEmployee()
 
-  const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [formKey, setFormKey] = useState(0)
+  const updateFilters = (
+    newFilters: Record<string, string | number | undefined>
+  ) => {
+    const params = new URLSearchParams(searchParams.toString())
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (value === undefined || value === '' || value === 'all') {
+        params.delete(key)
+      } else {
+        params.set(key, String(value))
+      }
+    })
+    // Reset to page 1 when changing filters, unless the update is for the page itself
+    if (!newFilters.page) {
+      params.delete('page')
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
 
   const handleCreate = (data: EmployeeFormData) => {
     createMutation.mutate(data, {
@@ -40,26 +105,107 @@ export default function EmployeesPage() {
     }
   }
 
-  const openCreate = () => {
-    setIsFormOpen(true)
+  const clearFilters = () => {
+    router.replace(pathname, { scroll: false })
   }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Funcionários</h2>
-        <Button onClick={openCreate} className="cursor-pointer">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Funcionários</h2>
+          <p className="text-muted-foreground">
+            Gerencie o cadastro de funcionários, cargos e documentos.
+          </p>
+        </div>
+        <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
           <Plus className="h-4 w-4" /> Novo Funcionário
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <div className="relative">
+                <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
+                <Input
+                  placeholder="Buscar por nome"
+                  className="pl-8"
+                  value={name}
+                  onChange={(e) => updateFilters({ name: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Cargo</Label>
+              <Select
+                value={jobId || 'all'}
+                onValueChange={(v) => updateFilters({ jobId: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos os cargos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os cargos</SelectItem>
+                  {jobs?.map((job: Job) => (
+                    <SelectItem key={job.id} value={job.id}>
+                      {job.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>CPF</Label>
+              <Input
+                placeholder="Buscar por CPF"
+                value={cpf}
+                onChange={(e) => updateFilters({ cpf: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={status}
+                onValueChange={(v) => updateFilters({ status: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="ATIVO">Ativo</SelectItem>
+                  <SelectItem value="ENCERRADO">Encerrado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={clearFilters}
+              className="text-muted-foreground w-full"
+            >
+              <FilterX className="h-4 w-4" /> Limpar Filtros
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {isLoading ? (
-        <div className="flex justify-center items-center h-full w-full py-10">
-          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <div className="flex h-full w-full items-center justify-center py-10">
+          <Loader2 className="text-muted-foreground size-4 animate-spin" />
         </div>
       ) : (
         <EmployeesTable
-          employees={employees || []}
+          employees={response?.data || []}
+          meta={response?.meta}
+          onPageChange={(p) => updateFilters({ page: p })}
+          onLimitChange={(l) => updateFilters({ limit: l, page: 1 })}
           onDelete={handleDeleteClick}
         />
       )}
@@ -72,23 +218,39 @@ export default function EmployeesPage() {
         isLoading={createMutation.isPending}
       />
 
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
             <AlertDialogDescription>
-              Essa ação não pode ser desfeita. Isso excluirá permanentemente o funcionário
-              e removerá seus dados dos nossos servidores.
+              Essa ação não pode ser desfeita. Isso excluirá permanentemente o
+              funcionário e removerá seus dados dos nossos servidores.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer">Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer">
+            <AlertDialogCancel className="cursor-pointer">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+            >
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+export default function EmployeesPage() {
+  return (
+    <Suspense>
+      <EmployeesContent />
+    </Suspense>
   )
 }

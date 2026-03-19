@@ -150,7 +150,7 @@ export class PlantingReportService {
       const wages = employee.dailyWages.filter(w => this.getISODate(w.date) === dateStr)
       const prods = employee.plantingProductions.filter(p => this.getISODate(p.date) === dateStr)
       const hasPresence = prods.some(p => p.presence === "PRESENCA") || 
-                         wages.some(w => w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO") ||
+                         wages.some(w => w.presence === "PRESENCA" || w.presence === "FOLGA") ||
                          employee.driverAllocations.some(a => this.getISODate(a.date) === dateStr)
       
       if (hasPresence) return false
@@ -159,16 +159,16 @@ export class PlantingReportService {
       return pType === "FALTA"
     }).sort()
 
-    const allNT = sortedDates.filter(dateStr => {
-      return employee.dailyWages.some(w => this.getISODate(w.date) === dateStr && w.presence === "NAO_TRABALHADO")
+    const allFolga = sortedDates.filter(dateStr => {
+      return employee.dailyWages.some(w => this.getISODate(w.date) === dateStr && w.presence === "FOLGA")
     }).sort()
 
-    const compensations: { falta: string, nt: string }[] = []
-    const maxCompensations = Math.min(allFaltas.length, allNT.length)
+    const compensations: { falta: string, folga: string }[] = []
+    const maxCompensations = Math.min(allFaltas.length, allFolga.length)
     for (let i = 0; i < maxCompensations; i++) {
       compensations.push({
         falta: allFaltas[i],
-        nt: allNT[i]
+        folga: allFolga[i]
       })
     }
 
@@ -207,13 +207,13 @@ export class PlantingReportService {
       })
 
       wages.forEach((w) => {
-        if (w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO") {
+        if (w.presence === "PRESENCA" || w.presence === "FOLGA") {
           const isPresence = w.presence === "PRESENCA"
           const hasValue = w.valueInCents > 0
           
           if (hasValue || !isPresence) {
             dailyWageValue += w.valueInCents
-            services.push(isPresence ? "Diária" : "Não Trabalhado")
+            services.push(isPresence ? "Diária" : "Folga")
             totalBruto += w.valueInCents
           }
         } else {
@@ -241,7 +241,7 @@ export class PlantingReportService {
       const dailyTotal = productions.filter(p => p.presence === "PRESENCA").reduce((acc: number, p) => acc + p.totalValueInCents, 0) + dailyWageValue
 
       const isCompensatedFalta = compensations.some(c => c.falta === dateStr)
-      const isUsedNT = compensations.some(c => c.nt === dateStr)
+      const isUsedFolga = compensations.some(c => c.folga === dateStr)
 
       let serviceCell: TableCell = services.join(", ")
       if (isCompensatedFalta) {
@@ -249,7 +249,7 @@ export class PlantingReportService {
           content: services.join(", "),
           styles: { textColor: [0, 150, 0] } // Green text for compensated Falta
         }
-      } else if (isUsedNT) {
+      } else if (isUsedFolga) {
         serviceCell = {
           content: services.join(", "),
           styles: { textColor: [255, 100, 100] } // Light red text for NT used for compensation
@@ -316,12 +316,12 @@ export class PlantingReportService {
       const compTableData = compensations.map(c => [
         format(new Date(c.falta + "T12:00:00"), "dd/MM/yyyy"),
         "Falta",
-        format(new Date(c.nt + "T12:00:00"), "dd/MM/yyyy")
+        format(new Date(c.folga + "T12:00:00"), "dd/MM/yyyy")
       ])
 
       autoTable(doc, {
         startY: currentY + 5,
-        head: [["Data da Falta", "Tipo", "Compensado por (Não Trabalhado)"]],
+        head: [["Data da Falta", "Tipo", "Compensado por (Folga)"]],
         body: compTableData,
         theme: "grid",
         headStyles: { fillColor: [127, 140, 141] },
@@ -342,10 +342,10 @@ export class PlantingReportService {
     doc.setFont("helvetica", "normal")
     doc.setFontSize(10)
 
-    const dailyPresenceCount = employee.dailyWages.filter(w => w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO").length + 
+    const dailyPresenceCount = employee.dailyWages.filter(w => w.presence === "PRESENCA" || w.presence === "FOLGA").length + 
                              employee.driverAllocations.length
     
-    const notWorkedCount = allNT.length
+    const folgaCount = allFolga.length
     
     // Count days for stats
     let justifiedAbsenceCount = 0
@@ -357,7 +357,7 @@ export class PlantingReportService {
       const prods = employee.plantingProductions.filter(p => this.getISODate(p.date) === dateStr)
 
       const hasPresence = prods.some(p => p.presence === "PRESENCA") ||
-                         wages.some(w => w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO") ||
+                         wages.some(w => w.presence === "PRESENCA" || w.presence === "FOLGA") ||
                          employee.driverAllocations.some(a => this.getISODate(a.date) === dateStr)
 
       if (hasPresence) {
@@ -376,7 +376,7 @@ export class PlantingReportService {
 
     const summaryData = [
       ["Quantidade de diárias", dailyPresenceCount],
-      ["Dias não trabalhados", notWorkedCount],
+      ["Dias de folga", folgaCount],
       ["Dias compensados", compensations.length],
       ["Quantidade de faltas", finalAbsenceCount],
       ["Faltas justificadas", justifiedAbsenceCount],
@@ -426,7 +426,7 @@ export class PlantingReportService {
     return doc.output("arraybuffer")
   }
 
-  static async generateConsolidatedReport(seasonId: string, startDate: Date, endDate: Date) {
+  static async generateConsolidatedReport(seasonId: string, startDate: Date, endDate: Date, isMonthly?: boolean) {
     const employees = (await prisma.employee.findMany({
       include: {
         employmentRecords: {
@@ -443,7 +443,7 @@ export class PlantingReportService {
     const doc = new jsPDF("landscape")
 
     doc.setFontSize(18)
-    doc.text("Relatório Consolidado da Quinzena", 14, 22)
+    doc.text(isMonthly ? "Relatório Consolidado do Mês" : "Relatório Consolidado da Quinzena", 14, 22)
     doc.setFontSize(10)
     doc.text(`Período: ${this.formatDateUTC(startDate)} a ${this.formatDateUTC(endDate)}`, 14, 30)
     const pageWidth = doc.internal.pageSize.getWidth()
@@ -485,7 +485,7 @@ export class PlantingReportService {
       emp.dailyWages.forEach((w) => {
         if (!isEmployeeActiveAtDate(w.date, terminationDate)) return
         const dateStr = this.getISODate(w.date)
-        if (w.presence === "PRESENCA" || w.presence === "NAO_TRABALHADO") {
+        if (w.presence === "PRESENCA" || w.presence === "FOLGA") {
           bruto += w.valueInCents
           diarias += w.valueInCents
           presencas.add(dateStr)
@@ -517,15 +517,15 @@ export class PlantingReportService {
       const liquido = bruto - adiantado
 
       if (bruto > 0 || adiantado > 0) {
-        const notWorkedCount = emp.dailyWages.filter(w => w.presence === "NAO_TRABALHADO").length
-        const compensatedFaltas = Math.min(faltas, notWorkedCount)
+        const folgaCount = emp.dailyWages.filter(w => w.presence === "FOLGA").length
+        const compensatedFaltas = Math.min(faltas, folgaCount)
         const finalFaltas = faltas - compensatedFaltas
 
         const absenceGroup = [
-          finalFaltas > 0 ? `F: ${finalFaltas}` : null,
+          finalFaltas > 0 ? `FT: ${finalFaltas}` : null,
           faltasJustificadas > 0 ? `FJ: ${faltasJustificadas}` : null,
           atestados > 0 ? `A: ${atestados}` : null,
-          notWorkedCount > 0 ? `NT: ${notWorkedCount}` : null,
+          folgaCount > 0 ? `FG: ${folgaCount}` : null,
           compensatedFaltas > 0 ? `C: ${compensatedFaltas}` : null
         ].filter(Boolean).join("\n")
 
@@ -567,7 +567,7 @@ export class PlantingReportService {
     doc.setFontSize(8)
     doc.setTextColor(100)
     doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, finalY + 15)
-    doc.text("Os dias não trabalhados (ex: chuva) são utilizados para compensar faltas não justificadas.", 14, finalY + 20)
+    doc.text("Os dias de chuva não trabalhados são utilizados para compensar faltas não justificadas.", 14, finalY + 20)
 
     return doc.output("arraybuffer")
   }

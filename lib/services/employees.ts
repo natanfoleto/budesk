@@ -7,8 +7,37 @@ import {
 
 const BASE_URL = "/api"
 
-export const getEmployees = async (): Promise<EmployeeWithDetails[]> => {
-  const res = await fetch(`${BASE_URL}/employees`)
+export interface GetEmployeesParams {
+  page?: number
+  limit?: number
+  name?: string
+  role?: string
+  cpf?: string
+  status?: string
+  jobId?: string
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  meta: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
+export const getEmployees = async (params: GetEmployeesParams = {}): Promise<PaginatedResponse<EmployeeWithDetails>> => {
+  const query = new URLSearchParams()
+  if (params.page) query.append("page", params.page.toString())
+  if (params.limit) query.append("limit", params.limit.toString())
+  if (params.name) query.append("name", params.name)
+  if (params.role) query.append("role", params.role)
+  if (params.cpf) query.append("cpf", params.cpf)
+  if (params.status) query.append("status", params.status)
+  if (params.jobId) query.append("jobId", params.jobId)
+
+  const res = await fetch(`${BASE_URL}/employees?${query.toString()}`)
   if (!res.ok) throw new Error("Erro ao buscar funcionários")
   return res.json()
 }

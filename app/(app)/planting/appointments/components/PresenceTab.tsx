@@ -68,14 +68,14 @@ const PRESENCE_CONFIG: Record<string, { label: string; color: string; textColor:
   FALTA: { label: "Falta", color: "bg-red-500", textColor: "text-white" },
   FALTA_JUSTIFICADA: { label: "Falta Justificada", color: "bg-orange-500", textColor: "text-white" },
   ATESTADO: { label: "Atestado", color: "bg-blue-500", textColor: "text-white" },
-  NAO_TRABALHADO: { label: "Não Trabalhado", color: "bg-slate-400", textColor: "text-white" }
+  FOLGA: { label: "Folga", color: "bg-slate-400", textColor: "text-white" }
 }
 
 const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   FALTA: { bg: "bg-red-50/50 hover:bg-red-50", text: "text-red-600", label: "FALTA" },
   FALTA_JUSTIFICADA: { bg: "bg-orange-50/50 hover:bg-orange-50", text: "text-orange-600", label: "FALTA JUST." },
   ATESTADO: { bg: "bg-blue-50/50 hover:bg-blue-50", text: "text-blue-600", label: "ATESTADO" },
-  NAO_TRABALHADO: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "NÃO TRAB." }
+  FOLGA: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "FOLGA" }
 }
 
 const getPresenceLabel = (type: AttendanceType) => PRESENCE_CONFIG[type]?.label || type
@@ -107,8 +107,8 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
       const state: Record<string, PresenceRecord> = {}
       
       // Filter employees based on termination date
-      const dataEmployees = employees as EmployeeWithDetails[]
-      const dataAttendance = attendanceRecords as DailyWage[]
+      const dataEmployees = (employees?.data || []) as EmployeeWithDetails[]
+      const dataAttendance = (attendanceRecords || []) as DailyWage[]
       
       const filteredEmployees = dataEmployees.filter(emp => shouldShowEmployeeInMonth(date, emp.terminationDate))
 
@@ -200,7 +200,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
       if (!emp.isTerminated && !emp.isClosed) {
         newState[emp.employeeId] = {
           ...newState[emp.employeeId],
-          presence: "NAO_TRABALHADO" as AttendanceType
+          presence: "FOLGA" as AttendanceType
         }
       }
     })
@@ -235,7 +235,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
               variant="outline"
             >
               <CloudOff className="h-4 w-4" />
-              Marcar todos Não Trabalhado
+              Marcar todos como Folga
             </Button>
             <Button 
               onClick={handleSave} 
@@ -435,7 +435,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Ação em Massa</AlertDialogTitle>
             <AlertDialogDescription>
-              Isso alterará o status de todos os funcionários visíveis na tabela para <strong>Não Trabalhado</strong>. 
+              Isso alterará o status de todos os funcionários visíveis na tabela para <strong>Folga</strong>. 
               Você poderá ajustar individualmente após confirmar. Deseja continuar?
             </AlertDialogDescription>
           </AlertDialogHeader>

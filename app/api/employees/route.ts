@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { createAuditLog } from "@/lib/audit"
@@ -5,24 +6,99 @@ import prisma from "@/lib/prisma"
 
 const AUDIT_Create = "CREATE"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const employees = await prisma.employee.findMany({
-      orderBy: { name: "asc" },
-      include: {
-        employmentRecords: {
-          orderBy: { admissionDate: "desc" },
-          take: 1
+    const searchParams = request.nextUrl.searchParams
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "1000") // Default to large limit for now if not specified
+    const name = searchParams.get("name")
+    const role = searchParams.get("role")
+    const document = searchParams.get("cpf")
+    const status = searchParams.get("status") // "ATIVO", "ENCERRADO"
+    const jobId = searchParams.get("jobId")
+
+    const skip = (page - 1) * limit
+
+    const where: Prisma.EmployeeWhereInput = {}
+
+    if (name) {
+      where.name = { contains: name, mode: "insensitive" }
+    }
+
+    if (jobId) {
+      where.jobId = jobId
+    } else if (role) {
+      where.role = { contains: role, mode: "insensitive" }
+    }
+
+    if (document) {
+      where.document = { contains: document }
+    }
+
+    if (status === "ATIVO") {
+      where.OR = [
+        {
+          employmentRecords: {
+            some: {
+              terminationDate: null
+            }
+          }
+        },
+        {
+          contracts: {
+            some: {
+              status: "ACTIVE"
+            }
+          }
         }
-      }
-    })
+      ]
+    } else if (status === "ENCERRADO") {
+      where.AND = [
+        {
+          OR: [
+            { employmentRecords: { none: { terminationDate: null } } },
+            { employmentRecords: { none: {} } }
+          ]
+        },
+        {
+          OR: [
+            { contracts: { none: { status: "ACTIVE" } } },
+            { contracts: { none: {} } }
+          ]
+        }
+      ]
+    }
+
+    const [total, employees] = await Promise.all([
+      prisma.employee.count({ where }),
+      prisma.employee.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { name: "asc" },
+        include: {
+          employmentRecords: {
+            orderBy: { admissionDate: "desc" },
+            take: 1
+          }
+        }
+      })
+    ])
 
     const formattedEmployees = employees.map(emp => ({
       ...emp,
       terminationDate: emp.employmentRecords[0]?.terminationDate || null
     }))
 
-    return NextResponse.json(formattedEmployees)
+    return NextResponse.json({
+      data: formattedEmployees,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
     console.log(error)
     

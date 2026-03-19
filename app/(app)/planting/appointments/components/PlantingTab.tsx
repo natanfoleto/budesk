@@ -58,7 +58,7 @@ const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }
   FALTA: { bg: "bg-red-50/50 hover:bg-red-50", text: "text-red-600", label: "FALTA" },
   FALTA_JUSTIFICADA: { bg: "bg-orange-50/50 hover:bg-orange-50", text: "text-orange-600", label: "FALTA JUST." },
   ATESTADO: { bg: "bg-blue-50/50 hover:bg-blue-50", text: "text-blue-600", label: "ATESTADO" },
-  NAO_TRABALHADO: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "NÃO TRAB." }
+  FOLGA: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "FOLGA" }
 }
 
 export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: PlantingTabProps) {
@@ -105,15 +105,12 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
     const isNewContext = currentContext !== lastContext
 
     if (employees && existingRecords) {
-      // Only override state if:
-      // 1. It's a completely new context (different day/front/season)
-      // 2. We're not currently editing (safe to sync with server)
-      // 3. The state is empty
       if (isNewContext || !isEditing || Object.keys(productions).length === 0) {
         const state: Record<string, ProductionRecord> = {}
         
         // Filter employees based on termination date
-        const filteredEmployees = (employees as EmployeeWithDetails[] || []).filter(emp => shouldShowEmployeeInMonth(date, emp.terminationDate))
+        const employeeList = (employees.data || []) as EmployeeWithDetails[]
+        const filteredEmployees = employeeList.filter(emp => shouldShowEmployeeInMonth(date, emp.terminationDate))
 
         filteredEmployees.forEach((emp) => {
           state[emp.id] = {
@@ -205,7 +202,8 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
       }
 
       // Category updates (if changed from the original employee data)
-      const originalEmp = (employees as EmployeeWithDetails[])?.find((e) => e.id === p.employeeId)
+      const employeeList = (employees?.data || []) as EmployeeWithDetails[]
+      const originalEmp = employeeList.find((e) => e.id === p.employeeId)
       const originalCategory = originalEmp?.plantingCategory || ""
       if (p.plantingCategory !== originalCategory) {
         toUpdateEmployees.push({ id: p.employeeId, category: p.plantingCategory })
@@ -224,8 +222,9 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
         const presence = wageRecord?.presence || "PRESENCA"
         
         if (presence !== "PRESENCA") {
-          const empName = employees?.find(e => e.id === p.employeeId)?.name || "Funcionário"
-          const statusLabel = presence === "NAO_TRABALHADO" ? "Não Trabalhado" : "Falta/Atestado"
+          const employeeList = (employees?.data || []) as EmployeeWithDetails[]
+          const empName = employeeList.find(e => e.id === p.employeeId)?.name || "Funcionário"
+          const statusLabel = presence === "FOLGA" ? "Folga" : "Falta/Atestado"
           toast.error(`O funcionário ${empName} não pode registrar produção pois está marcado como ${statusLabel} neste dia.`)
           return
         }

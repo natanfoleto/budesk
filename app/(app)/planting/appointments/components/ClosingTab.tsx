@@ -135,7 +135,7 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
       absences: data.filter(w => w.presence === "FALTA").length,
       justified: data.filter(w => w.presence === "FALTA_JUSTIFICADA").length,
       medical: data.filter(w => w.presence === "ATESTADO").length,
-      notWorked: data.filter(w => w.presence === "NAO_TRABALHADO").length
+      folga: data.filter(w => w.presence === "FOLGA").length
     }
   }
 
@@ -336,7 +336,7 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
             <MetricGroup title="Total Faltas" daily={todayWages.absences} general={generalWages.absences} />
             <MetricGroup title="Total Faltas Just." daily={todayWages.justified} general={generalWages.justified} />
             <MetricGroup title="Total Atestados" daily={todayWages.medical} general={generalWages.medical} />
-            <MetricGroup title="Dias Não Trab." daily={todayWages.notWorked} general={generalWages.notWorked} />
+            <MetricGroup title="Dias de Folga" daily={todayWages.folga} general={generalWages.folga} />
           </div>
         </div>
 

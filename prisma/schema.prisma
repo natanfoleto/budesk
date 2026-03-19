@@ -133,7 +133,7 @@ enum AttendanceType {
   ATESTADO
   DECLARACAO
   AFASTAMENTO
-  NAO_TRABALHADO
+  FOLGA
 }
 
 enum PlantingProductionType {

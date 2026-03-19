@@ -11,7 +11,7 @@ export type RHPaymentType =
   | "DECIMO_TERCEIRO"
 export type VacationStatus = "PREVISTA" | "APROVADA" | "GOZADA" | "PAGA"
 export type ThirteenthStatus = "PENDENTE" | "PARCIAL" | "PAGO"
-export type AttendanceType = "PRESENCA" | "FALTA" | "FALTA_JUSTIFICADA" | "ATESTADO"
+export type AttendanceType = "PRESENCA" | "FALTA" | "FALTA_JUSTIFICADA" | "ATESTADO" | "DECLARACAO" | "AFASTAMENTO" | "FOLGA"
 
 export interface RHPayment {
   id: string

@@ -58,15 +58,27 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
 
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
+      
+      let finalStartDate = startDate
+      let finalEndDate = endDate
+      if (isMonthly) {
+        const d = new Date(startDate + "T12:00:00")
+        const firstDay = new Date(d.getFullYear(), d.getMonth(), 1)
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+        finalStartDate = firstDay.toISOString().split("T")[0]
+        finalEndDate = lastDay.toISOString().split("T")[0]
+      }
+      const periodType = isMonthly ? "mensal" : "quinzenal"
+      const dateRangeSuffix = `${finalStartDate}_${finalEndDate}`
+
+      const filename = type === "all-zip" 
+        ? `relatorios_individuais_plantio_${periodType}_${dateRangeSuffix}.zip`
+        : type === "consolidated"
+          ? `relatorio_geral_plantio_${periodType}_${dateRangeSuffix}.pdf`
+          : `relatorio_individual_plantio_${periodType}_${dateRangeSuffix}.pdf`
+      
       const a = document.createElement("a")
       a.href = url
-      
-      const filename = type === "all-zip" 
-        ? `relatorios_individuais_plantio_${startDate}_${endDate}.zip`
-        : type === "consolidated"
-          ? `relatorio_geral_plantio_${startDate}_${endDate}.pdf`
-          : `relatorio_individual_plantio_${startDate}_${endDate}.pdf`
-      
       a.download = filename
       document.body.appendChild(a)
       a.click()
@@ -159,7 +171,6 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
                 )}
                 onClick={() => isMonthClosed && !isGeneratingMonthly && handleDownload("consolidated", undefined, true)}
               >
-                {/* Reusing consolidated type but with isMonthly=true in handleDownload */}
                 <CardContent className="flex items-center gap-4 p-3">
                   <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
                     <Files className="h-5 w-5" />
@@ -168,7 +179,30 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
                     <h4 className="font-semibold text-sm">Mensal Consolidado</h4>
                     <p className="text-[10px] text-muted-foreground">Resumo completo do mês.</p>
                   </div>
-                  {isGeneratingMonthly ? (
+                  {isGeneratingMonthly && isGenerating === null ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Download className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card 
+                className={cn(
+                  "cursor-pointer hover:bg-muted/50 transition-colors border-2",
+                  isMonthClosed ? "hover:border-emerald-500/50" : "cursor-not-allowed opacity-50"
+                )}
+                onClick={() => isMonthClosed && !isGeneratingMonthly && handleDownload("all-zip", undefined, true)}
+              >
+                <CardContent className="flex items-center gap-4 p-3">
+                  <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
+                    <FileArchive className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-sm">Mensal Individuais (ZIP)</h4>
+                    <p className="text-[10px] text-muted-foreground">PDFs do mês separados por funcionário.</p>
+                  </div>
+                  {isGeneratingMonthly && isGenerating === "all-zip" ? (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   ) : (
                     <Download className="h-4 w-4 text-muted-foreground" />

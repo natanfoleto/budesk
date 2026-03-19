@@ -106,7 +106,7 @@ export function AttendanceForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {employees?.map((employee) => (
+                      {employees?.data.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.name}
                         </SelectItem>

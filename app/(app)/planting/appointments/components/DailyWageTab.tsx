@@ -58,7 +58,7 @@ const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }
   FALTA: { bg: "bg-red-50/50 hover:bg-red-50", text: "text-red-600", label: "FALTA" },
   FALTA_JUSTIFICADA: { bg: "bg-orange-50/50 hover:bg-orange-50", text: "text-orange-600", label: "FALTA JUST." },
   ATESTADO: { bg: "bg-blue-50/50 hover:bg-blue-50", text: "text-blue-600", label: "ATESTADO" },
-  NAO_TRABALHADO: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "NÃO TRAB." }
+  FOLGA: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "FOLGA" }
 }
 
 export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: DailyWageTabProps) {
@@ -92,7 +92,8 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
       const state: Record<string, WageRecord> = {}
       
       // Filter employees based on termination date
-      const filteredEmployees = (employees as EmployeeWithDetails[] || []).filter(emp => shouldShowEmployeeInMonth(date, emp.terminationDate))
+      const employeeList = employees?.data || []
+      const filteredEmployees = (employeeList as EmployeeWithDetails[] || []).filter(emp => shouldShowEmployeeInMonth(date, emp.terminationDate))
 
       filteredEmployees.forEach((emp) => {
         const existing = (existingRecords as DailyWage[] || []).find((dw) => dw.employeeId === emp.id)
@@ -125,7 +126,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
       if (valueInCents > 0) {
         // Validation: Must be PRESENCA
         if (r.presence !== "PRESENCA") {
-          toast.error(`O funcionário ${r.employeeName} não pode ter valor de diária pois está marcado como ${r.presence === "NAO_TRABALHADO" ? "Não Trabalhado" : "Falta/Atestado"} neste dia.`)
+          toast.error(`O funcionário ${r.employeeName} não pode ter valor de diária pois está marcado como ${r.presence === "FOLGA" ? "Folga" : "Falta/Atestado"} neste dia.`)
           return
         }
       }
