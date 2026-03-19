@@ -1,20 +1,13 @@
 "use client"
 
 import { AttendanceType, Employee } from "@prisma/client"
-import { Save, Scissors, Search, Sprout } from "lucide-react"
-import { useEffect, useState } from "react"
+import { CircleSlash, Save, Scissors, Search, Sprout } from "lucide-react"
+import React, { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -24,6 +17,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCentsToReal } from "@/lib/utils"
@@ -61,6 +61,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
   const [isEditing, setIsEditing] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [focusedEmployeeId, setFocusedEmployeeId] = useState<string | null>(null)
+  const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch all active employees via shared hook
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
@@ -176,16 +177,37 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
     }))
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, employeeId: string) => {
     if (e.key === "Enter") {
       e.preventDefault()
-      const table = e.currentTarget.closest('table')
-      if (table) {
-        const inputs = Array.from(table.querySelectorAll('input:not([disabled])')) as HTMLInputElement[]
-        const index = inputs.indexOf(e.currentTarget)
-        if (index > -1 && index < inputs.length - 1) {
-          inputs[index + 1].focus()
-          inputs[index + 1].select()
+      const filteredAndSortedEmployees = Object.values(wages)
+        .filter((a: WageRecord) => {
+          const matchesName =
+            employeeNameFilter.trim() === "" ||
+            a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
+          
+          const matchesType = selectedCategories.length === 0 || selectedCategories.includes(a.plantingCategory || "")
+
+          return matchesName && matchesType
+        })
+        .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+
+      const isLastEmployee = filteredAndSortedEmployees[filteredAndSortedEmployees.length - 1]?.employeeId === employeeId
+      
+      if (isLastEmployee) {
+        saveButtonRef.current?.focus()
+      } else {
+        const table = e.currentTarget.closest('table')
+        if (table) {
+          const inputs = Array.from(table.querySelectorAll('input:not([disabled])')) as HTMLInputElement[]
+          const index = inputs.indexOf(e.currentTarget)
+          if (index > -1 && index < inputs.length - 1) {
+            inputs[index + 1].focus()
+            // (inputs[index + 1] as HTMLInputElement).select() // select is not available on generic element if not cast
+            if ('select' in inputs[index + 1]) {
+              (inputs[index + 1] as HTMLInputElement).select()
+            }
+          }
         }
       }
     }
@@ -202,7 +224,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
   }
 
   const sortedEmployees = Object.values(wages)
-    .filter((a) => {
+    .filter((a: WageRecord) => {
       const matchesName =
         employeeNameFilter.trim() === "" ||
         a.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
@@ -222,53 +244,51 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
             Lançamento financeiro das diárias. Não altera o status de falta/presença.
           </CardDescription>
         </div>
-        <Button onClick={handleSave} disabled={!isEditing || createDailyWageMutation.isPending}>
+        <Button ref={saveButtonRef} onClick={handleSave} disabled={!isEditing || createDailyWageMutation.isPending}>
           <Save className="h-4 w-4" /> Salvar Alterações
         </Button>
       </CardHeader>
       <CardContent>
         <div className="mb-4 flex flex-wrap gap-6 items-center rounded-md border p-3 bg-muted/20">
-          <div className="ml-auto flex items-center gap-2">
-            <Label className="text-sm font-medium whitespace-nowrap">Filtrar por:</Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-2">
-                  Tipo
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuCheckboxItem
-                  checked={selectedCategories.includes("PLANTIO")}
-                  onCheckedChange={(checked) => {
-                    setSelectedCategories(prev => 
-                      checked ? [...prev, "PLANTIO"] : prev.filter(c => c !== "PLANTIO")
-                    )
-                  }}
-                >
-                  Plantio
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={selectedCategories.includes("CORTE")}
-                  onCheckedChange={(checked) => {
-                    setSelectedCategories(prev => 
-                      checked ? [...prev, "CORTE"] : prev.filter(c => c !== "CORTE")
-                    )
-                  }}
-                >
-                  Corte
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={selectedCategories.includes("")}
-                  onCheckedChange={(checked) => {
-                    setSelectedCategories(prev => 
-                      checked ? [...prev, ""] : prev.filter(c => c !== "")
-                    )
-                  }}
-                >
-                  Sem tipo
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="ml-auto flex items-center gap-1">
+            <ToggleGroup 
+              type="multiple" 
+              size="sm" 
+              value={selectedCategories}
+              onValueChange={(val) => setSelectedCategories(val)}
+              className="flex gap-1"
+            >
+              <ToggleGroupItem value="PLANTIO" aria-label="Plantio" className="h-8 w-8 p-0 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Sprout className="h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Plantio</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="CORTE" aria-label="Corte" className="h-8 w-8 p-0 data-[state=on]:bg-amber-100 data-[state=on]:text-amber-900">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Scissors className="h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Corte</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="" aria-label="Sem tipo" className="h-8 w-8 p-0 data-[state=on]:bg-slate-100 data-[state=on]:text-slate-900">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <CircleSlash className="h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Sem tipo</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
         <div className="rounded-md border">
@@ -360,7 +380,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                           onChange={(e) => handleValueChange(record.employeeId, e.target.value)}
                           onFocus={() => setFocusedEmployeeId(record.employeeId)}
                           onBlur={() => setFocusedEmployeeId(null)}
-                          onKeyDown={handleKeyDown}
+                          onKeyDown={(e) => handleKeyDown(e, record.employeeId)}
                           disabled={record.isClosed}
                           placeholder="R$ 0,00"
                         />

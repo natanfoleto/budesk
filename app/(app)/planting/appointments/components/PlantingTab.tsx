@@ -1,18 +1,12 @@
 "use client"
 
 import { Employee } from "@prisma/client"
-import { Save, Scissors, Search, Sprout } from "lucide-react"
-import React, { useEffect, useState } from "react"
+import { CircleSlash, Save, Scissors, Search, Sprout } from "lucide-react"
+import React, { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -26,6 +20,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useEmployees, useUpdateEmployee } from "@/hooks/use-employees"
 import { useCreateProduction, useDailyWages, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCurrency } from "@/lib/utils"
@@ -65,6 +65,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
   const [globalCuttingPrice, setGlobalCuttingPrice] = useState<string>("")
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [focusedEmployeeId, setFocusedEmployeeId] = useState<string | null>(null)
+  const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch all active employees via shared hook
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
@@ -252,16 +253,28 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
     }))
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent, employeeId: string, field: "plantingMeters"|"cuttingMeters") => {
     if (e.key === "Enter") {
       e.preventDefault()
-      const table = e.currentTarget.closest('table')
-      if (table) {
-        const inputs = Array.from(table.querySelectorAll('input:not([disabled])')) as HTMLInputElement[]
-        const index = inputs.indexOf(e.currentTarget)
-        if (index > -1 && index < inputs.length - 1) {
-          inputs[index + 1].focus()
-          inputs[index + 1].select()
+      const isPlantioVisible = selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")
+      const isCorteVisible = selectedCategories.length === 0 || selectedCategories.includes("CORTE")
+      const isLastEmployee = sortedEmployees[sortedEmployees.length - 1]?.employeeId === employeeId
+      
+      const isLastVisibleField = 
+        (field === "cuttingMeters" && isCorteVisible) || 
+        (field === "plantingMeters" && isPlantioVisible && !isCorteVisible)
+
+      if (isLastEmployee && isLastVisibleField) {
+        saveButtonRef.current?.focus()
+      } else {
+        const table = e.currentTarget.closest('table')
+        if (table) {
+          const inputs = Array.from(table.querySelectorAll('input:not([disabled])')) as HTMLInputElement[]
+          const index = inputs.indexOf(e.currentTarget as HTMLInputElement)
+          if (index > -1 && index < inputs.length - 1) {
+            inputs[index + 1].focus()
+            inputs[index + 1].select()
+          }
         }
       }
     }
@@ -364,46 +377,44 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
             Se você não preencher estes campos, o sistema usará o valor padrão em Parâmetros Gerais. Este preço será aplicado a todos desta frente no dia {new Date(date).toLocaleDateString("pt-BR", { timeZone: "UTC" })}.
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Label className="text-sm font-medium whitespace-nowrap">Filtrar por:</Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-2">
-                  Tipo
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuCheckboxItem
-                  checked={selectedCategories.includes("PLANTIO")}
-                  onCheckedChange={(checked) => {
-                    setSelectedCategories(prev => 
-                      checked ? [...prev, "PLANTIO"] : prev.filter(c => c !== "PLANTIO")
-                    )
-                  }}
-                >
-                  Plantio
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={selectedCategories.includes("CORTE")}
-                  onCheckedChange={(checked) => {
-                    setSelectedCategories(prev => 
-                      checked ? [...prev, "CORTE"] : prev.filter(c => c !== "CORTE")
-                    )
-                  }}
-                >
-                  Corte
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={selectedCategories.includes("")}
-                  onCheckedChange={(checked) => {
-                    setSelectedCategories(prev => 
-                      checked ? [...prev, ""] : prev.filter(c => c !== "")
-                    )
-                  }}
-                >
-                  Sem tipo
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ToggleGroup 
+              type="multiple" 
+              size="sm" 
+              value={selectedCategories}
+              onValueChange={(val) => setSelectedCategories(val)}
+              className="flex gap-1"
+            >
+              <ToggleGroupItem value="PLANTIO" aria-label="Plantio" className="h-8 w-8 p-0 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Sprout className="h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Plantio</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="CORTE" aria-label="Corte" className="h-8 w-8 p-0 data-[state=on]:bg-amber-100 data-[state=on]:text-amber-900">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Scissors className="h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Corte</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="" aria-label="Sem tipo" className="h-8 w-8 p-0 data-[state=on]:bg-slate-100 data-[state=on]:text-slate-900">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <CircleSlash className="h-4 w-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Sem tipo</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
 
@@ -543,7 +554,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                               onChange={(val) => handleInputChange(record.employeeId, "plantingMeters", val)}
                               onFocus={() => setFocusedEmployeeId(record.employeeId)}
                               onBlur={() => setFocusedEmployeeId(null)}
-                              onKeyDownCustom={handleKeyDown}
+                              onKeyDownCustom={(e) => handleKeyDown(e, record.employeeId, "plantingMeters")}
                               disabled={record.isClosed}
                             />
                           </TableCell>
@@ -555,7 +566,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                               onChange={(val) => handleInputChange(record.employeeId, "cuttingMeters", val)}
                               onFocus={() => setFocusedEmployeeId(record.employeeId)}
                               onBlur={() => setFocusedEmployeeId(null)}
-                              onKeyDownCustom={handleKeyDown}
+                              onKeyDownCustom={(e) => handleKeyDown(e, record.employeeId, "cuttingMeters")}
                               disabled={record.isClosed}
                             />
                           </TableCell>
@@ -607,7 +618,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
           </Table>
         </div>
         <div className="flex justify-end mt-4">
-          <Button onClick={handleSave} disabled={!isEditing || createProductionMutation.isPending}>
+          <Button ref={saveButtonRef} onClick={handleSave} disabled={!isEditing || createProductionMutation.isPending}>
             <Save className="h-4 w-4" /> Salvar Alterações
           </Button>
         </div>

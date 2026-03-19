@@ -1,8 +1,8 @@
 "use client"
 
 import { AttendanceType, Employee } from "@prisma/client"
-import { CloudOff, Save, Search } from "lucide-react"
-import { useEffect, useState } from "react"
+import { CircleSlash, CloudOff, Save, Scissors, Search, Sprout } from "lucide-react"
+import React, { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import {
@@ -17,13 +17,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -34,6 +27,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
 import { cn } from "@/lib/utils"
@@ -235,47 +235,46 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
         </CardHeader>
         <CardContent>
           <div className="mb-4 flex flex-wrap gap-6 items-center rounded-md border p-3 bg-muted/20">
-            <div className="ml-auto flex items-center gap-2">
-              <Label className="text-sm font-medium whitespace-nowrap">Filtrar por:</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-2">
-                    Tipo
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuCheckboxItem
-                    checked={selectedCategories.includes("PLANTIO")}
-                    onCheckedChange={(checked) => {
-                      setSelectedCategories(prev => 
-                        checked ? [...prev, "PLANTIO"] : prev.filter(c => c !== "PLANTIO")
-                      )
-                    }}
-                  >
-                    Plantio
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={selectedCategories.includes("CORTE")}
-                    onCheckedChange={(checked) => {
-                      setSelectedCategories(prev => 
-                        checked ? [...prev, "CORTE"] : prev.filter(c => c !== "CORTE")
-                      )
-                    }}
-                  >
-                    Corte
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={selectedCategories.includes("")}
-                    onCheckedChange={(checked) => {
-                      setSelectedCategories(prev => 
-                        checked ? [...prev, ""] : prev.filter(c => c !== "")
-                      )
-                    }}
-                  >
-                    Sem tipo
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="ml-auto flex items-center gap-1">
+              <ToggleGroup 
+                type="multiple" 
+                size="sm" 
+                value={selectedCategories}
+                onValueChange={(val) => setSelectedCategories(val)}
+                className="flex gap-1"
+              >
+                <ToggleGroupItem value="PLANTIO" aria-label="Plantio" className="h-8 w-8 p-0 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <Tooltip>{/* Note: Shadcn tooltip structure often requires TooltipTrigger */}</Tooltip>
+                      <TooltipTrigger asChild>
+                        <Sprout className="h-4 w-4" />
+                      </TooltipTrigger>
+                      <TooltipContent>Plantio</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="CORTE" aria-label="Corte" className="h-8 w-8 p-0 data-[state=on]:bg-amber-100 data-[state=on]:text-amber-900">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Scissors className="h-4 w-4" />
+                      </TooltipTrigger>
+                      <TooltipContent>Corte</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="" aria-label="Sem tipo" className="h-8 w-8 p-0 data-[state=on]:bg-slate-100 data-[state=on]:text-slate-900">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <CircleSlash className="h-4 w-4" />
+                      </TooltipTrigger>
+                      <TooltipContent>Sem tipo</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
           </div>
           <div className="rounded-md border">
