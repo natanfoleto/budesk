@@ -24,7 +24,22 @@ export async function GET(req: NextRequest) {
       where: { seasonId, date: { gte: start, lte: end }, isClosed: true },
     })
 
-    return NextResponse.json({ isClosed: !!closedRecord })
+    const checkMonth = searchParams.get("checkMonth")
+    const year = searchParams.get("year")
+    
+    let isMonthClosed = false
+    if (checkMonth && year) {
+      isMonthClosed = await PlantingClosingService.checkMonthClosed(
+        seasonId, 
+        parseInt(year), 
+        parseInt(checkMonth) - 1 // JS month is 0-indexed
+      )
+    }
+
+    return NextResponse.json({ 
+      isClosed: !!closedRecord,
+      isMonthClosed
+    })
   } catch (error: unknown) {
     console.error("Error checking period status:", error)
     return NextResponse.json({ error: "Failed to check period status" }, { status: 500 })

@@ -609,4 +609,27 @@ export class PlantingReportService {
 
     return doc.output("arraybuffer")
   }
+
+  static async isMonthClosed(seasonId: string, year: number, month: number) {
+    // 1st Fortnight: 01 to 15
+    const start1 = new Date(year, month, 1, 0, 0, 0, 0)
+    const end1 = new Date(year, month, 15, 23, 59, 59, 999)
+
+    // 2nd Fortnight: 16 to end
+    const start2 = new Date(year, month, 16, 0, 0, 0, 0)
+    const end2 = new Date(year, month + 1, 0, 23, 59, 59, 999)
+
+    const [closed1, closed2] = await Promise.all([
+      prisma.plantingProduction.findFirst({
+        where: { seasonId, date: { gte: start1, lte: end1 }, isClosed: true },
+        select: { id: true }
+      }),
+      prisma.plantingProduction.findFirst({
+        where: { seasonId, date: { gte: start2, lte: end2 }, isClosed: true },
+        select: { id: true }
+      })
+    ])
+
+    return !!closed1 && !!closed2
+  }
 }

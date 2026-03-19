@@ -3,11 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { endOfMonth, format, setDate, startOfMonth } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { AlertTriangle, CalendarCheck, FileText, Lock, LockOpen } from "lucide-react"
+import { CalendarCheck, FileText, Lock, LockOpen } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,12 +79,13 @@ export default function PlantingClosingPage() {
   const { data: periodStatus, isLoading: isCheckingStatus } = useQuery({
     queryKey: ["periodStatus", selectedSeasonId, selectedMonth, selectedPeriod],
     queryFn: async () => {
-      if (!selectedSeasonId) return { isClosed: false }
+      if (!selectedSeasonId) return { isClosed: false, isMonthClosed: false }
+      const [year, month] = selectedMonth.split("-")
       const res = await fetch(
-        `/api/planting/closing?seasonId=${selectedSeasonId}&startDate=${startDateStr}T00:00:00Z&endDate=${endDateStr}T23:59:59Z`
+        `/api/planting/closing?seasonId=${selectedSeasonId}&startDate=${startDateStr}T00:00:00Z&endDate=${endDateStr}T23:59:59Z&checkMonth=${month}&year=${year}`
       )
-      if (!res.ok) return { isClosed: false }
-      return res.json() as Promise<{ isClosed: boolean }>
+      if (!res.ok) return { isClosed: false, isMonthClosed: false }
+      return res.json() as Promise<{ isClosed: boolean; isMonthClosed: boolean }>
     },
     enabled: !!selectedSeasonId,
   })
@@ -166,7 +166,7 @@ export default function PlantingClosingPage() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Fechamento Quinzenal</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Fechamento</h2>
           <p className="text-muted-foreground">
             Bata os valores do período e trave as edições de apontamentos.
           </p>
@@ -243,26 +243,6 @@ export default function PlantingClosingPage() {
               </Select>
             </div>
 
-            <Alert variant={isClosed ? "default" : "destructive"} className="mt-4">
-              <AlertTriangle className="h-4 w-4" />
-              {isClosed ? (
-                <>
-                  <AlertTitle className="flex items-center gap-2">
-                    <Lock className="h-4 w-4" /> Período Fechado
-                  </AlertTitle>
-                  <AlertDescription className="text-xs">
-                    Os apontamentos desta quinzena estão bloqueados para edição.
-                  </AlertDescription>
-                </>
-              ) : (
-                <>
-                  <AlertTitle>Período Aberto</AlertTitle>
-                  <AlertDescription className="text-xs">
-                    Edições permitidas. Após o fechamento, apenas administradores podem reabrir.
-                  </AlertDescription>
-                </>
-              )}
-            </Alert>
           </CardContent>
           <CardFooter>
             {isCheckingStatus ? (
@@ -356,6 +336,44 @@ export default function PlantingClosingPage() {
             </CardContent>
           </Card>
 
+          {/* Card 4: Resumo do Mês (NEW) */}
+          <Card className={periodStatus?.isMonthClosed ? "border-emerald-200 bg-emerald-50/10" : "bg-muted/30 border-dashed"}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="h-5 w-5 text-emerald-600" />
+                  Acumulado Geral do Mês
+                </div>
+                {periodStatus?.isMonthClosed ? (
+                  <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-semibold border border-emerald-200 uppercase">
+                    Mês Fechado
+                  </span>
+                ) : (
+                  <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full font-semibold border border-gray-200 uppercase">
+                    Pendente / Parcial
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Consolidado das duas quinzenas do mês.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingPeriodSummary ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              ) : !periodSummary ? (
+                <div className="text-center text-muted-foreground p-4 text-sm italic">Nenhum dado encontrado para este mês.</div>
+              ) : (
+                <div className="space-y-6">
+                  <MonthlyMetrics seasonId={selectedSeasonId} monthStr={selectedMonth} />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Card 3: Resumo da Safra */}
           <Card className="border-dashed border-muted-foreground/20">
             <CardHeader className="py-3">
@@ -431,8 +449,42 @@ export default function PlantingClosingPage() {
           seasonId={selectedSeasonId}
           startDate={startDateStr}
           endDate={endDateStr}
+          isMonthClosed={periodStatus?.isMonthClosed}
+          monthStr={selectedMonth}
         />
       )}
+    </div>
+  )
+}
+
+function MonthlyMetrics({ seasonId, monthStr }: { seasonId: string, monthStr: string }) {
+  const baseDate = new Date(`${monthStr}-01T12:00:00Z`)
+  const startDate = format(startOfMonth(baseDate), "yyyy-MM-dd")
+  const endDate = format(endOfMonth(baseDate), "yyyy-MM-dd")
+
+  const { data: metrics, isLoading } = usePlantingDashboard(seasonId, { startDate, endDate })
+
+  if (isLoading) return <div className="grid grid-cols-2 gap-4"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
+  if (!metrics) return null
+
+  return (
+    <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+      <div className="col-span-2 sm:col-span-1">
+        <p className="text-sm font-medium text-muted-foreground">Custo Total no Mês</p>
+        <p className="text-2xl font-bold tracking-tight text-emerald-700">{formatCurrency(metrics.totalCostInCents)}</p>
+      </div>
+      <div className="col-span-2 sm:col-span-1">
+        <p className="text-sm font-medium text-muted-foreground">Área Total no Mês</p>
+        <p className="text-2xl font-bold tracking-tight">{Number(metrics.totalHectares).toFixed(2)} ha</p>
+      </div>
+      <div className="pt-2 border-t border-border">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase">Plantio</p>
+        <p className="text-lg font-semibold">{Number(metrics.totalPlantingMeters).toLocaleString()}m</p>
+      </div>
+      <div className="pt-2 border-t border-border">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase">Corte</p>
+        <p className="text-lg font-semibold">{Number(metrics.totalCuttingMeters).toLocaleString()}m</p>
+      </div>
     </div>
   )
 }

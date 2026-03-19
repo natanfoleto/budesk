@@ -20,6 +20,18 @@ export async function GET(req: NextRequest) {
     const startDate = new Date(startDateStr + "T00:00:00Z")
     const endDate = new Date(endDateStr + "T23:59:59Z")
 
+    // Validation for monthly reports (if applicable)
+    const isMonthly = searchParams.get("isMonthly") === "true"
+    if (isMonthly) {
+      const year = startDate.getUTCFullYear()
+      const month = startDate.getUTCMonth()
+      // Check if both fortnights are closed
+      const isClosed = await PlantingReportService.isMonthClosed(seasonId, year, month)
+      if (!isClosed) {
+        return NextResponse.json({ error: "Para gerar o relatório mensal, as duas quinzenas do mês precisam estar fechadas." }, { status: 400 })
+      }
+    }
+
     if (type === "individual") {
       if (!employeeId) return NextResponse.json({ error: "employeeId is required for individual report" }, { status: 400 })
       const pdf = await PlantingReportService.generateIndividualReport(employeeId, seasonId, startDate, endDate)
