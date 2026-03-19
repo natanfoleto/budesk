@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { SmartNumberInput } from "@/components/ui/smart-number-input"
 import {
   Table,
   TableBody,
@@ -240,14 +241,13 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
     }
   }
 
-  const handleInputChange = (empId: string, field: "plantingMeters"|"cuttingMeters", val: string) => {
+  const handleInputChange = (empId: string, field: "plantingMeters"|"cuttingMeters", val: number) => {
     setIsEditing(true)
-    const num = Number(val)
     setProductions(prev => ({
       ...prev,
       [empId]: {
         ...prev[empId],
-        [field]: isNaN(num) ? 0 : num
+        [field]: val
       }
     }))
   }
@@ -412,6 +412,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
             <TableHeader>
               <TableRow>
                 <TableHead>Funcionário</TableHead>
+                <TableHead className="w-[60px] px-2 text-center"></TableHead>
                 <TableHead className="w-[100px] text-center">Tipo</TableHead>
                 {(selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")) && (
                   <TableHead className="w-[120px] text-center">Plantio (m)</TableHead>
@@ -427,6 +428,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell className="px-2"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
                     <TableCell className="flex justify-center py-2"><Skeleton className="h-8 w-16" /></TableCell>
                     {(selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")) && (
                       <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
@@ -475,8 +477,8 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                       <TableRow 
                         className={cn(
                           record.isClosed && "bg-muted/50",
-                          record.employeeId === focusedEmployeeId && "bg-muted/90",
-                          isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg
+                          isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg,
+                          record.employeeId === focusedEmployeeId && "bg-slate-200/60"
                         )}
                       >
                         <TableCell className="font-medium">
@@ -508,6 +510,15 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                             )}
                           </div>
                         </TableCell>
+                        <TableCell className="px-2 text-center">
+                          {dailyWage && dailyWage.valueInCents > 0 && (
+                            <div className="flex items-center justify-center" title={`Diária: ${formatCurrency(dailyWage.valueInCents)}`}>
+                              <div className="bg-orange-100 text-orange-700 text-[9px] font-black px-1 py-0.5 rounded border border-orange-200 shadow-sm whitespace-nowrap">
+                                {formatCurrency(dailyWage.valueInCents).replace(",00", "")}
+                              </div>
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="flex justify-center py-2">
                           <ToggleGroup 
                             type="single" 
@@ -527,31 +538,25 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                         </TableCell>
                         {(selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")) && (
                           <TableCell className="text-center">
-                            <Input
-                              type="number"
-                              className="h-8 text-center"
-                              value={record.plantingMeters || ""}
-                              onChange={(e) => handleInputChange(record.employeeId, "plantingMeters", e.target.value)}
+                            <SmartNumberInput
+                              value={record.plantingMeters || 0}
+                              onChange={(val) => handleInputChange(record.employeeId, "plantingMeters", val)}
                               onFocus={() => setFocusedEmployeeId(record.employeeId)}
                               onBlur={() => setFocusedEmployeeId(null)}
-                              onKeyDown={handleKeyDown}
+                              onKeyDownCustom={handleKeyDown}
                               disabled={record.isClosed}
-                              placeholder="0"
                             />
                           </TableCell>
                         )}
                         {(selectedCategories.length === 0 || selectedCategories.includes("CORTE")) && (
                           <TableCell className="text-center">
-                            <Input
-                              type="number"
-                              className="h-8 text-center"
-                              value={record.cuttingMeters || ""}
-                              onChange={(e) => handleInputChange(record.employeeId, "cuttingMeters", e.target.value)}
+                            <SmartNumberInput
+                              value={record.cuttingMeters || 0}
+                              onChange={(val) => handleInputChange(record.employeeId, "cuttingMeters", val)}
                               onFocus={() => setFocusedEmployeeId(record.employeeId)}
                               onBlur={() => setFocusedEmployeeId(null)}
-                              onKeyDown={handleKeyDown}
+                              onKeyDownCustom={handleKeyDown}
                               disabled={record.isClosed}
-                              placeholder="0"
                             />
                           </TableCell>
                         )}
@@ -566,7 +571,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
             </TableBody>
             <TableHeader>
               <TableRow className="bg-muted/50 font-bold hover:bg-muted/50">
-                <TableCell className="text-right">Total</TableCell>
+                <TableCell className="text-right" colSpan={2}>Total</TableCell>
                 <TableCell></TableCell>
                 {(selectedCategories.length === 0 || selectedCategories.includes("PLANTIO")) && (
                   <TableCell className="text-center">
@@ -597,7 +602,6 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                 <TableCell className="text-right text-emerald-600">
                   {formatCurrency(Math.round(totalValue))}
                 </TableCell>
-                <TableCell></TableCell>
               </TableRow>
             </TableHeader>
           </Table>

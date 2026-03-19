@@ -1,7 +1,7 @@
 "use client"
 
 import { AttendanceType, Employee } from "@prisma/client"
-import { Save, Search } from "lucide-react"
+import { Save, Scissors, Search, Sprout } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -25,9 +25,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
-import { useCreateDailyWage, useDailyWages } from "@/hooks/use-planting"
+import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCentsToReal } from "@/lib/utils"
-import { DailyWage, DailyWageFormData } from "@/types/planting"
+import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
 
 interface DailyWageTabProps {
   seasonId: string
@@ -67,6 +67,13 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
 
   // Fetch existing daily wages via shared hook
   const { data: existingRecords, isLoading: isLoadingRecords, refetch } = useDailyWages({
+    seasonId,
+    frontId,
+    date: date ? `${date}T00:00:00Z` : undefined
+  })
+  
+  // Fetch existing productions to show indicators
+  const { data: productions } = usePlantingProductions({
     seasonId,
     frontId,
     date: date ? `${date}T00:00:00Z` : undefined
@@ -269,6 +276,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
             <TableHeader>
               <TableRow>
                 <TableHead>Funcionário</TableHead>
+                <TableHead className="w-[60px] px-2 text-center"></TableHead>
                 <TableHead className="w-[150px] text-right">Valor Diária (R$)</TableHead>
               </TableRow>
             </TableHeader>
@@ -277,13 +285,14 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell className="px-2"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-32 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : sortedEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={2} className="h-24 text-center">
-                    Nenhum funcionário encontrado.
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    Nenhum funcionário ativo encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -296,8 +305,8 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                       key={record.employeeId} 
                       className={cn(
                         record.isClosed && "bg-muted/50",
-                        record.employeeId === focusedEmployeeId && "bg-muted/90",
-                        isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg
+                        isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg,
+                        record.employeeId === focusedEmployeeId && "bg-slate-200/60"
                       )}
                     >
                       <TableCell className="font-medium">
@@ -326,6 +335,20 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                             <span className={cn("text-[10px] font-bold uppercase", ABSENCE_CONFIG[presenceType]?.text)}>
                               {ABSENCE_CONFIG[presenceType]?.label || presenceType}
                             </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-2 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {productions?.some((p: PlantingProduction) => p.employeeId === record.employeeId && p.type === "PLANTIO" && (p.meters || 0) > 0) && (
+                            <div title="Possui metragem de Plantio">
+                              <Sprout className="h-3.5 w-3.5 text-emerald-600" />
+                            </div>
+                          )}
+                          {productions?.some((p: PlantingProduction) => p.employeeId === record.employeeId && p.type === "CORTE" && (p.meters || 0) > 0) && (
+                            <div title="Possui metragem de Corte">
+                              <Scissors className="h-3.5 w-3.5 text-amber-600" />
+                            </div>
                           )}
                         </div>
                       </TableCell>

@@ -306,7 +306,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
                       key={record.employeeId} 
                       className={cn(
                         record.isClosed && "bg-muted/50",
-                        record.employeeId === focusedEmployeeId && "bg-muted/90"
+                        record.employeeId === focusedEmployeeId && "bg-slate-200/60"
                       )}
                     >
                       <TableCell className="font-medium">

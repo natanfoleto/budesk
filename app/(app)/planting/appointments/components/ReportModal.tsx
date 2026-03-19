@@ -178,13 +178,13 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
             </div>
 
             {!isMonthClosed && (
-              <p className="text-[11px] text-red-600 px-1 italic">
-                * As duas quinzenas precisam estar fechadas para gerar o relatório mensal.
+              <p className="text-[11px] text-center text-red-600 px-1 italic">
+                As duas quinzenas precisam estar fechadas para gerar o relatório mensal.
               </p>
             )}
           </div>
 
-          <p className="text-xs text-muted-foreground px-1 mt-2">
+          <p className="text-xs text-center text-muted-foreground px-1 mt-2">
             O cálculo de Total Líquido desconta automaticamente os Adiantamentos marcados para "Descontar na quinzena atual".
           </p>
         </div>

@@ -43,7 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
-import { formatCentsToReal } from "@/lib/utils"
+import { cn, formatCentsToReal } from "@/lib/utils"
 import { PlantingAdvance, PlantingAdvanceFormData } from "@/types/planting"
 
 interface AdvanceTabProps {
@@ -266,7 +266,13 @@ export function AdvanceTab({
                 </TableRow>
               ) : (
                 filteredAdvances?.map((adv) => (
-                  <TableRow key={adv.id}>
+                  <TableRow 
+                    key={adv.id}
+                    className={cn(
+                      editingAdvance?.id === adv.id && "bg-slate-200/60",
+                      "hover:bg-muted/50 transition-colors"
+                    )}
+                  >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2 group">
                         {adv.employee?.name}

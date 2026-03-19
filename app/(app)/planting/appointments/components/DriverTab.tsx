@@ -304,7 +304,10 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
                 allocations.map((alloc) => {
                   const empObj = employees?.find((e: { id: string; name: string }) => e.id === alloc.employeeId)
                   return (
-                    <TableRow key={alloc.id} className={alloc.isClosed ? "opacity-60" : ""}>
+                    <TableRow 
+                      key={alloc.id} 
+                      className={cn(alloc.isClosed ? "opacity-60" : "", "hover:bg-muted/50 transition-colors")}
+                    >
                       <TableCell className="font-medium">{empObj?.name || "Desconhecido"}</TableCell>
                       <TableCell>{alloc.vehicleNamePlate}</TableCell>
                       <TableCell className="text-right">{formatCurrency(alloc.dailyValueInCents)}</TableCell>
