@@ -13,6 +13,7 @@ import { use, useState } from "react"
 import { AdvanceForm } from "@/components/employees/advance-form"
 import { ContractForm } from "@/components/employees/contract-form"
 import { EmployeeForm } from "@/components/employees/employee-form"
+import { EmployeeTagsTab } from "@/components/employees/EmployeeTagsTab"
 import { EmploymentRecordForm } from "@/components/employees/employment-record-form"
 import { SecureActionDialog } from "@/components/employees/secure-action-dialog"
 import { Badge } from "@/components/ui/badge"
@@ -249,7 +250,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
       <div className="flex items-center space-x-4">
         <Link href="/employees">
           <Button variant="outline" size="icon" className="cursor-pointer">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="size-4" />
           </Button>
         </Link>
 
@@ -268,6 +269,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           <TabsTrigger value="contratos" className="cursor-pointer">Contratos</TabsTrigger>
           <TabsTrigger value="adiantamentos" className="cursor-pointer">Adiantamentos</TabsTrigger>
           <TabsTrigger value="ponto" className="cursor-pointer">Ponto</TabsTrigger>
+          <TabsTrigger value="etiquetas" className="cursor-pointer">Etiquetas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dados" className="space-y-4">
@@ -319,94 +321,136 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
         </TabsContent>
 
         <TabsContent value="vinculos" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => openRecordForm()} className="cursor-pointer">
-              <Plus className="h-4 w-4" /> Novo Vínculo
-            </Button>
-          </div>
-          {records?.map((record: EmploymentRecord) => (
-            <Card 
-              key={record.id} 
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => openRecordForm(record)}
-            >
-              <CardHeader>
-                <div className="flex justify-between">
-                  <CardTitle>{record.jobTitle}</CardTitle>
-                  <Badge variant={record.isActive ? "default" : "secondary"}>{record.contractType}</Badge>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle>Vínculos Empregatícios</CardTitle>
+                <CardDescription>Histórico de cargos e registros do funcionário.</CardDescription>
+              </div>
+              <Button onClick={() => openRecordForm()} size="sm" className="cursor-pointer">
+                <Plus className="size-4" /> Novo Vínculo
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {records?.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  Nenhum vínculo registrado.
                 </div>
-                <CardDescription>Admissão: {formatDate(record.admissionDate)}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p>Salário: {formatCentsToReal(record.baseSalaryInCents)}</p>
-                {record.terminationDate && <p>Término: {formatDate(record.terminationDate)}</p>}
-                {record.workRegime && <p>Regime: {record.workRegime}</p>}
-                {record.notes && <p className="mt-2 text-sm text-muted-foreground italic">{record.notes}</p>}
-              </CardContent>
-            </Card>
-          ))}
+              ) : (
+                records?.map((record: EmploymentRecord) => (
+                  <Card 
+                    key={record.id} 
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => openRecordForm(record)}
+                  >
+                    <CardHeader>
+                      <div className="flex justify-between">
+                        <CardTitle className="text-base">{record.jobTitle}</CardTitle>
+                        <Badge variant={record.isActive ? "default" : "secondary"}>{record.contractType}</Badge>
+                      </div>
+                      <CardDescription>Admissão: {formatDate(record.admissionDate)}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                      <p>Salário: {formatCentsToReal(record.baseSalaryInCents)}</p>
+                      {record.terminationDate && <p>Término: {formatDate(record.terminationDate)}</p>}
+                      {record.workRegime && <p>Regime: {record.workRegime}</p>}
+                      {record.notes && <p className="mt-2 text-xs text-muted-foreground italic">{record.notes}</p>}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="contratos" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => openContractForm()} className="cursor-pointer">
-              <Plus className="h-4 w-4" /> Novo Contrato
-            </Button>
-          </div>
-          {contracts?.map((contract: EmployeeContract) => (
-            <Card 
-              key={contract.id}
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => openContractForm(contract)}
-            >
-              <CardHeader>
-                <div className="flex justify-between">
-                  <CardTitle>{contract.type}</CardTitle>
-                  <Badge variant={contract.status === "ACTIVE" ? "default" : "secondary"}>
-                    {contract.status === "ACTIVE" ? "Ativo" : contract.status}
-                  </Badge>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle>Contratos</CardTitle>
+                <CardDescription>Documentos e contratos de prestação de serviço.</CardDescription>
+              </div>
+              <Button onClick={() => openContractForm()} size="sm" className="cursor-pointer">
+                <Plus className="size-4" /> Novo Contrato
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {contracts?.length === 0 ? (
+                <div className="text-sm text-center py-6 text-muted-foreground">
+                  Nenhum contrato registrado.
                 </div>
-                <CardDescription>Início: {formatDate(contract.startDate)}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p>Valor: {formatCentsToReal(contract.valueInCents)}</p>
-                {contract.endDate && <p>Fim: {formatDate(contract.endDate)}</p>}
-                {contract.description && <p className="mt-2 text-sm text-muted-foreground">{contract.description}</p>}
-              </CardContent>
-            </Card>
-          ))}
+              ) : (
+                contracts?.map((contract: EmployeeContract) => (
+                  <Card 
+                    key={contract.id}
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => openContractForm(contract)}
+                  >
+                    <CardHeader>
+                      <div className="flex justify-between">
+                        <CardTitle className="text-base">{contract.type}</CardTitle>
+                        <Badge variant={contract.status === "ACTIVE" ? "default" : "secondary"}>
+                          {contract.status === "ACTIVE" ? "Ativo" : contract.status}
+                        </Badge>
+                      </div>
+                      <CardDescription>Início: {formatDate(contract.startDate)}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                      <p>Valor: {formatCentsToReal(contract.valueInCents)}</p>
+                      {contract.endDate && <p>Fim: {formatDate(contract.endDate)}</p>}
+                      {contract.description && <p className="mt-2 text-xs text-muted-foreground">{contract.description}</p>}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="adiantamentos" className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => openAdvanceForm()} className="cursor-pointer">
-              <Plus className="h-4 w-4" /> Novo Adiantamento
-            </Button>
-          </div>
-          {advances?.map((advance: EmployeeAdvance & { transaction?: FinancialTransaction }) => (
-            <Card 
-              key={advance.id} 
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => openAdvanceForm(advance)}
-            >
-              <CardHeader>
-                <div className="flex justify-between">
-                  <CardTitle>{advance.payrollReference ? `Ref: ${advance.payrollReference}` : "Adiantamento"}</CardTitle>
-                  <Badge variant="outline">Saída de Caixa</Badge>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle>Adiantamentos</CardTitle>
+                <CardDescription>Registro de vales e pagamentos antecipados.</CardDescription>
+              </div>
+              <Button onClick={() => openAdvanceForm()} size="sm" className="cursor-pointer">
+                <Plus className="size-4" /> Novo Adiantamento
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {advances?.length === 0 ? (
+                <div className="text-sm text-center py-6 text-muted-foreground">
+                  Nenhum adiantamento registrado.
                 </div>
-                <CardDescription>Data: {formatDate(advance.date)}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg font-bold text-red-600">-{formatCentsToReal(advance.amountInCents)}</p>
-                {advance.note && <p className="mt-2 text-sm text-muted-foreground">{advance.note}</p>}
-                {advance.transaction && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                      Transação Financeira: {advance.transaction.paymentMethod}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+              ) : (
+                advances?.map((advance: EmployeeAdvance & { transaction?: FinancialTransaction }) => (
+                  <Card 
+                    key={advance.id} 
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => openAdvanceForm(advance)}
+                  >
+                    <CardHeader>
+                      <div className="flex justify-between">
+                        <CardTitle className="text-base">{advance.payrollReference ? `Ref: ${advance.payrollReference}` : "Adiantamento"}</CardTitle>
+                        <Badge variant="outline">Saída de Caixa</Badge>
+                      </div>
+                      <CardDescription>Data: {formatDate(advance.date)}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                      <p className="text-lg font-bold text-red-600">-{formatCentsToReal(advance.amountInCents)}</p>
+                      {advance.note && <p className="mt-2 text-xs text-muted-foreground">{advance.note}</p>}
+                      {advance.transaction && (
+                        <div className="mt-2 text-[10px] text-muted-foreground uppercase tracking-wider">
+                            Transação: {advance.transaction.paymentMethod}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="ponto">
@@ -425,6 +469,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
               </Link>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="etiquetas">
+          <EmployeeTagsTab employeeId={id} />
         </TabsContent>
       </Tabs>
 

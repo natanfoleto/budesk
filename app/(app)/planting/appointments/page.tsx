@@ -1,5 +1,6 @@
 "use client"
 
+import { EmployeeTag } from "@prisma/client"
 import { useQuery } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { ChevronLeft, ChevronRight, FilterX, Lock, Search } from "lucide-react"
@@ -18,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useEmployeeTags } from "@/hooks/use-employee-tags"
 import { usePlantingSeasons, useWorkFronts } from "@/hooks/use-planting"
 
 import { AdvanceTab } from "./components/AdvanceTab"
@@ -37,9 +39,11 @@ function AppointmentsContent() {
   const [selectedDate, setSelectedDate] = useState<string>(searchParams.get("date") || format(new Date(), "yyyy-MM-dd"))
   const [activeTab, setActiveTab] = useState<string>(searchParams.get("tab") || "plantio")
   const [employeeNameFilter, setEmployeeNameFilter] = useState<string>("")
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
 
   const { data: seasons } = usePlantingSeasons()
   const { data: fronts } = useWorkFronts(selectedSeasonId !== "all" ? selectedSeasonId : undefined)
+  const { data: tags } = useEmployeeTags()
 
   // Determine which fortnight the current date belongs to and check if it's closed
   const fortnightRange = (() => {
@@ -108,6 +112,7 @@ function AppointmentsContent() {
     setSelectedDate(today)
     setActiveTab("plantio")
     setEmployeeNameFilter("")
+    setSelectedTagId(null)
     router.replace(pathname, { scroll: false })
   }
 
@@ -141,8 +146,8 @@ function AppointmentsContent() {
 
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-2 flex-1 min-w-[200px]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="space-y-2">
               <Label>Safra</Label>
               <Select
                 value={selectedSeasonId}
@@ -160,7 +165,7 @@ function AppointmentsContent() {
               </Select>
             </div>
 
-            <div className="space-y-2 flex-1 min-w-[200px]">
+            <div className="space-y-2">
               <Label>Frente de Trabalho</Label>
               <Select
                 value={selectedFrontId}
@@ -179,7 +184,7 @@ function AppointmentsContent() {
               </Select>
             </div>
 
-            <div className="space-y-2 flex-1 min-w-[200px]">
+            <div className="space-y-2">
               <Label>Data Base do Apontamento</Label>
               <div className="flex gap-1">
                 <Button
@@ -206,11 +211,13 @@ function AppointmentsContent() {
                 </Button>
               </div>
             </div>
+          </div>
 
-            <div className="space-y-2 flex-1 min-w-[200px]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-10 mt-4 items-end">
+            <div className="space-y-2 lg:col-span-5">
               <Label>Buscar Funcionário</Label>
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder="Nome do funcionário"
@@ -221,10 +228,35 @@ function AppointmentsContent() {
               </div>
             </div>
 
-            <div className="flex flex-col justify-end">
-              <Label className="invisible select-none text-sm">.</Label>
-              <Button variant="outline" onClick={clearFilters} className="text-muted-foreground w-full">
-                <FilterX className="h-4 w-4" />
+            <div className="space-y-2 lg:col-span-3">
+              <Label>Filtrar por Etiquetas</Label>
+              <Select
+                value={selectedTagId || 'all'}
+                onValueChange={(v) => setSelectedTagId(v === 'all' ? null : v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todas as etiquetas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as etiquetas</SelectItem>
+                  {tags?.map((tag: EmployeeTag) => (
+                    <SelectItem key={tag.id} value={tag.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="size-2 rounded-full" 
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        {tag.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="lg:col-span-2">
+              <Button variant="outline" onClick={clearFilters} className="text-muted-foreground w-full gap-2">
+                <FilterX className="h-4 w-4" /> Limpar Filtros
               </Button>
             </div>
           </div>
@@ -249,6 +281,7 @@ function AppointmentsContent() {
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
               onEmployeeFilterChange={setEmployeeNameFilter}
+              selectedTagIds={selectedTagId ? [selectedTagId] : []}
               isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>
@@ -259,6 +292,7 @@ function AppointmentsContent() {
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
               onEmployeeFilterChange={setEmployeeNameFilter}
+              selectedTagIds={selectedTagId ? [selectedTagId] : []}
               isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>
@@ -267,6 +301,7 @@ function AppointmentsContent() {
               seasonId={selectedSeasonId}
               frontId={selectedFrontId}
               date={selectedDate}
+              selectedTagIds={selectedTagId ? [selectedTagId] : []}
             />
           </TabsContent>
           <TabsContent value="area" className="m-0">
@@ -283,6 +318,7 @@ function AppointmentsContent() {
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
               onEmployeeFilterChange={setEmployeeNameFilter}
+              selectedTagIds={selectedTagId ? [selectedTagId] : []}
               isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>
@@ -293,6 +329,7 @@ function AppointmentsContent() {
               date={selectedDate}
               employeeNameFilter={employeeNameFilter}
               onEmployeeFilterChange={setEmployeeNameFilter}
+              selectedTagIds={selectedTagId ? [selectedTagId] : []}
               isPeriodClosed={isPeriodClosed}
             />
           </TabsContent>

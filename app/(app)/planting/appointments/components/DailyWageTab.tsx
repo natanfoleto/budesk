@@ -37,6 +37,7 @@ interface DailyWageTabProps {
   date: string
   employeeNameFilter?: string
   onEmployeeFilterChange?: (name: string) => void
+  selectedTagIds?: string[]
   isPeriodClosed: boolean
 }
 
@@ -61,7 +62,15 @@ const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }
   FOLGA: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "FOLGA" }
 }
 
-export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: DailyWageTabProps) {
+export function DailyWageTab({ 
+  seasonId, 
+  frontId, 
+  date, 
+  employeeNameFilter = "", 
+  onEmployeeFilterChange, 
+  selectedTagIds = [],
+  isPeriodClosed 
+}: DailyWageTabProps) {
   const [wages, setWages] = useState<Record<string, WageRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
@@ -69,7 +78,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
   const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch all active employees via shared hook
-  const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
+  const { data: employees, isLoading: isLoadingEmployees } = useEmployees({ tagIds: selectedTagIds })
 
   // Fetch existing daily wages via shared hook
   const { data: existingRecords, isLoading: isLoadingRecords, refetch } = useDailyWages({
@@ -331,7 +340,7 @@ export function DailyWageTab({ seasonId, frontId, date, employeeNameFilter = "",
                               }`}
                               title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
                             >
-                              <Search className="h-3 w-3" />
+                              <Search className="size-3" />
                             </button>
                           </div>
                           {record.presence !== "PRESENCA" && (

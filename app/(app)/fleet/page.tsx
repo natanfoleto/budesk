@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Plus, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -100,12 +100,15 @@ export default function FleetPage() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Input
-          placeholder="Filtrar por placa..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Filtrar por placa..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
       </div>
 
       {isLoading ? (

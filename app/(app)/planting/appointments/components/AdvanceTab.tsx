@@ -7,6 +7,16 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -52,6 +62,7 @@ interface AdvanceTabProps {
   date: string
   employeeNameFilter: string
   onEmployeeFilterChange?: (name: string) => void
+  selectedTagIds?: string[]
   isPeriodClosed: boolean
 }
 
@@ -63,13 +74,15 @@ export function AdvanceTab({
   date,
   employeeNameFilter,
   onEmployeeFilterChange,
+  selectedTagIds = [],
   isPeriodClosed,
 }: AdvanceTabProps) {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingAdvance, setEditingAdvance] = useState<PlantingAdvance | null>(null)
+  const [advanceToDelete, setAdvanceToDelete] = useState<string | null>(null)
 
-  const { data: employees } = useEmployees()
+  const { data: employees } = useEmployees({ tagIds: selectedTagIds })
   
   const { data: advances, isLoading } = useQuery<PlantingAdvance[]>({
     queryKey: ["planting-advances", seasonId, frontId, date],
@@ -231,7 +244,7 @@ export function AdvanceTab({
           }}
           disabled={isPeriodClosed}
         >
-          <Plus className="h-4 w-4" /> Novo Adiantamento
+          <Plus className="size-4" /> Novo Adiantamento
         </Button>
       </CardHeader>
 
@@ -253,7 +266,7 @@ export function AdvanceTab({
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="size-4 animate-spin" />
                     Carregando adiantamentos...
                     </div>
                   </TableCell>
@@ -290,7 +303,7 @@ export function AdvanceTab({
                           }`}
                           title={employeeNameFilter === adv.employee?.name ? "Limpar filtro" : "Filtrar por este funcionário"}
                         >
-                          <Search className="h-3 w-3" />
+                          <Search className="size-3" />
                         </button>
                       </div>
                     </TableCell>
@@ -320,20 +333,16 @@ export function AdvanceTab({
                           onClick={() => handleEdit(adv)}
                           disabled={isPeriodClosed}
                         >
-                          <Edit className="h-4 w-4 text-muted-foreground" />
+                          <Edit className="size-4 text-muted-foreground" />
                         </Button>
                         <Button 
                           variant="outline" 
                           size="icon" 
                           className="text-destructive hover:text-destructive"
-                          onClick={() => {
-                            if (confirm("Deseja realmente excluir este adiantamento?")) {
-                              deleteMutation.mutate(adv.id)
-                            }
-                          }}
+                          onClick={() => setAdvanceToDelete(adv.id)}
                           disabled={isPeriodClosed}
                         >
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          <Trash2 className="size-4 text-muted-foreground" />
                         </Button>
                       </div>
                     </TableCell>
@@ -459,7 +468,7 @@ export function AdvanceTab({
                 </Button>
                 <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                   {(createMutation.isPending || updateMutation.isPending) && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                   )}
                   {editingAdvance ? "Salvar Alterações" : "Criar Adiantamento"}
                 </Button>
@@ -468,6 +477,32 @@ export function AdvanceTab({
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!advanceToDelete} onOpenChange={(open) => !open && setAdvanceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O adiantamento será excluído permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (advanceToDelete) {
+                  deleteMutation.mutate(advanceToDelete, {
+                    onSuccess: () => setAdvanceToDelete(null)
+                  })
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

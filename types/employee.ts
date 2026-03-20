@@ -12,6 +12,7 @@ export interface EmployeeWithDetails extends Employee {
   employmentRecords?: EmploymentRecord[];
   contracts?: EmployeeContract[];
   job?: { id: string; name: string };
+  tags?: { id: string; name: string; color: string }[];
   terminationDate?: string | Date | null;
 }
 

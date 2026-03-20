@@ -308,6 +308,7 @@ model Employee {
   dailyWages          DailyWage[]
   driverAllocations   DriverAllocation[]
   plantingAdvances    PlantingAdvance[]
+  tags                EmployeeTagOnEmployee[]
 
   @@map("employees")
 }
@@ -946,4 +947,28 @@ model PlantingParameter {
   updatedAt   DateTime @updatedAt
 
   @@map("planting_parameters")
+}
+
+model EmployeeTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   // hex (#RRGGBB)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employees EmployeeTagOnEmployee[]
+
+  @@map("employee_tags")
+}
+
+model EmployeeTagOnEmployee {
+  id          String @id @default(cuid())
+  employeeId  String @map("employee_id")
+  tagId       String @map("tag_id")
+
+  employee Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  tag      EmployeeTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, tagId])
+  @@map("employee_tag_on_employee")
 }

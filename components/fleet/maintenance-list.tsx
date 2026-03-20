@@ -1,9 +1,19 @@
 "use client"
 
-import { Edit, Filter, Trash2 } from "lucide-react"
+import { Edit, Filter, Search, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -49,13 +59,19 @@ export function MaintenanceList({
   onDelete,
 }: MaintenanceListProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [maintenanceToDelete, setMaintenanceToDelete] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState("")
 
-  const handleDelete = async (id: string) => {
-    // Only use browser confirm if NO external delete handler is provided
-    if (!onDelete && !confirm("Tem certeza que deseja excluir esta manutenção?")) return
+  const handleDeleteClick = (id: string) => {
+    if (onDelete) {
+      handleDelete(id)
+    } else {
+      setMaintenanceToDelete(id)
+    }
+  }
 
+  const handleDelete = async (id: string) => {
     setIsDeleting(id)
     try {
       if (onDelete) {
@@ -126,18 +142,19 @@ export function MaintenanceList({
     <div className="space-y-4">
       {maintenances.length > 0 && (
         <div className="flex items-center gap-2">
-          <div className="flex-1">
+          <div className="flex-1 relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input 
               placeholder="Buscar por descrição ou categoria..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              className="max-w-sm pl-8"
             />
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 gap-1">
-                <Filter className="h-3.5 w-3.5" />
+                <Filter className="size-3.5" />
                 <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                   Filtros
                 </span>
@@ -215,15 +232,15 @@ export function MaintenanceList({
                         size="icon"
                         onClick={() => onEdit(m)}
                       >
-                        <Edit className="h-4 w-4 text-muted-foreground" />
+                        <Edit className="size-4 text-muted-foreground" />
                       </Button>
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => handleDelete(m.id)}
+                        onClick={() => handleDeleteClick(m.id)}
                         disabled={isDeleting === m.id}
                       >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        <Trash2 className="size-4 text-muted-foreground" />
                       </Button>
                     </div>
                   </TableCell>
@@ -233,6 +250,30 @@ export function MaintenanceList({
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!maintenanceToDelete} onOpenChange={(open) => !open && setMaintenanceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O registro de manutenção será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (maintenanceToDelete) {
+                  handleDelete(maintenanceToDelete).then(() => setMaintenanceToDelete(null))
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

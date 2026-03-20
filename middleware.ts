@@ -17,7 +17,8 @@ const protectedRoutes = [
   '/api/jobs',
   '/api/audit',
   '/api/suppliers',
-  '/api/financial-transactions'
+  '/api/financial-transactions',
+  '/api/employee-tags'
 ]
 
 export async function middleware(request: NextRequest) {

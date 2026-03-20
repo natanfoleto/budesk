@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Tag, Trash2 } from "lucide-react"
 import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
@@ -34,9 +34,10 @@ interface EmployeesTableProps {
   onPageChange?: (page: number) => void
   onLimitChange?: (limit: number) => void
   onDelete: (id: string) => void
+  onEditTag?: (id: string) => void
 }
 
-export function EmployeesTable({ employees, meta, onPageChange, onLimitChange, onDelete }: EmployeesTableProps) {
+export function EmployeesTable({ employees, meta, onPageChange, onLimitChange, onDelete, onEditTag }: EmployeesTableProps) {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border shadow-sm overflow-hidden bg-card">
@@ -62,9 +63,29 @@ export function EmployeesTable({ employees, meta, onPageChange, onLimitChange, o
               employees.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">
-                    <Link href={`/employees/${employee.id}`} className="hover:underline">
-                      {employee.name}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/employees/${employee.id}`} className="hover:underline">
+                        {employee.name}
+                      </Link>
+
+                      <div className="flex items-center gap-1.5 pt-0.5">
+                        {employee.tags?.map((tag) => (
+                          <span 
+                            key={tag.id} 
+                            title={tag.name} 
+                            className="flex items-center cursor-pointer transition-transform hover:scale-110"
+                            onClick={() => onEditTag?.(tag.id)}
+                          >
+                            <Tag 
+                              className="size-3.5" 
+                              style={{ color: tag.color }}
+                              fill={tag.color}
+                              fillOpacity={0.15}
+                            />
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>{employee.job?.name || employee.role}</TableCell>
                   <TableCell>{employee.document}</TableCell>

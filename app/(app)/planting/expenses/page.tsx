@@ -8,6 +8,16 @@ import { useState } from "react"
 import { Resolver, SubmitHandler, useForm } from "react-hook-form"
 import * as z from "zod"
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -85,6 +95,7 @@ export default function PlantingExpensesPage() {
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>("all")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<PlantingExpense | null>(null)
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null)
 
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseSchema) as Resolver<ExpenseFormValues>,
@@ -232,7 +243,7 @@ export default function PlantingExpensesPage() {
           <Dialog open={isModalOpen} onOpenChange={handleModalClose}>
             <DialogTrigger asChild>
               <Button disabled={selectedSeasonId === "all"}>
-                <Plus className="h-4 w-4" /> Novo Gasto
+                <Plus className="size-4" /> Novo Gasto
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-md">
@@ -474,18 +485,14 @@ export default function PlantingExpensesPage() {
                             size="icon"
                             onClick={() => handleEditClick(expense)}
                           >
-                            <Edit className="h-4 w-4 text-muted-foreground" />
+                            <Edit className="size-4 text-muted-foreground" />
                           </Button>
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => {
-                              if (confirm("Tem certeza que deseja remover este gasto? A transação financeira também será removida.")) {
-                                deleteExpenseMutation.mutate(expense.id)
-                              }
-                            }}
+                            onClick={() => setExpenseToDelete(expense.id)}
                           >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            <Trash2 className="size-4 text-muted-foreground" />
                           </Button>
                         </div>
                       )}
@@ -497,6 +504,32 @@ export default function PlantingExpensesPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!expenseToDelete} onOpenChange={(open) => !open && setExpenseToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O gasto e sua transação financeira relacionada serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (expenseToDelete) {
+                  deleteExpenseMutation.mutate(expenseToDelete, {
+                    onSuccess: () => setExpenseToDelete(null)
+                  })
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

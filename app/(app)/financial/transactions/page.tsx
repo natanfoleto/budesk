@@ -5,6 +5,16 @@ import { useState } from "react"
 
 import { TransactionForm } from "@/components/financial/transaction-form"
 import { TransactionsTable } from "@/components/financial/transactions-table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { useCreateTransaction, useDeleteTransaction,useTransactions, useUpdateTransaction } from "@/hooks/use-financial"
 import { Transaction } from "@/types/financial"
@@ -12,6 +22,7 @@ import { Transaction } from "@/types/financial"
 export default function TransactionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
   
   const { data: transactions, isLoading } = useTransactions()
   const createMutation = useCreateTransaction()
@@ -36,8 +47,14 @@ export default function TransactionsPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir esta transação?")) {
-      deleteMutation.mutate(id)
+    setTransactionToDelete(id)
+  }
+
+  const confirmDelete = () => {
+    if (transactionToDelete) {
+      deleteMutation.mutate(transactionToDelete, {
+        onSuccess: () => setTransactionToDelete(null)
+      })
     }
   }
 
@@ -56,7 +73,7 @@ export default function TransactionsPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Caixa</h2>
         <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" /> Nova Transação
+          <Plus className="size-4" /> Nova Transação
         </Button>
       </div>
 
@@ -82,6 +99,26 @@ export default function TransactionsPage() {
         initialData={editingTransaction}
         isLoading={createMutation.isPending || updateMutation.isPending}
       />
+
+      <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. A transação será removida permanentemente do caixa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

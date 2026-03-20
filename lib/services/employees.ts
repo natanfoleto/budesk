@@ -15,6 +15,7 @@ export interface GetEmployeesParams {
   cpf?: string
   status?: string
   jobId?: string
+  tagIds?: string[]
 }
 
 export interface PaginatedResponse<T> {
@@ -36,6 +37,9 @@ export const getEmployees = async (params: GetEmployeesParams = {}): Promise<Pag
   if (params.cpf) query.append("cpf", params.cpf)
   if (params.status) query.append("status", params.status)
   if (params.jobId) query.append("jobId", params.jobId)
+  if (params.tagIds && params.tagIds.length > 0) {
+    params.tagIds.forEach(id => query.append("tagIds", id))
+  }
 
   const res = await fetch(`${BASE_URL}/employees?${query.toString()}`)
   if (!res.ok) throw new Error("Erro ao buscar funcionários")

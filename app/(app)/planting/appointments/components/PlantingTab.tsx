@@ -38,6 +38,7 @@ interface PlantingTabProps {
   date: string
   employeeNameFilter?: string
   onEmployeeFilterChange?: (name: string) => void
+  selectedTagIds?: string[]
   isPeriodClosed: boolean
 }
 
@@ -61,7 +62,15 @@ const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }
   FOLGA: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "FOLGA" }
 }
 
-export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: PlantingTabProps) {
+export function PlantingTab({ 
+  seasonId, 
+  frontId, 
+  date, 
+  employeeNameFilter = "", 
+  onEmployeeFilterChange, 
+  selectedTagIds = [],
+  isPeriodClosed 
+}: PlantingTabProps) {
   const [productions, setProductions] = useState<Record<string, ProductionRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [globalPlantingPrice, setGlobalPlantingPrice] = useState<string>("")
@@ -71,7 +80,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
   const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch all active employees via shared hook
-  const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
+  const { data: employees, isLoading: isLoadingEmployees } = useEmployees({ tagIds: selectedTagIds })
   const updateEmployeeMutation = useUpdateEmployee({ silent: true })
 
   // Fetch parameters to get default prices
@@ -520,7 +529,7 @@ export function PlantingTab({ seasonId, frontId, date, employeeNameFilter = "", 
                                 }`}
                                 title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
                               >
-                                <Search className="h-3 w-3" />
+                                <Search className="size-3" />
                               </button>
                             </div>
                             {isAbsent && presenceType && (

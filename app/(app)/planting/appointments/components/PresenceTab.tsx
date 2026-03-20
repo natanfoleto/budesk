@@ -47,6 +47,7 @@ interface PresenceTabProps {
   date: string
   employeeNameFilter?: string
   onEmployeeFilterChange?: (name: string) => void
+  selectedTagIds?: string[]
   isPeriodClosed: boolean
 }
 
@@ -80,14 +81,22 @@ const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }
 
 const getPresenceLabel = (type: AttendanceType) => PRESENCE_CONFIG[type]?.label || type
 
-export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", onEmployeeFilterChange, isPeriodClosed }: PresenceTabProps) {
+export function PresenceTab({ 
+  seasonId, 
+  frontId, 
+  date, 
+  employeeNameFilter = "", 
+  onEmployeeFilterChange, 
+  selectedTagIds = [],
+  isPeriodClosed 
+}: PresenceTabProps) {
   const [presence, setPresence] = useState<Record<string, PresenceRecord>>({})
   const [isEditing, setIsEditing] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [highlightedRow, setHighlightedRow] = useState<string | null>(null)
   const [showConfirmBulk, setShowConfirmBulk] = useState(false)
 
-  const { data: employees, isLoading: isLoadingEmployees } = useEmployees()
+  const { data: employees, isLoading: isLoadingEmployees } = useEmployees({ tagIds: selectedTagIds })
   const { data: attendanceRecords, isLoading: isLoadingAttendance, refetch } = useDailyWages({
     seasonId,
     frontId,
@@ -347,7 +356,7 @@ export function PresenceTab({ seasonId, frontId, date, employeeNameFilter = "", 
                                 }`}
                                 title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
                               >
-                                <Search className="h-3 w-3" />
+                                <Search className="size-3" />
                               </button>
                             </div>
                             {record.presence !== "PRESENCA" && (

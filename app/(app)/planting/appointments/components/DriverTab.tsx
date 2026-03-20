@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDriverAllocation } from "@/hooks/use-planting"
 import { cn, formatCentsToReal, formatCurrency, parseCurrencyToCents } from "@/lib/utils"
 
@@ -32,6 +33,7 @@ interface DriverTabProps {
   seasonId: string
   frontId: string
   date: string
+  selectedTagIds?: string[]
 }
 
 type DriverRecord = {
@@ -44,7 +46,7 @@ type DriverRecord = {
   isClosed: boolean
 }
 
-export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
+export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: DriverTabProps) {
   const [allocations, setAllocations] = useState<DriverRecord[]>([])
 
   // Form State
@@ -57,15 +59,8 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const typeaheadRef = useRef<HTMLDivElement>(null)
 
-  // Fetch all active employees
-  const { data: employees } = useQuery({
-    queryKey: ["employees"],
-    queryFn: async () => {
-      const res = await fetch("/api/employees")
-      if (!res.ok) return []
-      return res.json()
-    }
-  })
+  // Fetch all active employees via shared hook
+  const { data: employees } = useEmployees({ tagIds: selectedTagIds })
 
   // Fetch vehicles
   const { data: vehicles, isLoading: isLoadingVehicles } = useQuery({
@@ -152,11 +147,12 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
   }
 
   // Filtered employees for the typeahead
-  const filteredEmployees = (employees || []).filter((emp: { id: string; name: string }) =>
+  const employeeList = employees?.data || []
+  const filteredEmployees = (employeeList || []).filter((emp: { id: string; name: string }) =>
     emp.name.toLowerCase().includes(driverSearch.toLowerCase())
   )
 
-  const selectedEmployee = employees?.find((e: { id: string; name: string }) => e.id === selectedDriverId)
+  const selectedEmployee = employees?.data?.find((e: { id: string; name: string }) => e.id === selectedDriverId)
 
   if (seasonId === "all" || frontId === "all" || !date) {
     return (
@@ -302,7 +298,7 @@ export function DriverTab({ seasonId, frontId, date }: DriverTabProps) {
                 </TableRow>
               ) : (
                 allocations.map((alloc) => {
-                  const empObj = employees?.find((e: { id: string; name: string }) => e.id === alloc.employeeId)
+                  const empObj = employees?.data?.find((e: { id: string; name: string }) => e.id === alloc.employeeId)
                   return (
                     <TableRow 
                       key={alloc.id} 

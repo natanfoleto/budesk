@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const document = searchParams.get("cpf")
     const status = searchParams.get("status") // "ATIVO", "ENCERRADO"
     const jobId = searchParams.get("jobId")
+    const tagIds = searchParams.getAll("tagIds").filter(Boolean)
 
     const skip = (page - 1) * limit
 
@@ -23,6 +24,14 @@ export async function GET(request: NextRequest) {
 
     if (name) {
       where.name = { contains: name, mode: "insensitive" }
+    }
+
+    if (tagIds && tagIds.length > 0) {
+      where.tags = {
+        some: {
+          tagId: { in: tagIds }
+        }
+      }
     }
 
     if (jobId) {
@@ -77,6 +86,11 @@ export async function GET(request: NextRequest) {
         take: limit,
         orderBy: { name: "asc" },
         include: {
+          tags: {
+            include: {
+              tag: true
+            }
+          },
           employmentRecords: {
             orderBy: { admissionDate: "desc" },
             take: 1
@@ -87,6 +101,7 @@ export async function GET(request: NextRequest) {
 
     const formattedEmployees = employees.map(emp => ({
       ...emp,
+      tags: emp.tags.map(t => t.tag),
       terminationDate: emp.employmentRecords[0]?.terminationDate || null
     }))
 

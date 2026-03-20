@@ -5,6 +5,16 @@ import { useState } from "react"
 
 import { AccountPayableForm } from "@/components/financial/account-payable-form"
 import { AccountsPayableTable } from "@/components/financial/accounts-payable-table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { useAccountsPayable, useCreateAccountPayable, useDeleteAccountPayable,useUpdateAccountPayable } from "@/hooks/use-financial"
 import { AccountPayable } from "@/types/financial"
@@ -12,6 +22,7 @@ import { AccountPayable } from "@/types/financial"
 export default function PayablesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingAccount, setEditingAccount] = useState<AccountPayable | null>(null)
+  const [accountToDelete, setAccountToDelete] = useState<string | null>(null)
   
   const { data: accounts, isLoading } = useAccountsPayable()
   const createMutation = useCreateAccountPayable()
@@ -36,8 +47,14 @@ export default function PayablesPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir esta conta?")) {
-      deleteMutation.mutate(id)
+    setAccountToDelete(id)
+  }
+
+  const confirmDelete = () => {
+    if (accountToDelete) {
+      deleteMutation.mutate(accountToDelete, {
+        onSuccess: () => setAccountToDelete(null)
+      })
     }
   }
 
@@ -56,7 +73,7 @@ export default function PayablesPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Contas a Pagar</h2>
         <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" /> Nova Conta
+          <Plus className="size-4" /> Nova Conta
         </Button>
       </div>
 
@@ -82,6 +99,26 @@ export default function PayablesPage() {
         initialData={editingAccount}
         isLoading={createMutation.isPending || updateMutation.isPending}
       />
+
+      <AlertDialog open={!!accountToDelete} onOpenChange={(open) => !open && setAccountToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. A conta será removida permanentemente do financeiro.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

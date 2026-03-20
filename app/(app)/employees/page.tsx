@@ -6,6 +6,7 @@ import { Suspense, useState } from 'react'
 
 import { EmployeeForm } from '@/components/employees/employee-form'
 import { EmployeesTable } from '@/components/employees/employees-table'
+import { TagManagementModal } from '@/components/employees/TagManagementModal'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useEmployeeTags } from '@/hooks/use-employee-tags'
 import {
   useCreateEmployee,
   useDeleteEmployee,
@@ -34,6 +36,7 @@ import {
 } from '@/hooks/use-employees'
 import { useJobs } from '@/hooks/use-jobs'
 import { Job } from '@/lib/services/jobs'
+import { maskCPF } from '@/lib/utils'
 import { EmployeeFormData } from '@/types/employee'
 
 function EmployeesContent() {
@@ -45,19 +48,26 @@ function EmployeesContent() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [formKey, setFormKey] = useState(0)
 
+  // Tag Modal State
+  const [tagModalOpen, setTagModalOpen] = useState(false)
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
+
   // Filter and Pagination state from URL
   const name = searchParams.get('name') || ''
   const jobId = searchParams.get('jobId') || ''
+  const tagId = searchParams.get('tagId') || ''
   const cpf = searchParams.get('cpf') || ''
   const status = searchParams.get('status') || 'all'
   const page = Number(searchParams.get('page')) || 1
 
   const { data: jobs } = useJobs()
+  const { data: tags } = useEmployeeTags()
   const limit = Number(searchParams.get('limit')) || 10
 
   const { data: response, isLoading } = useEmployees({
     name,
     jobId: jobId === '' ? undefined : jobId,
+    tagIds: tagId ? [tagId] : undefined,
     cpf,
     status: status === 'all' ? undefined : status,
     page,
@@ -105,6 +115,11 @@ function EmployeesContent() {
     }
   }
 
+  const handleEditTag = (id: string | null) => {
+    setSelectedTagId(id)
+    setTagModalOpen(true)
+  }
+
   const clearFilters = () => {
     router.replace(pathname, { scroll: false })
   }
@@ -118,18 +133,30 @@ function EmployeesContent() {
             Gerencie o cadastro de funcionários, cargos e documentos.
           </p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
-          <Plus className="h-4 w-4" /> Novo Funcionário
-        </Button>
+        <div className="flex items-center gap-2">
+          <TagManagementModal 
+            open={tagModalOpen} 
+            onOpenChange={setTagModalOpen}
+            defaultTagId={selectedTagId}
+            trigger={
+              <Button variant="outline" className="cursor-pointer gap-2" onClick={() => handleEditTag(null)}>
+                Gerenciar Etiquetas
+              </Button>
+            }
+          />
+          <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
+            <Plus className="h-4 w-4" /> Novo Funcionário
+          </Button>
+        </div>
       </div>
 
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2 lg:col-span-2">
               <Label>Nome</Label>
               <div className="relative">
-                <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
+                <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
                 <Input
                   placeholder="Buscar por nome"
                   className="pl-8"
@@ -162,10 +189,37 @@ function EmployeesContent() {
             <div className="space-y-2">
               <Label>CPF</Label>
               <Input
-                placeholder="Buscar por CPF"
+                placeholder="000.000.000-00"
                 value={cpf}
-                onChange={(e) => updateFilters({ cpf: e.target.value })}
+                maxLength={14}
+                onChange={(e) => updateFilters({ cpf: maskCPF(e.target.value) })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Etiqueta</Label>
+              <Select
+                value={tagId || 'all'}
+                onValueChange={(v) => updateFilters({ tagId: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todas as etiquetas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as etiquetas</SelectItem>
+                  {tags?.map((tag) => (
+                    <SelectItem key={tag.id} value={tag.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="size-2 rounded-full" 
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        {tag.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -207,6 +261,7 @@ function EmployeesContent() {
           onPageChange={(p) => updateFilters({ page: p })}
           onLimitChange={(l) => updateFilters({ limit: l, page: 1 })}
           onDelete={handleDeleteClick}
+          onEditTag={handleEditTag}
         />
       )}
 
