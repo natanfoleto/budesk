@@ -2,7 +2,7 @@
 
 import { FilterX, Loader2, Plus, Search } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 
 import { EmployeeForm } from '@/components/employees/employee-form'
 import { EmployeesTable } from '@/components/employees/employees-table'
@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useDebounce } from '@/hooks/use-debounce'
 import { useEmployeeTags } from '@/hooks/use-employee-tags'
 import {
   useCreateEmployee,
@@ -59,6 +60,19 @@ function EmployeesContent() {
   const cpf = searchParams.get('cpf') || ''
   const status = searchParams.get('status') || 'all'
   const page = Number(searchParams.get('page')) || 1
+
+  const [searchTerm, setSearchTerm] = useState(name)
+  const debouncedSearchTerm = useDebounce(searchTerm, 250)
+
+  useEffect(() => {
+    setSearchTerm(name)
+  }, [name])
+
+  useEffect(() => {
+    if (debouncedSearchTerm !== name) {
+      updateFilters({ name: debouncedSearchTerm })
+    }
+  }, [debouncedSearchTerm, name])
 
   const { data: jobs } = useJobs()
   const { data: tags } = useEmployeeTags()
@@ -160,8 +174,8 @@ function EmployeesContent() {
                 <Input
                   placeholder="Buscar por nome"
                   className="pl-8"
-                  value={name}
-                  onChange={(e) => updateFilters({ name: e.target.value })}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
             </div>

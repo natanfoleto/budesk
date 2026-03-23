@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { maskCPF, maskPhone } from "@/lib/utils"
 import { EmployeeAccountFormData } from "@/types/employee"
 
 const formSchema = z.object({
@@ -114,7 +115,22 @@ export function EmployeeAccountForm({
                 <FormItem>
                   <FormLabel>Identificador / Chave</FormLabel>
                   <FormControl>
-                    <Input placeholder="CPF, Ag/Conta ou Chave PIX" {...field} />
+                    <Input 
+                      placeholder="CPF, Ag/Conta ou Chave PIX" 
+                      {...field} 
+                      onChange={(e) => {
+                        let val = e.target.value
+                        const type = form.getValues("type")
+                        
+                        if (type === EmployeeAccountType.PIX_CPF) {
+                          val = maskCPF(val)
+                        } else if (type === EmployeeAccountType.PIX_TELEFONE) {
+                          val = maskPhone(val)
+                        }
+                        
+                        field.onChange(val)
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

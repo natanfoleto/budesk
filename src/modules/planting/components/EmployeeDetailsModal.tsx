@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { parseLocalDate } from "@/lib/utils"
 
 import { EmployeeSummary } from "../services/PlantingEmployeeService"
 
@@ -172,7 +173,7 @@ export function EmployeeDetailsModal({
             </div>
             {data && (
               <Badge variant="outline" className="text-sm px-3 py-1 bg-primary/5 border-primary/20 text-primary font-semibold">
-                Safra {data.seasonName}
+                {data.seasonName}
               </Badge>
             )}
           </div>
@@ -306,7 +307,7 @@ export function EmployeeDetailsModal({
                                 <XAxis 
                                   dataKey="date" 
                                   fontSize={10}
-                                  tickFormatter={(val) => format(new Date(val), "dd/MM", { locale: ptBR })}
+                                  tickFormatter={(val) => format(parseLocalDate(val), "dd/MM", { locale: ptBR })}
                                 />
                                 <YAxis 
                                   fontSize={10}
@@ -317,7 +318,7 @@ export function EmployeeDetailsModal({
                                     formatCurrency(Number(Array.isArray(value) ? value[0] : value) || 0), 
                                     "Ganho"
                                   ]}
-                                  labelFormatter={(label) => format(new Date(label), "dd 'de' MMM", { locale: ptBR })}
+                                  labelFormatter={(label) => format(parseLocalDate(label), "dd 'de' MMM", { locale: ptBR })}
                                 />
                                 <Line 
                                   type="monotone" 
@@ -404,11 +405,11 @@ export function EmployeeDetailsModal({
                                 <XAxis 
                                   dataKey="date" 
                                   fontSize={10}
-                                  tickFormatter={(val) => format(new Date(val), "dd/MM", { locale: ptBR })}
+                                  tickFormatter={(val) => format(parseLocalDate(val), "dd/MM", { locale: ptBR })}
                                 />
                                 <YAxis fontSize={10} />
                                 <Tooltip 
-                                  labelFormatter={(label) => format(new Date(label), "dd 'de' MMM", { locale: ptBR })}
+                                  labelFormatter={(label) => format(parseLocalDate(label), "dd 'de' MMM", { locale: ptBR })}
                                 />
                                 <Legend wrapperStyle={{ fontSize: 10 }} />
                                 <Bar dataKey="planting" name="Plantio" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
@@ -428,7 +429,7 @@ export function EmployeeDetailsModal({
                             {data.insights.mostProductiveDay ? (
                               <div className="flex items-center justify-between">
                                 <div className="text-2xl font-bold">{data.insights.mostProductiveDay.meters} <span className="text-sm font-normal">m</span></div>
-                                <Badge variant="secondary">{format(new Date(data.insights.mostProductiveDay.date), "dd 'de' MMM", { locale: ptBR })}</Badge>
+                                <Badge variant="secondary">{format(parseLocalDate(data.insights.mostProductiveDay.date), "dd 'de' MMM", { locale: ptBR })}</Badge>
                               </div>
                             ) : "Sem dados"}
                           </CardContent>
@@ -493,7 +494,7 @@ export function EmployeeDetailsModal({
                                 ) : (
                                   data.details.productions.map((p) => (
                                     <tr key={p.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                                      <td className="py-2.5">{format(new Date(p.date), "dd/MM")}</td>
+                                      <td className="py-2.5">{format(parseLocalDate(p.date), "dd/MM")}</td>
                                       <td className="text-right py-2.5">{p.meters?.toString() || "0"}</td>
                                       <td className="text-right py-2.5 font-bold">{formatCurrency(p.totalValueInCents)}</td>
                                     </tr>
@@ -529,14 +530,14 @@ export function EmployeeDetailsModal({
                                   <>
                                     {data.details.wages.filter((w) => w.presence === "PRESENCA").map((w) => (
                                       <tr key={w.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                                        <td className="py-2.5">{format(new Date(w.date), "dd/MM")}</td>
+                                        <td className="py-2.5">{format(parseLocalDate(w.date), "dd/MM")}</td>
                                         <td className="py-2.5 text-[10px] uppercase font-medium">Diária</td>
                                         <td className="text-right py-2.5 font-bold">{formatCurrency(w.valueInCents)}</td>
                                       </tr>
                                     ))}
                                     {data.details.drivers.map((d) => (
                                       <tr key={d.id} className="border-b last:border-0 hover:bg-muted/50 transition-colors">
-                                        <td className="py-2.5">{format(new Date(d.date), "dd/MM")}</td>
+                                        <td className="py-2.5">{format(parseLocalDate(d.date), "dd/MM")}</td>
                                         <td className="py-2.5 text-[10px] uppercase text-orange-600 font-bold">Motorista</td>
                                         <td className="text-right py-2.5 font-bold text-orange-600">{formatCurrency(d.valueInCents)}</td>
                                       </tr>
@@ -573,12 +574,12 @@ export function EmployeeDetailsModal({
                             <tbody>
                               {data.details.advances.length === 0 ? (
                                 <tr>
-                                  <td colSpan={3} className="py-8 text-center text-muted-foreground italic text-xs">Nenhum adiantamento registrado no período.</td>
+                                  <td colSpan={3} className="py-8 text-center text-muted-foreground text-xs">Nenhum adiantamento registrado no período.</td>
                                 </tr>
                               ) : (
                                 data.details.advances.map((a) => (
                                   <tr key={a.id} className="border-b last:border-0 text-destructive hover:bg-destructive/5 transition-colors">
-                                    <td className="py-2.5">{format(new Date(a.date), "dd/MM/yyyy")}</td>
+                                    <td className="py-2.5">{format(parseLocalDate(a.date), "dd/MM/yyyy")}</td>
                                     <td className="py-2.5 text-xs italic">{a.account?.identifier || "Conta não vinculada"}</td>
                                     <td className="text-right py-2.5 font-bold">-{formatCurrency(a.valueInCents)}</td>
                                   </tr>
@@ -623,8 +624,8 @@ export function EmployeeDetailsModal({
                           return (
                             <div key={p.date} className={`p-3 rounded-lg border flex items-center justify-between ${info.color}`}>
                               <div className="flex flex-col">
-                                <span className="text-xs font-bold uppercase tracking-wider">{format(new Date(p.date), "EEEE", { locale: ptBR })}</span>
-                                <span className="text-lg font-bold">{format(new Date(p.date), "dd/MM/yyyy")}</span>
+                                <span className="text-xs font-bold uppercase tracking-wider">{format(parseLocalDate(p.date), "EEEE", { locale: ptBR })}</span>
+                                <span className="text-lg font-bold">{format(parseLocalDate(p.date), "dd/MM/yyyy")}</span>
                               </div>
                               <div className="flex flex-col items-end gap-1">
                                 {info.icon}

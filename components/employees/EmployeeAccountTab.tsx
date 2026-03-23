@@ -103,7 +103,7 @@ export function EmployeeAccountTab({ employeeId }: EmployeeAccountTabProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle>Contas Bancárias / PIX</CardTitle>
+            <CardTitle>Contas</CardTitle>
             <CardDescription>Gerencie as contas para pagamento do funcionário.</CardDescription>
           </div>
           <Button onClick={() => {
@@ -137,7 +137,7 @@ export function EmployeeAccountTab({ employeeId }: EmployeeAccountTabProps) {
                       <Star className="size-4 fill-current" />
                     </div>
                   )}
-                  <CardHeader className="p-4 pb-2">
+                  <CardHeader className="px-4">
                     <div className="flex items-center space-x-2">
                       {getAccountIcon(account.type)}
                       <CardTitle className="text-base">{getAccountTypeLabel(account.type)}</CardTitle>

@@ -15,7 +15,7 @@ export const formatCurrency = (value: number | string | undefined) => {
 
 export const formatDate = (date: string | Date | undefined) => {
   if (!date) return "-"
-  return new Intl.DateTimeFormat("pt-BR").format(new Date(date))
+  return new Intl.DateTimeFormat("pt-BR").format(parseLocalDate(date))
 }
 
 export const formatCentsToReal = (cents: number | undefined | null) => {
@@ -47,4 +47,19 @@ export const maskPhone = (value: string) => {
     .replace(/(\d{2})(\d)/, "($1) $2")
     .replace(/(\d{5})(\d)/, "$1-$2")
     .replace(/(-\d{4})\d+?$/, "$1")
+}
+
+export const parseLocalDate = (dateStr: string | Date | undefined) => {
+  if (!dateStr) return new Date()
+  if (dateStr instanceof Date) return dateStr
+  
+  // If it's a string, try to extract the YYYY-MM-DD part
+  // This handles both "2024-03-23" and "2024-03-23T00:00:00.000Z"
+  // by parsing it as local time (YYYY/MM/DD)
+  const dateMatch = typeof dateStr === "string" && dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (dateMatch) {
+    return new Date(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]))
+  }
+  
+  return new Date(dateStr)
 }

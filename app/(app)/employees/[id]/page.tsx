@@ -269,7 +269,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           <TabsTrigger value="vinculos" className="cursor-pointer">Vínculos</TabsTrigger>
           <TabsTrigger value="contratos" className="cursor-pointer">Contratos</TabsTrigger>
           <TabsTrigger value="adiantamentos" className="cursor-pointer">Adiantamentos</TabsTrigger>
-          <TabsTrigger value="contas" className="cursor-pointer">Contas Bancárias / PIX</TabsTrigger>
+          <TabsTrigger value="contas" className="cursor-pointer">Contas</TabsTrigger>
           <TabsTrigger value="ponto" className="cursor-pointer">Ponto</TabsTrigger>
           <TabsTrigger value="etiquetas" className="cursor-pointer">Etiquetas</TabsTrigger>
         </TabsList>
