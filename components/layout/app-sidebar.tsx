@@ -2,7 +2,6 @@
 
 import { 
   ChevronRight,
-  Clock,
   DollarSign, 
   FileText,
   LayoutDashboard, 
@@ -117,13 +116,7 @@ export function AppSidebar({ userRole: initialRole }: AppSidebarProps) {
   let finalMenu = filteredMenuItems
 
   if (role === "EMPLOYEE") {
-    finalMenu = [
-      {
-        title: "Registrar Ponto",
-        href: "/employees/time-tracking-view", 
-        icon: Clock, 
-      }
-    ]
+    finalMenu = []
   }
 
   return (

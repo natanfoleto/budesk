@@ -295,8 +295,6 @@ model Employee {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  standardEntryTime String? // "08:00"
-  standardExitTime  String? // "17:00"
 
   job               Job?     @relation(fields: [jobId], references: [id])
   advances          EmployeeAdvance[]

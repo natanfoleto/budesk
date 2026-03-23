@@ -270,7 +270,6 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           <TabsTrigger value="contratos" className="cursor-pointer">Contratos</TabsTrigger>
           <TabsTrigger value="adiantamentos" className="cursor-pointer">Adiantamentos</TabsTrigger>
           <TabsTrigger value="contas" className="cursor-pointer">Contas</TabsTrigger>
-          <TabsTrigger value="ponto" className="cursor-pointer">Ponto</TabsTrigger>
           <TabsTrigger value="etiquetas" className="cursor-pointer">Etiquetas</TabsTrigger>
         </TabsList>
 
@@ -459,23 +458,6 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           <EmployeeAccountTab employeeId={id} />
         </TabsContent>
 
-        <TabsContent value="ponto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Controle de Ponto</CardTitle>
-              <CardDescription>
-                A gestão de frequência e ponto agora é unificada no módulo de Recursos Humanos.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href={`/rh/attendance?employeeId=${id}`}>
-                <Button className="cursor-pointer">
-                  Acessar Frequência no RH
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="etiquetas">
           <EmployeeTagsTab employeeId={id} />
