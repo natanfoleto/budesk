@@ -149,11 +149,14 @@ export const getDashboard = async (
 // ─── Productions ─────────────────────────────────────────────────────────────
 // ─── Productions ─────────────────────────────────────────────────────────────
 
-export const getProductions = async (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+export const getProductions = async (filters?: { seasonId?: string; frontId?: string; date?: string; tagIds?: string[] }) => {
   const params = new URLSearchParams()
   if (filters?.seasonId && filters.seasonId !== "all") params.set("seasonId", filters.seasonId)
   if (filters?.frontId && filters.frontId !== "all") params.set("frontId", filters.frontId)
   if (filters?.date) params.set("date", filters.date)
+  if (filters?.tagIds && filters.tagIds.length > 0) {
+    filters.tagIds.forEach(id => params.append("tagIds", id))
+  }
   const url = params.toString()
     ? `${BASE_URL}/planting/productions?${params.toString()}`
     : `${BASE_URL}/planting/productions`
@@ -185,11 +188,14 @@ export const deleteProduction = async (id: string) => {
 
 // ─── Daily Wages ─────────────────────────────────────────────────────────────
 
-export const getDailyWages = async (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+export const getDailyWages = async (filters?: { seasonId?: string; frontId?: string; date?: string; tagIds?: string[] }) => {
   const params = new URLSearchParams()
   if (filters?.seasonId && filters.seasonId !== "all") params.set("seasonId", filters.seasonId)
   if (filters?.frontId && filters.frontId !== "all") params.set("frontId", filters.frontId)
   if (filters?.date) params.set("date", filters.date)
+  if (filters?.tagIds && filters.tagIds.length > 0) {
+    filters.tagIds.forEach(id => params.append("tagIds", id))
+  }
   const url = params.toString()
     ? `${BASE_URL}/planting/daily-wages?${params.toString()}`
     : `${BASE_URL}/planting/daily-wages`
@@ -221,11 +227,14 @@ export const deleteDailyWage = async (id: string) => {
 
 // ─── Driver Allocations ──────────────────────────────────────────────────────
 
-export const getDriverAllocations = async (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+export const getDriverAllocations = async (filters?: { seasonId?: string; frontId?: string; date?: string; tagIds?: string[] }) => {
   const params = new URLSearchParams()
   if (filters?.seasonId && filters.seasonId !== "all") params.set("seasonId", filters.seasonId)
   if (filters?.frontId && filters.frontId !== "all") params.set("frontId", filters.frontId)
   if (filters?.date) params.set("date", filters.date)
+  if (filters?.tagIds && filters.tagIds.length > 0) {
+    filters.tagIds.forEach(id => params.append("tagIds", id))
+  }
   const url = params.toString()
     ? `${BASE_URL}/planting/drivers?${params.toString()}`
     : `${BASE_URL}/planting/drivers`
@@ -293,11 +302,14 @@ export const deletePlantingArea = async (id: string) => {
 
 // ─── Advances ────────────────────────────────────────────────────────────────
 
-export const getAdvances = async (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+export const getAdvances = async (filters?: { seasonId?: string; frontId?: string; date?: string; tagIds?: string[] }) => {
   const params = new URLSearchParams()
   if (filters?.seasonId && filters.seasonId !== "all") params.set("seasonId", filters.seasonId)
   if (filters?.frontId && filters.frontId !== "all") params.set("frontId", filters.frontId)
   if (filters?.date) params.set("date", filters.date)
+  if (filters?.tagIds && filters.tagIds.length > 0) {
+    filters.tagIds.forEach(id => params.append("tagIds", id))
+  }
   
   const res = await fetch(`${BASE_URL}/planting/advances?${params.toString()}`)
   if (!res.ok) throw new Error("Erro ao buscar adiantamentos")

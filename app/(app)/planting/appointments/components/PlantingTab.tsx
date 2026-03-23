@@ -29,6 +29,7 @@ import { useEmployees, useUpdateEmployee } from "@/hooks/use-employees"
 import { useCreateProduction, useDailyWages, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCurrency } from "@/lib/utils"
 import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
+import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
 import { EmployeeWithDetails } from "@/types/employee"
 import { DailyWage, PlantingProduction, PlantingProductionFormData } from "@/types/planting"
 
@@ -77,6 +78,8 @@ export function PlantingTab({
   const [globalCuttingPrice, setGlobalCuttingPrice] = useState<string>("")
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [focusedEmployeeId, setFocusedEmployeeId] = useState<string | null>(null)
+  const [selectedEmployeeForModal, setSelectedEmployeeForModal] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch all active employees via shared hook
@@ -94,14 +97,16 @@ export function PlantingTab({
   const { data: existingRecords, isLoading: isLoadingRecords, refetch } = usePlantingProductions({
     seasonId,
     frontId,
-    date: date ? `${date}T00:00:00Z` : undefined
+    date: date ? `${date}T00:00:00Z` : undefined,
+    tagIds: selectedTagIds
   })
 
   // Fetch existing daily wages (for presence status) via shared hook
   const { data: dailyWages } = useDailyWages({
     seasonId,
     frontId,
-    date: date ? `${date}T00:00:00Z` : undefined
+    date: date ? `${date}T00:00:00Z` : undefined,
+    tagIds: selectedTagIds
   })
 
   const createProductionMutation = useCreateProduction()
@@ -184,6 +189,9 @@ export function PlantingTab({
     const toUpdateEmployees: { id: string, category: string }[] = []
 
     Object.values(productions).forEach(p => {
+      // Skip terminated employees as they are read-only in the UI
+      if (p.isTerminated) return
+
       // Production records
       if (p.plantingMeters > 0 || p.plantingId) {
         toSaveProductions.push({
@@ -513,7 +521,17 @@ export function PlantingTab({
                         <TableCell className="font-medium">
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2 group">
-                              <span className={cn(isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.text, isAbsent && "font-bold")}>
+                              <span 
+                                className={cn(
+                                  "cursor-pointer hover:underline decoration-primary/50 underline-offset-4 transition-all",
+                                  isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.text, 
+                                  isAbsent && "font-bold"
+                                )}
+                                onClick={() => {
+                                  setSelectedEmployeeForModal(record.employeeId)
+                                  setIsModalOpen(true)
+                                }}
+                              >
                                 {record.employeeName}
                               </span>
                               <button
@@ -591,7 +609,7 @@ export function PlantingTab({
                               onBlur={() => setFocusedEmployeeId(null)}
                               onKeyDownCustom={(e) => handleKeyDown(e, record.employeeId, "plantingMeters")}
                               disabled={isTerminated}
-                              className={cn("h-8 text-right w-24", isTerminated && "bg-slate-100 cursor-not-allowed")}
+                              className={cn("h-8 text-center w-24", isTerminated && "bg-slate-100 cursor-not-allowed")}
                             />
                           </TableCell>
                         )}
@@ -659,6 +677,13 @@ export function PlantingTab({
           </Button>
         </div>
       </CardContent>
+
+      <EmployeeDetailsModal
+        employeeId={selectedEmployeeForModal}
+        seasonId={seasonId}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      />
     </Card>
   )
 }

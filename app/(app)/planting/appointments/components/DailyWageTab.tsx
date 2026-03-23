@@ -28,6 +28,7 @@ import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCentsToReal } from "@/lib/utils"
 import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
+import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
 import { EmployeeWithDetails } from "@/types/employee"
 import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
 
@@ -75,6 +76,8 @@ export function DailyWageTab({
   const [isEditing, setIsEditing] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [highlightedRow, setHighlightedRow] = useState<string | null>(null)
+  const [selectedEmployeeForModal, setSelectedEmployeeForModal] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch all active employees via shared hook
@@ -84,14 +87,16 @@ export function DailyWageTab({
   const { data: existingRecords, isLoading: isLoadingRecords, refetch } = useDailyWages({
     seasonId,
     frontId,
-    date: date ? `${date}T00:00:00Z` : undefined
+    date: date ? `${date}T00:00:00Z` : undefined,
+    tagIds: selectedTagIds
   })
   
   // Fetch existing productions to show indicators
   const { data: productions } = usePlantingProductions({
     seasonId,
     frontId,
-    date: date ? `${date}T00:00:00Z` : undefined
+    date: date ? `${date}T00:00:00Z` : undefined,
+    tagIds: selectedTagIds
   })
 
   const createDailyWageMutation = useCreateDailyWage()
@@ -130,6 +135,9 @@ export function DailyWageTab({
     const toSave: DailyWageFormData[] = []
 
     for (const r of Object.values(wages)) {
+      // Skip terminated employees as they are read-only in the UI
+      if (r.isTerminated) continue
+
       const valueInCents = Math.round(r.value * 100)
 
       if (valueInCents > 0) {
@@ -185,10 +193,10 @@ export function DailyWageTab({
 
       if (field === "value") {
         const valueStr = String(rawValue)
-        const digitsOnly = valueStr.replace(/[^0-9,.]/g, "").replace(",", ".")
-        const numericValue = parseFloat(digitsOnly)
-        updatedValue = isNaN(numericValue) ? 0 : numericValue
-        updatedValueFormatted = updatedValue > 0 ? formatCentsToReal(Math.round(updatedValue * 100)) : ""
+        const digits = valueStr.replace(/\D/g, "")
+        const cents = Number(digits)
+        updatedValue = cents / 100
+        updatedValueFormatted = cents > 0 ? formatCentsToReal(cents) : ""
       }
 
       return {
@@ -324,7 +332,17 @@ export function DailyWageTab({
                       <TableCell className="font-medium">
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-2 group">
-                            <span className={cn(record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.text, record.presence !== "PRESENCA" && "font-bold")}>
+                            <span 
+                              className={cn(
+                                "cursor-pointer hover:underline decoration-primary/50 underline-offset-4 transition-all",
+                                record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.text, 
+                                record.presence !== "PRESENCA" && "font-bold"
+                              )}
+                              onClick={() => {
+                                setSelectedEmployeeForModal(record.employeeId)
+                                setIsModalOpen(true)
+                              }}
+                            >
                               {record.employeeName}
                             </span>
                             <button
@@ -420,6 +438,13 @@ export function DailyWageTab({
           </Table>
         </div>
       </CardContent>
+
+      <EmployeeDetailsModal
+        employeeId={selectedEmployeeForModal}
+        seasonId={seasonId}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      />
     </Card>
   )
 }

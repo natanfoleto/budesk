@@ -9,10 +9,18 @@ export async function GET(req: NextRequest) {
     const frontId = searchParams.get("frontId") || undefined
     const dateStr = searchParams.get("date")
 
+    let tagIds: string[] | undefined = undefined
+    const tagIdsParams = searchParams.getAll("tagIds")
+    if (tagIdsParams.length > 0) {
+      // Handle both ?tagIds=A&tagIds=B and ?tagIds=A,B
+      tagIds = tagIdsParams.flatMap(t => t.split(",")).filter(Boolean)
+    }
+
     const advances = await PlantingAdvanceService.list({
       seasonId,
       frontId,
-      date: dateStr ? new Date(dateStr) : undefined
+      date: dateStr ? new Date(dateStr) : undefined,
+      tagIds
     })
 
     return NextResponse.json(advances)

@@ -38,6 +38,7 @@ import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
 import { cn } from "@/lib/utils"
 import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
+import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
 import { EmployeeWithDetails } from "@/types/employee"
 import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
 
@@ -94,19 +95,23 @@ export function PresenceTab({
   const [isEditing, setIsEditing] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [highlightedRow, setHighlightedRow] = useState<string | null>(null)
+  const [selectedEmployeeForModal, setSelectedEmployeeForModal] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [showConfirmBulk, setShowConfirmBulk] = useState(false)
 
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees({ tagIds: selectedTagIds })
   const { data: attendanceRecords, isLoading: isLoadingAttendance, refetch } = useDailyWages({
     seasonId,
     frontId,
-    date: date ? `${date}T00:00:00Z` : undefined
+    date: date ? `${date}T00:00:00Z` : undefined,
+    tagIds: selectedTagIds
   })
   
   const { data: productions } = usePlantingProductions({
     seasonId,
     frontId,
-    date: date ? `${date}T00:00:00Z` : undefined
+    date: date ? `${date}T00:00:00Z` : undefined,
+    tagIds: selectedTagIds
   })
   
   const createDailyWageMutation = useCreateDailyWage()
@@ -145,6 +150,9 @@ export function PresenceTab({
     const toSave: DailyWageFormData[] = []
 
     for (const r of Object.values(presence)) {
+      // Skip terminated employees as they are read-only in the UI
+      if (r.isTerminated) continue
+
       if (r.presence !== "PRESENCA") {
         if (r.valueInCents > 0) {
           toast.error(`O funcionário ${r.employeeName} não pode ser marcado como ${getPresenceLabel(r.presence)} pois possui valor de diária registrado.`)
@@ -340,7 +348,17 @@ export function PresenceTab({
                         <TableCell className="font-medium">
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2 group">
-                              <span className={cn(record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.text, record.presence !== "PRESENCA" && "font-bold")}>
+                              <span 
+                                className={cn(
+                                  "cursor-pointer hover:underline decoration-primary/50 underline-offset-4 transition-all",
+                                  record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.text, 
+                                  record.presence !== "PRESENCA" && "font-bold"
+                                )}
+                                onClick={() => {
+                                  setSelectedEmployeeForModal(record.employeeId)
+                                  setIsModalOpen(true)
+                                }}
+                              >
                                 {record.employeeName}
                               </span>
                               <button
@@ -454,6 +472,12 @@ export function PresenceTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <EmployeeDetailsModal
+        employeeId={selectedEmployeeForModal}
+        seasonId={seasonId}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      />
     </>
   )
 }

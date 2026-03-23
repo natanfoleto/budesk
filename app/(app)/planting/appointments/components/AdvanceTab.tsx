@@ -85,12 +85,15 @@ export function AdvanceTab({
   const { data: employees } = useEmployees({ tagIds: selectedTagIds })
   
   const { data: advances, isLoading } = useQuery<PlantingAdvance[]>({
-    queryKey: ["planting-advances", seasonId, frontId, date],
+    queryKey: ["planting-advances", seasonId, frontId, date, selectedTagIds],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (seasonId !== "all") params.set("seasonId", seasonId)
       if (frontId !== "all") params.set("frontId", frontId)
       if (date) params.set("date", date)
+      if (selectedTagIds.length > 0) {
+        selectedTagIds.forEach(id => params.append("tagIds", id))
+      }
       
       const res = await fetch(`/api/planting/advances?${params.toString()}`)
       if (!res.ok) throw new Error("Failed to fetch advances")
@@ -196,7 +199,7 @@ export function AdvanceTab({
     setEditingAdvance(advance)
     form.reset({
       employeeId: advance.employeeId,
-      date: format(new Date(advance.date), "yyyy-MM-dd"),
+      date: format(new Date(advance.date.split("T")[0] + "T12:00:00"), "yyyy-MM-dd"),
       valueInCents: advance.valueInCents,
       notes: advance.notes || "",
       discountInCurrentFortnight: advance.discountInCurrentFortnight,
@@ -307,7 +310,7 @@ export function AdvanceTab({
                         </button>
                       </div>
                     </TableCell>
-                    <TableCell>{format(new Date(adv.date), "dd/MM/yyyy")}</TableCell>
+                    <TableCell>{format(new Date(adv.date.split("T")[0] + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
                     <TableCell>
                       {formatCentsToReal(adv.valueInCents)}
                     </TableCell>

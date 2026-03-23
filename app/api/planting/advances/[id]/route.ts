@@ -4,10 +4,10 @@ import { PlantingAdvanceService } from "@/src/modules/planting/services/Planting
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id
+    const { id } = await params
     const data = await req.json()
     const advance = await PlantingAdvanceService.createOrUpdate({ ...data, id })
     return NextResponse.json(advance)
@@ -20,10 +20,10 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id
+    const { id } = await params
     await PlantingAdvanceService.delete(id)
     return NextResponse.json({ message: "Advance deleted successfully" })
   } catch (error: unknown) {

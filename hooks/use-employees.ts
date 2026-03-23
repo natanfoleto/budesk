@@ -18,6 +18,7 @@ import {
 import {
   AdvanceFormData,
   ContractFormData,
+  EmployeeAccountFormData,
   EmployeeFormData,
   EmploymentRecordFormData,
 } from '@/types/employee'
@@ -346,5 +347,100 @@ export const useDeleteEmployeeContract = () => {
       toast.success('Contrato excluído!')
     },
     onError: () => toast.error('Erro ao excluir contrato'),
+  })
+}
+
+export const useEmployeeAccounts = (employeeId: string) => {
+  return useQuery({
+    queryKey: ['employee-accounts', employeeId],
+    queryFn: () => fetch(`/api/employees/${employeeId}/accounts`).then(res => res.json()),
+    enabled: !!employeeId,
+  })
+}
+
+export const useCreateEmployeeAccount = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      data,
+    }: {
+      employeeId: string;
+      data: EmployeeAccountFormData;
+    }) => {
+      return fetch(`/api/employees/${employeeId}/accounts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then((res) => {
+        if (!res.ok) throw new Error('Failed to create')
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['employee-accounts', variables.employeeId],
+      })
+      toast.success('Conta bancária/PIX adicionada!')
+    },
+    onError: () => toast.error('Erro ao adicionar conta'),
+  })
+}
+
+export const useUpdateEmployeeAccount = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      accountId,
+      data,
+    }: {
+      employeeId: string;
+      accountId: string;
+      data: EmployeeAccountFormData;
+    }) => {
+      return fetch(`/api/employees/${employeeId}/accounts/${accountId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then((res) => {
+        if (!res.ok) throw new Error('Failed to update')
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['employee-accounts', variables.employeeId],
+      })
+      toast.success('Conta bancária/PIX atualizada!')
+    },
+    onError: () => toast.error('Erro ao atualizar conta'),
+  })
+}
+
+export const useDeleteEmployeeAccount = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      accountId,
+    }: {
+      employeeId: string;
+      accountId: string;
+    }) => {
+      return fetch(`/api/employees/${employeeId}/accounts/${accountId}`, {
+        method: 'DELETE',
+      }).then((res) => {
+        if (!res.ok) throw new Error('Failed to delete')
+        return res.json()
+      })
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['employee-accounts', variables.employeeId],
+      })
+      toast.success('Conta excluída!')
+    },
+    onError: () => toast.error('Erro ao excluir conta'),
   })
 }

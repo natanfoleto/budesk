@@ -215,9 +215,9 @@ export const useSaveParameters = () => {
 
 // ─── Productions ──────────────────────────────────────────────────────────────
 
-export const usePlantingProductions = (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+export const usePlantingProductions = (filters?: { seasonId?: string; frontId?: string; date?: string; tagIds?: string[] }) => {
   return useQuery({
-    queryKey: ["plantingProductions", filters?.seasonId, filters?.frontId, filters?.date],
+    queryKey: ["plantingProductions", filters?.seasonId, filters?.frontId, filters?.date, filters?.tagIds],
     queryFn: () => getProductions(filters),
     enabled: !!filters?.seasonId && filters.seasonId !== "all",
   })
@@ -249,9 +249,9 @@ export const useDeleteProduction = () => {
 
 // ─── Daily Wages ──────────────────────────────────────────────────────────────
 
-export const useDailyWages = (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+export const useDailyWages = (filters?: { seasonId?: string; frontId?: string; date?: string; tagIds?: string[] }) => {
   return useQuery({
-    queryKey: ["dailyWages", filters?.seasonId, filters?.frontId, filters?.date],
+    queryKey: ["dailyWages", filters?.seasonId, filters?.frontId, filters?.date, filters?.tagIds],
     queryFn: () => getDailyWages(filters),
     enabled: !!filters?.seasonId && filters.seasonId !== "all",
   })
@@ -283,9 +283,9 @@ export const useDeleteDailyWage = () => {
 
 // ─── Driver Allocations ───────────────────────────────────────────────────────
 
-export const useDriverAllocations = (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+export const useDriverAllocations = (filters?: { seasonId?: string; frontId?: string; date?: string; tagIds?: string[] }) => {
   return useQuery({
-    queryKey: ["driverAllocations", filters?.seasonId, filters?.frontId, filters?.date],
+    queryKey: ["driverAllocations", filters?.seasonId, filters?.frontId, filters?.date, filters?.tagIds],
     queryFn: () => getDriverAllocations(filters),
     enabled: !!filters?.seasonId && filters.seasonId !== "all",
   })
@@ -351,9 +351,9 @@ export const useDeletePlantingArea = () => {
 
 // ─── Advances ────────────────────────────────────────────────────────────────
 
-export const usePlantingAdvances = (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+export const usePlantingAdvances = (filters?: { seasonId?: string; frontId?: string; date?: string; tagIds?: string[] }) => {
   return useQuery({
-    queryKey: ["plantingAdvances", filters?.seasonId, filters?.frontId, filters?.date],
+    queryKey: ["plantingAdvances", filters?.seasonId, filters?.frontId, filters?.date, filters?.tagIds],
     queryFn: () => getAdvances(filters),
     enabled: !!filters?.seasonId && filters.seasonId !== "all",
   })

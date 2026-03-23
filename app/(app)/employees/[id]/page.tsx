@@ -13,6 +13,7 @@ import { use, useState } from "react"
 import { AdvanceForm } from "@/components/employees/advance-form"
 import { ContractForm } from "@/components/employees/contract-form"
 import { EmployeeForm } from "@/components/employees/employee-form"
+import { EmployeeAccountTab } from "@/components/employees/EmployeeAccountTab"
 import { EmployeeTagsTab } from "@/components/employees/EmployeeTagsTab"
 import { EmploymentRecordForm } from "@/components/employees/employment-record-form"
 import { SecureActionDialog } from "@/components/employees/secure-action-dialog"
@@ -268,6 +269,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           <TabsTrigger value="vinculos" className="cursor-pointer">Vínculos</TabsTrigger>
           <TabsTrigger value="contratos" className="cursor-pointer">Contratos</TabsTrigger>
           <TabsTrigger value="adiantamentos" className="cursor-pointer">Adiantamentos</TabsTrigger>
+          <TabsTrigger value="contas" className="cursor-pointer">Contas Bancárias / PIX</TabsTrigger>
           <TabsTrigger value="ponto" className="cursor-pointer">Ponto</TabsTrigger>
           <TabsTrigger value="etiquetas" className="cursor-pointer">Etiquetas</TabsTrigger>
         </TabsList>
@@ -451,6 +453,10 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="contas" className="space-y-4">
+          <EmployeeAccountTab employeeId={id} />
         </TabsContent>
 
         <TabsContent value="ponto">

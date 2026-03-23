@@ -1,5 +1,7 @@
 import {
   Employee,
+  EmployeeAccount,
+  EmployeeAccountType,
   EmployeeAdvance,
   EmployeeContract,
   EmploymentRecord,
@@ -13,7 +15,15 @@ export interface EmployeeWithDetails extends Employee {
   contracts?: EmployeeContract[];
   job?: { id: string; name: string };
   tags?: { id: string; name: string; color: string }[];
+  accounts?: EmployeeAccount[];
   terminationDate?: string | Date | null;
+}
+
+export interface EmployeeAccountFormData {
+  type: EmployeeAccountType;
+  identifier: string;
+  description?: string;
+  isDefault?: boolean;
 }
 
 export interface EmployeeFormData {

@@ -3,13 +3,18 @@ import { Prisma } from "@prisma/client"
 import prisma from "@/lib/prisma"
 
 export class DriverAllocationService {
-  static async list(filters: { seasonId?: string; frontId?: string; employeeId?: string; date?: Date; vehicleId?: string }, db = prisma) {
+  static async list(filters: { seasonId?: string; frontId?: string; employeeId?: string; date?: Date; vehicleId?: string; tagIds?: string[] }, db = prisma) {
     const where: Prisma.DriverAllocationWhereInput = {}
     if (filters.seasonId) where.seasonId = filters.seasonId
     if (filters.frontId) where.frontId = filters.frontId
     if (filters.employeeId) where.employeeId = filters.employeeId
     if (filters.date) where.date = filters.date
     if (filters.vehicleId) where.vehicleId = filters.vehicleId
+    if (filters.tagIds && filters.tagIds.length > 0) {
+      where.employee = {
+        tags: { some: { tagId: { in: filters.tagIds } } }
+      }
+    }
 
     return db.driverAllocation.findMany({
       where,

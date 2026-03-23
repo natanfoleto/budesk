@@ -10,7 +10,14 @@ export async function GET(req: Request) {
     const dateStr = searchParams.get('date')
     const date = dateStr ? new Date(dateStr) : undefined
     
-    const productions = await PlantingProductionService.list({ seasonId, frontId, date })
+    const tagIds = searchParams.getAll("tagIds").flatMap(t => t.split(",")).filter(Boolean)
+    
+    const productions = await PlantingProductionService.list({ 
+      seasonId, 
+      frontId, 
+      date,
+      tagIds: tagIds.length > 0 ? tagIds : undefined
+    })
     return NextResponse.json(productions)
   } catch (error) {
     console.error("Error fetching productions:", error)

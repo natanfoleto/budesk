@@ -74,10 +74,14 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
 
   // Fetch existing driver allocations
   const { data: existingRecords, isLoading, refetch } = useQuery({
-    queryKey: ["driverAllocations", seasonId, frontId, date],
+    queryKey: ["driverAllocations", seasonId, frontId, date, selectedTagIds],
     queryFn: async () => {
       if (seasonId === "all" || frontId === "all" || !date) return []
-      const res = await fetch(`/api/planting/drivers?seasonId=${seasonId}&frontId=${frontId}&date=${date}T00:00:00Z`)
+      const params = new URLSearchParams({ seasonId, frontId, date: `${date}T00:00:00Z` })
+      if (selectedTagIds.length > 0) {
+        selectedTagIds.forEach(id => params.append("tagIds", id))
+      }
+      const res = await fetch(`/api/planting/drivers?${params.toString()}`)
       if (!res.ok) throw new Error("Failed to fetch drivers")
       return res.json()
     },
