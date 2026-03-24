@@ -22,14 +22,9 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { apiRequest } from "@/lib/api-client"
 import { Vehicle, VehicleType, VehicleTypeLabels } from "@/types/vehicle"
 
 import { VehicleFormData, vehicleSchema } from "./vehicle-schema"
@@ -113,19 +108,10 @@ export function VehicleFormDialog({
           : "/api/vehicles"
         const method = initialData ? "PUT" : "POST"
 
-        const response = await fetch(url, {
+        await apiRequest(url, {
           method,
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify(data),
         })
-
-        const result = await response.json()
-
-        if (!response.ok) {
-          throw new Error(result.error || "Erro ao salvar veículo")
-        }
 
         toast.success(
           initialData ? "Veículo atualizado com sucesso" : "Veículo criado com sucesso"

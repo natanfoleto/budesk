@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
+import { apiRequest } from '@/lib/api-client'
 import {
   createEmployee,
   createEmployeeAdvance,
@@ -186,13 +187,9 @@ export const useUpdateEmploymentRecord = () => {
       recordId: string;
       data: EmploymentRecordFormData;
     }) => {
-      return fetch(`/api/employees/${employeeId}/records/${recordId}`, {
+      return apiRequest(`/api/employees/${employeeId}/records/${recordId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then((res) => {
-        if (!res.ok) throw new Error('Failed to update')
-        return res.json()
       })
     },
     onSuccess: (_, variables) => {
@@ -215,11 +212,8 @@ export const useDeleteEmploymentRecord = () => {
       employeeId: string;
       recordId: string;
     }) => {
-      return fetch(`/api/employees/${employeeId}/records/${recordId}`, {
+      return apiRequest(`/api/employees/${employeeId}/records/${recordId}`, {
         method: 'DELETE',
-      }).then((res) => {
-        if (!res.ok) throw new Error('Failed to delete')
-        return res.json()
       })
     },
     onSuccess: (_, variables) => {
@@ -244,13 +238,9 @@ export const useUpdateEmployeeAdvance = () => {
       advanceId: string;
       data: AdvanceFormData;
     }) => {
-      return fetch(`/api/employees/${employeeId}/advances/${advanceId}`, {
+      return apiRequest(`/api/employees/${employeeId}/advances/${advanceId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then((res) => {
-        if (!res.ok) throw new Error('Failed to update')
-        return res.json()
       })
     },
     onSuccess: (_, variables) => {
@@ -274,11 +264,8 @@ export const useDeleteEmployeeAdvance = () => {
       employeeId: string;
       advanceId: string;
     }) => {
-      return fetch(`/api/employees/${employeeId}/advances/${advanceId}`, {
+      return apiRequest(`/api/employees/${employeeId}/advances/${advanceId}`, {
         method: 'DELETE',
-      }).then((res) => {
-        if (!res.ok) throw new Error('Failed to delete')
-        return res.json()
       })
     },
     onSuccess: (_, variables) => {
@@ -304,13 +291,9 @@ export const useUpdateEmployeeContract = () => {
       contractId: string;
       data: ContractFormData;
     }) => {
-      return fetch(`/api/employees/${employeeId}/contracts/${contractId}`, {
+      return apiRequest(`/api/employees/${employeeId}/contracts/${contractId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then((res) => {
-        if (!res.ok) throw new Error('Failed to update')
-        return res.json()
       })
     },
     onSuccess: (_, variables) => {
@@ -333,11 +316,8 @@ export const useDeleteEmployeeContract = () => {
       employeeId: string;
       contractId: string;
     }) => {
-      return fetch(`/api/employees/${employeeId}/contracts/${contractId}`, {
+      return apiRequest(`/api/employees/${employeeId}/contracts/${contractId}`, {
         method: 'DELETE',
-      }).then((res) => {
-        if (!res.ok) throw new Error('Failed to delete')
-        return res.json()
       })
     },
     onSuccess: (_, variables) => {
@@ -353,7 +333,7 @@ export const useDeleteEmployeeContract = () => {
 export const useEmployeeAccounts = (employeeId: string) => {
   return useQuery({
     queryKey: ['employee-accounts', employeeId],
-    queryFn: () => fetch(`/api/employees/${employeeId}/accounts`).then(res => res.json()),
+    queryFn: () => apiRequest(`/api/employees/${employeeId}/accounts`),
     enabled: !!employeeId,
   })
 }
@@ -368,13 +348,9 @@ export const useCreateEmployeeAccount = () => {
       employeeId: string;
       data: EmployeeAccountFormData;
     }) => {
-      return fetch(`/api/employees/${employeeId}/accounts`, {
+      return apiRequest(`/api/employees/${employeeId}/accounts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then((res) => {
-        if (!res.ok) throw new Error('Failed to create')
-        return res.json()
       })
     },
     onSuccess: (_, variables) => {
@@ -399,13 +375,9 @@ export const useUpdateEmployeeAccount = () => {
       accountId: string;
       data: EmployeeAccountFormData;
     }) => {
-      return fetch(`/api/employees/${employeeId}/accounts/${accountId}`, {
+      return apiRequest(`/api/employees/${employeeId}/accounts/${accountId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then((res) => {
-        if (!res.ok) throw new Error('Failed to update')
-        return res.json()
       })
     },
     onSuccess: (_, variables) => {
@@ -428,11 +400,8 @@ export const useDeleteEmployeeAccount = () => {
       employeeId: string;
       accountId: string;
     }) => {
-      return fetch(`/api/employees/${employeeId}/accounts/${accountId}`, {
+      return apiRequest(`/api/employees/${employeeId}/accounts/${accountId}`, {
         method: 'DELETE',
-      }).then((res) => {
-        if (!res.ok) throw new Error('Failed to delete')
-        return res.json()
       })
     },
     onSuccess: (_, variables) => {

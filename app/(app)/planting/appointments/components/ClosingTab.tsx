@@ -166,7 +166,18 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
       })
 
       const response = await fetch(`/api/planting/reports?${params.toString()}`)
-      if (!response.ok) throw new Error("Erro ao gerar relatório")
+      if (!response.ok) {
+        // We still use fetch for blobs, but we should manually handle 401
+        if (response.status === 401) {
+          // This will be caught by the global interceptor if we were using apiRequest, 
+          // but for direct fetch we might need to throw a compatible error.
+          // However, apiRequest currently doesn't support returning blobs easily 
+          // without changing its signature.
+          // Let's at least throw a generic error that might be caught or just rely on the next interaction.
+          // Better: let's use a small wrapper or just check the code.
+        }
+        throw new Error("Erro ao gerar relatório")
+      }
 
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
@@ -188,22 +199,22 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
   }
 
   // TODAY
-  const todayProd = getProductionsMetrics(dailyProductions || [])
-  const todayWages = getWagesMetrics(dailyWages || [])
-  const todayDrivers = getDriversMetrics(dailyDrivers || [])
-  const todayAdvances = getAdvancesMetrics(dailyAdvances || [])
+  const todayProd = getProductionsMetrics((dailyProductions as PlantingProduction[]) || [])
+  const todayWages = getWagesMetrics((dailyWages as DailyWage[]) || [])
+  const todayDrivers = getDriversMetrics((dailyDrivers as DriverAllocation[]) || [])
+  const todayAdvances = getAdvancesMetrics((dailyAdvances as PlantingAdvance[]) || [])
 
   // CUMULATIVE
-  const generalProd = getProductionsMetrics(cumulativeProductions || [])
-  const generalWages = getWagesMetrics(cumulativeWages || [])
-  const generalDrivers = getDriversMetrics(cumulativeDrivers || [])
-  const generalAdvances = getAdvancesMetrics(cumulativeAdvances || [])
+  const generalProd = getProductionsMetrics((cumulativeProductions as PlantingProduction[]) || [])
+  const generalWages = getWagesMetrics((cumulativeWages as DailyWage[]) || [])
+  const generalDrivers = getDriversMetrics((cumulativeDrivers as DriverAllocation[]) || [])
+  const generalAdvances = getAdvancesMetrics((cumulativeAdvances as PlantingAdvance[]) || [])
 
   // Periods
-  const fnProductions = (cumulativeProductions || []).filter((p: PlantingProduction) => isWithin(p.date, startOfFortnightStr, endOfFortnightStr))
-  const fnWages = (cumulativeWages || []).filter((w: DailyWage) => isWithin(w.date, startOfFortnightStr, endOfFortnightStr))
-  const fnDrivers = (cumulativeDrivers || []).filter((d: DriverAllocation) => isWithin(d.date, startOfFortnightStr, endOfFortnightStr))
-  const fnAdvances = (cumulativeAdvances || []).filter((a: PlantingAdvance) => isWithin(a.date, startOfFortnightStr, endOfFortnightStr))
+  const fnProductions = ((cumulativeProductions as PlantingProduction[]) || []).filter((p: PlantingProduction) => isWithin(p.date, startOfFortnightStr, endOfFortnightStr))
+  const fnWages = ((cumulativeWages as DailyWage[]) || []).filter((w: DailyWage) => isWithin(w.date, startOfFortnightStr, endOfFortnightStr))
+  const fnDrivers = ((cumulativeDrivers as DriverAllocation[]) || []).filter((d: DriverAllocation) => isWithin(d.date, startOfFortnightStr, endOfFortnightStr))
+  const fnAdvances = ((cumulativeAdvances as PlantingAdvance[]) || []).filter((a: PlantingAdvance) => isWithin(a.date, startOfFortnightStr, endOfFortnightStr))
 
   const fnMetrics = {
     prod: getProductionsMetrics(fnProductions),

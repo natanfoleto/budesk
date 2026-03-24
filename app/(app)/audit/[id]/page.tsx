@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { apiRequest } from "@/lib/api-client"
 
 import { AuditDiffViewer } from "../_components/audit-diff-viewer"
 
@@ -24,8 +25,8 @@ type AuditLogDetail = {
   action: string
   entity: string
   entityId: string
-  oldData: any
-  newData: any
+  oldData: Record<string, unknown> | null
+  newData: Record<string, unknown> | null
   createdAt: string
   user: {
     name: string | null
@@ -45,9 +46,7 @@ export default function AuditDetailPage() {
     const fetchLog = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/audit/${id}`)
-        if (!response.ok) throw new Error("Log not found")
-        const data = await response.json()
+        const data = await apiRequest<AuditLogDetail>(`/api/audit/${id}`)
         setLog(data)
       } catch (error) {
         console.error(error)

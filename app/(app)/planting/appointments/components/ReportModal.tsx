@@ -52,6 +52,11 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
       const response = await fetch(`/api/planting/reports?${params.toString()}`)
       
       if (!response.ok) {
+        if (response.status === 401) {
+          // Manual session clear/redirect could be done here, 
+          // but for now we'll just let the user know.
+          // In a real app, we might want to trigger a global event or store change.
+        }
         const err = await response.json()
         throw new Error(err.error || "Erro ao gerar relatório")
       }

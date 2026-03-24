@@ -30,6 +30,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { usePlantingDashboard, usePlantingSeasons } from "@/hooks/use-planting"
 import { useUser } from "@/hooks/use-user"
+import { apiRequest } from "@/lib/api-client"
 import { formatCurrency } from "@/lib/utils"
 
 import { ReportModal } from "../appointments/components/ReportModal"
@@ -54,7 +55,8 @@ export default function PlantingClosingPage() {
   }
 
   const buildDates = () => {
-    const baseDate = new Date(`${selectedMonth}-01T12:00:00Z`)
+    // Avoid Z to keep it in local time and prevent off-by-one errors during formatting
+    const baseDate = new Date(`${selectedMonth}-01T12:00:00`)
     let startDateStr, endDateStr
     if (selectedPeriod === "1-15") {
       startDateStr = format(startOfMonth(baseDate), "yyyy-MM-dd")
@@ -81,11 +83,9 @@ export default function PlantingClosingPage() {
     queryFn: async () => {
       if (!selectedSeasonId) return { isClosed: false, isMonthClosed: false }
       const [year, month] = selectedMonth.split("-")
-      const res = await fetch(
+      return apiRequest<{ isClosed: boolean; isMonthClosed: boolean }>(
         `/api/planting/closing?seasonId=${selectedSeasonId}&startDate=${startDateStr}T00:00:00Z&endDate=${endDateStr}T23:59:59Z&checkMonth=${month}&year=${year}`
       )
-      if (!res.ok) return { isClosed: false, isMonthClosed: false }
-      return res.json() as Promise<{ isClosed: boolean; isMonthClosed: boolean }>
     },
     enabled: !!selectedSeasonId,
   })
@@ -93,23 +93,17 @@ export default function PlantingClosingPage() {
   const isClosed = periodStatus?.isClosed ?? false
 
   const closePeriodMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/planting/closing", {
+    mutationFn: () => {
+      return apiRequest<{ message?: string }>("/api/planting/close", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           seasonId: selectedSeasonId,
           startDate: `${startDateStr}T00:00:00Z`,
           endDate: `${endDateStr}T23:59:59Z`,
         }),
       })
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || "Falha ao fechar o período")
-      }
-      return res.json()
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { message?: string }) => {
       queryClient.invalidateQueries()
       toast.success(data.message || "Período fechado com sucesso.")
     },
@@ -119,23 +113,17 @@ export default function PlantingClosingPage() {
   })
 
   const reopenPeriodMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/planting/reopen", {
+    mutationFn: () => {
+      return apiRequest<{ message?: string }>("/api/planting/reopen", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           seasonId: selectedSeasonId,
           startDate: `${startDateStr}T00:00:00Z`,
           endDate: `${endDateStr}T23:59:59Z`,
         }),
       })
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || "Falha ao reabrir o período")
-      }
-      return res.json()
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { message?: string }) => {
       queryClient.invalidateQueries()
       toast.success(data.message || "Período reaberto com sucesso.")
     },

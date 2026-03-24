@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { apiRequest } from "@/lib/api-client"
 import {
   createDailyWage,
   createDriverAllocation,
@@ -158,19 +159,12 @@ export const useCreateExpense = () => {
 export const useUpdateExpense = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<PlantingExpenseFormData> }) => {
-      const response = await fetch('/api/planting/expenses', {
+    mutationFn: (payload: { id: string; data: Partial<PlantingExpenseFormData> }) => {
+      const { id, ...data } = payload
+      return apiRequest('/api/planting/expenses', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ id, ...data }),
       })
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Erro ao atualizar gasto')
-      }
-      return response.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plantingExpenses"] })

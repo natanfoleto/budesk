@@ -53,6 +53,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
+import { apiRequest } from "@/lib/api-client"
 import { cn, formatCentsToReal } from "@/lib/utils"
 import { PlantingAdvance, PlantingAdvanceFormData } from "@/types/planting"
 
@@ -86,7 +87,7 @@ export function AdvanceTab({
   
   const { data: advances, isLoading } = useQuery<PlantingAdvance[]>({
     queryKey: ["planting-advances", seasonId, frontId, date, selectedTagIds],
-    queryFn: async () => {
+    queryFn: () => {
       const params = new URLSearchParams()
       if (seasonId !== "all") params.set("seasonId", seasonId)
       if (frontId !== "all") params.set("frontId", frontId)
@@ -95,9 +96,7 @@ export function AdvanceTab({
         selectedTagIds.forEach(id => params.append("tagIds", id))
       }
       
-      const res = await fetch(`/api/planting/advances?${params.toString()}`)
-      if (!res.ok) throw new Error("Failed to fetch advances")
-      return res.json()
+      return apiRequest<PlantingAdvance[]>(`/api/planting/advances?${params.toString()}`)
     },
     enabled: seasonId !== "all",
   })
@@ -115,40 +114,28 @@ export function AdvanceTab({
   })
 
   const createMutation = useMutation({
-    mutationFn: async (data: PlantingAdvanceFormData) => {
-      const res = await fetch("/api/planting/advances", {
+    mutationFn: (data: PlantingAdvanceFormData) => 
+      apiRequest("/api/planting/advances", {
         method: "POST",
         body: JSON.stringify(data),
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || "Failed to create advance")
-      }
-      return res.json()
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["planting-advances"] })
       toast.success("Adiantamento criado com sucesso")
       setIsModalOpen(false)
       form.reset()
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(error.message)
     },
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (data: PlantingAdvanceFormData) => {
-      const res = await fetch(`/api/planting/advances/${data.id}`, {
+    mutationFn: (data: PlantingAdvanceFormData) => 
+      apiRequest(`/api/planting/advances/${data.id}`, {
         method: "PUT",
         body: JSON.stringify(data),
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || "Failed to update advance")
-      }
-      return res.json()
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["planting-advances"] })
       toast.success("Adiantamento atualizado com sucesso")
@@ -156,27 +143,21 @@ export function AdvanceTab({
       setEditingAdvance(null)
       form.reset()
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(error.message)
     },
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/planting/advances/${id}`, {
+    mutationFn: (id: string) => 
+      apiRequest(`/api/planting/advances/${id}`, {
         method: "DELETE",
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || "Failed to delete advance")
-      }
-      return res.json()
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["planting-advances"] })
       toast.success("Adiantamento excluído com sucesso")
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(error.message)
     },
   })

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { apiRequest } from "@/lib/api-client"
 import { Vehicle } from "@/types/vehicle"
 
 export default function FleetPage() {
@@ -31,11 +32,8 @@ export default function FleetPage() {
   const fetchVehicles = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch("/api/vehicles")
-      if (response.ok) {
-        const data: Vehicle[] = await response.json()
-        setVehicles(data)
-      }
+      const data = await apiRequest<Vehicle[]>("/api/vehicles")
+      setVehicles(data)
     } catch (error) {
       console.error("Erro ao buscar veículos:", error)
       toast.error("Erro ao carregar veículos")
@@ -65,15 +63,9 @@ export default function FleetPage() {
     if (!deleteId) return
 
     try {
-      const response = await fetch(`/api/vehicles/${deleteId}`, {
+      await apiRequest(`/api/vehicles/${deleteId}`, {
         method: "DELETE",
       })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || "Erro ao excluir veículo")
-      }
 
       toast.success("Veículo excluído com sucesso")
       fetchVehicles()

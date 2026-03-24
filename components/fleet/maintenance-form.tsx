@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { apiRequest } from "@/lib/api-client"
 import { formatCentsToReal } from "@/lib/utils"
 import { Maintenance } from "@/types/vehicle"
 
@@ -70,11 +71,8 @@ export function MaintenanceForm({
   useEffect(() => {
     const fetchSuppliers = async () => {
       try {
-        const response = await fetch("/api/suppliers")
-        if (response.ok) {
-          const data = await response.json()
-          setSuppliers(data)
-        }
+        const data = await apiRequest<{ id: string; name: string }[]>("/api/suppliers")
+        setSuppliers(data)
       } catch (error) {
         console.error("Error fetching suppliers:", error)
       }
@@ -144,16 +142,10 @@ export function MaintenanceForm({
           : `/api/vehicles/${vehicleId}/maintenances`
         const method = initialData ? "PUT" : "POST"
 
-        const response = await fetch(url, {
+        await apiRequest(url, {
           method,
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         })
-
-        if (!response.ok) {
-          const result = await response.json()
-          throw new Error(result.error || "Erro ao salvar manutenção")
-        }
 
         toast.success("Manutenção salva com sucesso")
         if (onSuccess) onSuccess()

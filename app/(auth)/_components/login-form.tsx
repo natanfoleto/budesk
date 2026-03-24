@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { apiRequest } from "@/lib/api-client"
 import { loginSchema } from "@/lib/validations"
 
 type LoginFormData = z.infer<typeof loginSchema>
@@ -45,27 +46,18 @@ export function LoginForm() {
     setError("")
 
     try {
-      const response = await fetch("/api/auth/login", {
+      await apiRequest("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(values),
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Algo deu errado")
-      }
-
       router.push("/dashboard")
       router.refresh()
-    } catch (err: any) {
-      if (err.message && err.message.includes("Unexpected token")) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes("Unexpected token")) {
         setError("Erro de comunicação com o servidor.")
       } else {
-        setError(err.message || "Ocorreu um erro ao fazer login.")
+        setError(err instanceof Error ? err.message : "Ocorreu um error ao fazer login.")
       }
     } finally {
       setIsLoading(false)

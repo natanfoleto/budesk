@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { apiRequest } from "@/lib/api-client"
+
 import { AuditTable } from "./_components/audit-table"
 
 // Type definition matches local usage in AuditTable, ideally should be shared
@@ -25,9 +27,7 @@ export default function AuditPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("/api/audit")
-        if (!response.ok) throw new Error("Failed to fetch logs")
-        const result = await response.json()
+        const result = await apiRequest<{ data: AuditLog[] }>("/api/audit")
         setData(result.data) 
       } catch (error) {
         console.error(error)

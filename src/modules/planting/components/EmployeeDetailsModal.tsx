@@ -9,6 +9,7 @@ import {
   Calendar, 
   CheckCircle2, 
   Clock,
+  Copy,
   DollarSign, 
   Info,
   Landmark,
@@ -29,6 +30,7 @@ import {
   XAxis, 
   YAxis
 } from "recharts"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -40,6 +42,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
   Select, 
@@ -50,7 +53,8 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { parseLocalDate } from "@/lib/utils"
+import { apiRequest } from "@/lib/api-client"
+import { formatAccountIdentifier, parseLocalDate } from "@/lib/utils"
 
 import { EmployeeSummary } from "../services/PlantingEmployeeService"
 
@@ -78,19 +82,28 @@ export function EmployeeDetailsModal({
 
   const calculateDateRange = useCallback((type: FilterType) => {
     const now = new Date()
+    // Set to midday to avoid timezone shifts at boundaries
+    now.setHours(12, 0, 0, 0)
+    
     switch (type) {
     case "HOJE":
       return { start: format(now, "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") }
     case "P_QUINZENAL": {
+      const start = startOfMonth(now)
+      const end = new Date(start)
+      end.setDate(15)
       return { 
-        start: format(startOfMonth(now), "yyyy-MM-dd"), 
-        end: format(startOfMonth(now).setDate(15), "yyyy-MM-dd") 
+        start: format(start, "yyyy-MM-dd"), 
+        end: format(end, "yyyy-MM-dd") 
       }
     }
     case "S_QUINZENAL": {
+      const start = startOfMonth(now)
+      start.setDate(16)
+      const end = endOfMonth(now)
       return { 
-        start: format(startOfMonth(now).setDate(16), "yyyy-MM-dd"), 
-        end: format(endOfMonth(now), "yyyy-MM-dd") 
+        start: format(start, "yyyy-MM-dd"), 
+        end: format(end, "yyyy-MM-dd") 
       }
     }
     case "MES_ATUAL":
@@ -114,12 +127,11 @@ export function EmployeeDetailsModal({
         if (range.end) params.append("endDate", range.end)
       }
 
-      const response = await fetch(`/api/planting/employees/${employeeId}/summary?${params.toString()}`)
-      if (!response.ok) throw new Error("Erro ao buscar dados")
-      const result = await response.json()
+      const result = await apiRequest<EmployeeSummary>(`/api/planting/employees/${employeeId}/summary?${params.toString()}`)
       setData(result)
     } catch (error) {
       console.error(error)
+      // QueryProvider will handle 401
     } finally {
       setLoading(false)
     }
@@ -151,14 +163,21 @@ export function EmployeeDetailsModal({
     })
   }
 
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success(`${label} copiado!`, {
+      description: text,
+    })
+  }
+
   if (!open) return null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] sm:max-w-none flex flex-col p-0 overflow-hidden border-none shadow-2xl">
         <DialogHeader className="p-6 border-b shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1.5">
               <DialogTitle className="text-2xl font-bold flex items-center gap-2">
                 {loading && !data ? <Skeleton className="h-8 w-64" /> : data?.employee.name || "Carregando..."}
               </DialogTitle>
@@ -166,47 +185,48 @@ export function EmployeeDetailsModal({
                 Detalhamento de performance e pagamentos no Plantio Manual
               </DialogDescription>
             </div>
-            {data && (
-              <Badge variant="outline" className="text-sm px-3 py-1 bg-primary/5 border-primary/20 text-primary font-semibold">
-                {data.seasonName}
-              </Badge>
-            )}
+            <div className="flex items-end gap-3">
+              <div className="flex items-center gap-1.5">
+                {data && (
+                  <Label className="text-[10px] uppercase font-semibold px-0.5">
+                    Safra: {data.seasonName}
+                  </Label>
+                )}
+                <Select value={filterType} onValueChange={(val: FilterType) => setFilterType(val)}>
+                  <SelectTrigger className="h-9 w-[180px] bg-background">
+                    <SelectValue placeholder="Selecione o período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="GERAL">Geral</SelectItem>
+                    <SelectItem value="HOJE">Hoje</SelectItem>
+                    <SelectItem value="P_QUINZENAL">Primeira quinzena (01-15)</SelectItem>
+                    <SelectItem value="S_QUINZENAL">Segunda quinzena (16-31)</SelectItem>
+                    <SelectItem value="MES_ATUAL">Mês Atual</SelectItem>
+                    <SelectItem value="CUSTOM">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filterType === "CUSTOM" && (
+                <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-2 duration-300">
+                  <Input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-9 w-[130px] bg-background text-xs"
+                  />
+                  <span className="text-muted-foreground text-[10px] font-medium uppercase">até</span>
+                  <Input 
+                    type="date" 
+                    value={endDate} 
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-9 w-[130px] bg-background text-xs"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </DialogHeader>
-
-        <div className="px-6 py-3 border-b bg-muted/20 flex flex-wrap items-center gap-4 shrink-0">
-          <Select value={filterType} onValueChange={(val: FilterType) => setFilterType(val)}>
-            <SelectTrigger className="h-8 bg-background">
-              <SelectValue placeholder="Selecione o período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="GERAL">Geral</SelectItem>
-              <SelectItem value="HOJE">Hoje</SelectItem>
-              <SelectItem value="P_QUINZENAL">Primeira quinzena (01-15)</SelectItem>
-              <SelectItem value="S_QUINZENAL">Segunda quinzena (16-31)</SelectItem>
-              <SelectItem value="MES_ATUAL">Mês Atual</SelectItem>
-              <SelectItem value="CUSTOM">Personalizado</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {filterType === "CUSTOM" && (
-            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
-              <Input 
-                type="date" 
-                value={startDate} 
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-8 w-[140px] bg-background"
-              />
-              <span className="text-muted-foreground text-xs">até</span>
-              <Input 
-                type="date" 
-                value={endDate} 
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-8 w-[140px] bg-background"
-              />
-            </div>
-          )}
-        </div>
 
         <div className="flex-1 overflow-hidden flex flex-col">
           <Tabs 
@@ -214,7 +234,7 @@ export function EmployeeDetailsModal({
             onValueChange={setActiveTab} 
             className="flex-1 flex flex-col min-h-0"
           >
-            <div className="px-6 border-b shrink-0 bg-muted/20 pb-3 pt-3">
+            <div className="px-6 shrink-0 bg-muted/20">
               <TabsList className="h-10 w-full p-1 bg-muted/50 rounded-lg">
                 <TabsTrigger value="resumo" className="flex-1 px-4 py-2 text-xs font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Resumo Geral</TabsTrigger>
                 <TabsTrigger value="producao" className="flex-1 px-4 py-2 text-xs font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Plantio & Corte</TabsTrigger>
@@ -348,15 +368,26 @@ export function EmployeeDetailsModal({
                                 {acc.isDefault && (
                                   <div className="absolute top-0 right-0 h-2 w-2 rounded-bl-full bg-primary" />
                                 )}
-                                <div className="flex items-start gap-3">
-                                  <div className="p-2 rounded-full bg-primary/10 text-primary">
-                                    {acc.type === "BANCARIA" ? <Landmark className="size-4" /> : <QrCode className="size-4" />}
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-start gap-3">
+                                    <div className="p-2 rounded-full bg-primary/10 text-primary">
+                                      {acc.type === "BANCARIA" ? <Landmark className="size-4" /> : <QrCode className="size-4" />}
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-[10px] font-bold text-muted-foreground uppercase">{acc.type.replace("_", " ")}</p>
+                                      <p className="text-sm font-mono font-bold break-all leading-tight">
+                                        {formatAccountIdentifier(acc.identifier)}
+                                      </p>
+                                      {acc.description && <p className="text-[10px] text-muted-foreground italic">{acc.description}</p>}
+                                    </div>
                                   </div>
-                                  <div className="space-y-1">
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{acc.type.replace("_", " ")}</p>
-                                    <p className="text-sm font-mono font-bold break-all leading-tight">{acc.identifier}</p>
-                                    {acc.description && <p className="text-[10px] text-muted-foreground italic">{acc.description}</p>}
-                                  </div>
+                                  <button 
+                                    onClick={() => handleCopy(acc.identifier, acc.type === "BANCARIA" ? "Dados bancários" : "Chave PIX")}
+                                    className="p-1.5 cursor-pointer rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Copiar"
+                                  >
+                                    <Copy className="size-3.5" />
+                                  </button>
                                 </div>
                               </div>
                             ))
@@ -575,7 +606,20 @@ export function EmployeeDetailsModal({
                                 data.details.advances.map((a) => (
                                   <tr key={a.id} className="border-b last:border-0 text-destructive hover:bg-destructive/5 transition-colors">
                                     <td className="py-2.5">{format(parseLocalDate(a.date), "dd/MM/yyyy")}</td>
-                                    <td className="py-2.5 text-xs italic">{a.account?.identifier || "Conta não vinculada"}</td>
+                                    <td className="py-2.5 text-xs">
+                                      <div className="flex items-center gap-2">
+                                        <span>{a.account?.identifier ? formatAccountIdentifier(a.account.identifier) : "Conta não vinculada"}</span>
+                                        {a.account?.identifier && (
+                                          <button 
+                                            onClick={() => handleCopy(a.account!.identifier, "Chave PIX")}
+                                            className="p-1 rounded hover:bg-destructive/10 text-destructive/50 hover:text-destructive transition-colors"
+                                            title="Copiar Chave PIX"
+                                          >
+                                            <Copy className="size-3" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
                                     <td className="text-right py-2.5 font-bold">-{formatCurrency(a.valueInCents)}</td>
                                   </tr>
                                 ))

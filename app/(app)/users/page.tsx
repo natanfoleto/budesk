@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { apiRequest } from "@/lib/api-client"
 import { User } from "@/types/user"
 
 import { UserFormDialog } from "./_components/user-form-dialog"
@@ -29,9 +30,7 @@ export default function UsersPage() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch("/api/users")
-      if (!response.ok) throw new Error("Failed to fetch users")
-      const result = await response.json()
+      const result = await apiRequest<User[]>("/api/users")
       setData(result)
     } catch (error) {
       console.error(error)
@@ -52,14 +51,12 @@ export default function UsersPage() {
     if (!deleteId) return
 
     try {
-      const response = await fetch(`/api/users/${deleteId}`, {
+      await apiRequest(`/api/users/${deleteId}`, {
         method: "DELETE",
         headers: {
           "x-user-id": "CURRENT_USER_ID", 
         }
       })
-      
-      if (!response.ok) throw new Error("Falha ao excluir")
       
       toast.success("Usuário excluído com sucesso")
       fetchData()

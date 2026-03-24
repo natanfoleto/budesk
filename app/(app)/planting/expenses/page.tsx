@@ -62,6 +62,7 @@ import {
   useUpdateExpense,
   useWorkFronts,
 } from "@/hooks/use-planting"
+import { apiRequest } from "@/lib/api-client"
 import { formatCurrency } from "@/lib/utils"
 import { PlantingExpense, PlantingExpenseFormData } from "@/types/planting"
 
@@ -122,11 +123,7 @@ export default function PlantingExpensesPage() {
   // Vehicles fetch using useQuery
   const { data: vehicles } = useQuery<Vehicle[]>({
     queryKey: ["vehicles"],
-    queryFn: async () => {
-      const res = await fetch("/api/vehicles")
-      if (!res.ok) throw new Error("Falha ao buscar veículos")
-      return res.json()
-    },
+    queryFn: () => apiRequest<Vehicle[]>("/api/vehicles"),
     enabled: isModalOpen,
   })
 

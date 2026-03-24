@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDriverAllocation } from "@/hooks/use-planting"
+import { apiRequest } from "@/lib/api-client"
 import { cn, formatCentsToReal, formatCurrency, parseCurrencyToCents } from "@/lib/utils"
 
 interface DriverTabProps {
@@ -65,25 +66,26 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
   // Fetch vehicles
   const { data: vehicles, isLoading: isLoadingVehicles } = useQuery({
     queryKey: ["vehicles"],
-    queryFn: async () => {
-      const res = await fetch("/api/vehicles")
-      if (!res.ok) return []
-      return res.json() as Promise<{ id: string; plate: string; model: string | null }[]>
-    }
+    queryFn: () => apiRequest<{ id: string; plate: string; model: string | null }[]>("/api/vehicles")
   })
 
   // Fetch existing driver allocations
   const { data: existingRecords, isLoading, refetch } = useQuery({
     queryKey: ["driverAllocations", seasonId, frontId, date, selectedTagIds],
-    queryFn: async () => {
-      if (seasonId === "all" || frontId === "all" || !date) return []
+    queryFn: () => {
       const params = new URLSearchParams({ seasonId, frontId, date: `${date}T00:00:00Z` })
       if (selectedTagIds.length > 0) {
         selectedTagIds.forEach(id => params.append("tagIds", id))
       }
-      const res = await fetch(`/api/planting/drivers?${params.toString()}`)
-      if (!res.ok) throw new Error("Failed to fetch drivers")
-      return res.json()
+      return apiRequest<{ 
+        id: string; 
+        employeeId: string; 
+        vehicleId?: string; 
+        categoryId?: string; 
+        vehicle?: { plate: string; model: string }; 
+        valueInCents: number; 
+        isClosed: boolean 
+      }[]>(`/api/planting/drivers?${params.toString()}`)
     },
     enabled: seasonId !== "all" && frontId !== "all" && !!date
   })

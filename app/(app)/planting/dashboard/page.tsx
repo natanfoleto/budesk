@@ -32,6 +32,7 @@ import {
   usePlantingDashboardPeriods, 
   usePlantingSeasons 
 } from "@/hooks/use-planting"
+import { downloadFile } from "@/lib/api-client"
 import { formatCurrency } from "@/lib/utils"
 
 export default function PlantingDashboardPage() {
@@ -71,18 +72,10 @@ export default function PlantingDashboardPage() {
         endDate: end.toISOString().split('T')[0]
       })
 
-      const response = await fetch(`/api/planting/reports?${params.toString()}`)
-      if (!response.ok) throw new Error("Erro ao gerar relatório")
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `fechamento_dashboard_${selectedSeason}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      await downloadFile(
+        `/api/planting/reports?${params.toString()}`,
+        `fechamento_dashboard_${selectedSeason}.pdf`
+      )
       
       toast.success("Relatório gerado com sucesso!")
     } catch (error) {

@@ -1,12 +1,18 @@
+import { apiRequest } from "@/lib/api-client"
 import {
+  DailyWage,
   DailyWageFormData,
+  DriverAllocation,
   DriverAllocationFormData,
+  PlantingAdvance,
+  PlantingArea,
   PlantingAreaFormData,
   PlantingDashboardChartData,
   PlantingDashboardMetrics,
   PlantingExpense,
   PlantingExpenseFormData,
   PlantingParameter,
+  PlantingProduction,
   PlantingProductionFormData,
   PlantingSeason,
   SaveParametersPayload,
@@ -20,37 +26,27 @@ const BASE_URL = "/api"
 // ─── Seasons ─────────────────────────────────────────────────────────────────
 
 export const getSeasons = async (): Promise<PlantingSeason[]> => {
-  const res = await fetch(`${BASE_URL}/planting/seasons`)
-  if (!res.ok) throw new Error("Erro ao buscar safras")
-  return res.json()
+  return apiRequest<PlantingSeason[]>(`${BASE_URL}/planting/seasons`)
 }
 
 export const createSeason = async (data: SeasonFormData): Promise<PlantingSeason> => {
-  const res = await fetch(`${BASE_URL}/planting/seasons`, {
+  return apiRequest<PlantingSeason>(`${BASE_URL}/planting/seasons`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error("Erro ao criar safra")
-  return res.json()
 }
 
 export const updateSeason = async (id: string, data: Partial<SeasonFormData>): Promise<PlantingSeason> => {
-  const res = await fetch(`${BASE_URL}/planting/seasons/${id}`, {
+  return apiRequest<PlantingSeason>(`${BASE_URL}/planting/seasons/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error("Erro ao atualizar safra")
-  return res.json()
 }
 
 export const deleteSeason = async (id: string): Promise<void> => {
-  const res = await fetch(`${BASE_URL}/planting/seasons/${id}`, {
+  return apiRequest(`${BASE_URL}/planting/seasons/${id}`, {
     method: "DELETE",
   })
-  if (!res.ok) throw new Error("Erro ao remover safra")
-  return res.json()
 }
 
 // ─── Work Fronts ────────────────────────────────────────────────────────────
@@ -59,19 +55,14 @@ export const getWorkFronts = async (seasonId?: string): Promise<WorkFront[]> => 
   const url = seasonId
     ? `${BASE_URL}/planting/work-fronts?seasonId=${seasonId}`
     : `${BASE_URL}/planting/work-fronts`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("Erro ao buscar frentes de trabalho")
-  return res.json()
+  return apiRequest<WorkFront[]>(url)
 }
 
 export const createWorkFront = async (data: WorkFrontFormData & { seasonId: string }): Promise<WorkFront> => {
-  const res = await fetch(`${BASE_URL}/planting/work-fronts`, {
+  return apiRequest<WorkFront>(`${BASE_URL}/planting/work-fronts`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error("Erro ao criar frente de trabalho")
-  return res.json()
 }
 
 // ─── Expenses ────────────────────────────────────────────────────────────────
@@ -84,48 +75,33 @@ export const getExpenses = async (filters?: { seasonId?: string; frontId?: strin
   const url = params.toString()
     ? `${BASE_URL}/planting/expenses?${params.toString()}`
     : `${BASE_URL}/planting/expenses`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("Erro ao buscar gastos operacionais")
-  return res.json()
+  return apiRequest<PlantingExpense[]>(url)
 }
 
 export const createExpense = async (data: PlantingExpenseFormData): Promise<PlantingExpense> => {
-  const res = await fetch(`${BASE_URL}/planting/expenses`, {
+  return apiRequest<PlantingExpense>(`${BASE_URL}/planting/expenses`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) {
-    const errorData = await res.json()
-    throw new Error(errorData.error || "Erro ao criar gasto")
-  }
-  return res.json()
 }
 
 export const deleteExpense = async (id: string): Promise<void> => {
-  const res = await fetch(`${BASE_URL}/planting/expenses?id=${id}`, {
+  return apiRequest(`${BASE_URL}/planting/expenses?id=${id}`, {
     method: "DELETE",
   })
-  if (!res.ok) throw new Error("Erro ao remover gasto")
-  return res.json()
 }
 
 // ─── Parameters ──────────────────────────────────────────────────────────────
 
 export const getParameters = async (): Promise<PlantingParameter[]> => {
-  const res = await fetch(`${BASE_URL}/planting/parameters`)
-  if (!res.ok) throw new Error("Erro ao buscar parâmetros")
-  return res.json()
+  return apiRequest<PlantingParameter[]>(`${BASE_URL}/planting/parameters`)
 }
 
 export const saveParameters = async (data: SaveParametersPayload): Promise<PlantingParameter[]> => {
-  const res = await fetch(`${BASE_URL}/planting/parameters`, {
+  return apiRequest<PlantingParameter[]>(`${BASE_URL}/planting/parameters`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error("Erro ao salvar parâmetros")
-  return res.json()
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -141,12 +117,9 @@ export const getDashboard = async (
   if (filters?.date) params.set("date", filters.date)
   if (filters?.days) params.set("days", filters.days.toString())
   
-  const res = await fetch(`${BASE_URL}/planting/dashboard?${params.toString()}`)
-  if (!res.ok) throw new Error("Erro ao buscar métricas do dashboard")
-  return res.json()
+  return apiRequest(`${BASE_URL}/planting/dashboard?${params.toString()}`)
 }
 
-// ─── Productions ─────────────────────────────────────────────────────────────
 // ─── Productions ─────────────────────────────────────────────────────────────
 
 export const getProductions = async (filters?: { seasonId?: string; frontId?: string; date?: string; tagIds?: string[] }) => {
@@ -160,30 +133,20 @@ export const getProductions = async (filters?: { seasonId?: string; frontId?: st
   const url = params.toString()
     ? `${BASE_URL}/planting/productions?${params.toString()}`
     : `${BASE_URL}/planting/productions`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("Erro ao buscar produções")
-  return res.json()
+  return apiRequest<PlantingProduction[]>(url)
 }
 
 export const createProduction = async (data: PlantingProductionFormData) => {
-  const res = await fetch(`${BASE_URL}/planting/productions`, {
+  return apiRequest(`${BASE_URL}/planting/productions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) {
-    const errorData = await res.json()
-    throw new Error(errorData.error || "Erro ao criar produção")
-  }
-  return res.json()
 }
 
 export const deleteProduction = async (id: string) => {
-  const res = await fetch(`${BASE_URL}/planting/productions/${id}`, {
+  return apiRequest(`${BASE_URL}/planting/productions/${id}`, {
     method: "DELETE",
   })
-  if (!res.ok) throw new Error("Erro ao remover produção")
-  return res.json()
 }
 
 // ─── Daily Wages ─────────────────────────────────────────────────────────────
@@ -199,30 +162,20 @@ export const getDailyWages = async (filters?: { seasonId?: string; frontId?: str
   const url = params.toString()
     ? `${BASE_URL}/planting/daily-wages?${params.toString()}`
     : `${BASE_URL}/planting/daily-wages`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("Erro ao buscar diárias")
-  return res.json()
+  return apiRequest<DailyWage[]>(url)
 }
 
 export const createDailyWage = async (data: DailyWageFormData) => {
-  const res = await fetch(`${BASE_URL}/planting/daily-wages`, {
+  return apiRequest(`${BASE_URL}/planting/daily-wages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) {
-    const errorData = await res.json()
-    throw new Error(errorData.error || "Erro ao criar diária")
-  }
-  return res.json()
 }
 
 export const deleteDailyWage = async (id: string) => {
-  const res = await fetch(`${BASE_URL}/planting/daily-wages?id=${id}`, {
+  return apiRequest(`${BASE_URL}/planting/daily-wages?id=${id}`, {
     method: "DELETE",
   })
-  if (!res.ok) throw new Error("Erro ao remover diária")
-  return res.json()
 }
 
 // ─── Driver Allocations ──────────────────────────────────────────────────────
@@ -238,30 +191,20 @@ export const getDriverAllocations = async (filters?: { seasonId?: string; frontI
   const url = params.toString()
     ? `${BASE_URL}/planting/drivers?${params.toString()}`
     : `${BASE_URL}/planting/drivers`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("Erro ao buscar alocações de motoristas")
-  return res.json()
+  return apiRequest<DriverAllocation[]>(url)
 }
 
 export const createDriverAllocation = async (data: DriverAllocationFormData) => {
-  const res = await fetch(`${BASE_URL}/planting/drivers`, {
+  return apiRequest(`${BASE_URL}/planting/drivers`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) {
-    const errorData = await res.json()
-    throw new Error(errorData.error || "Erro ao criar alocação de motorista")
-  }
-  return res.json()
 }
 
 export const deleteDriverAllocation = async (id: string) => {
-  const res = await fetch(`${BASE_URL}/planting/drivers/${id}`, {
+  return apiRequest(`${BASE_URL}/planting/drivers/${id}`, {
     method: "DELETE",
   })
-  if (!res.ok) throw new Error("Erro ao remover alocação")
-  return res.json()
 }
 
 // ─── Planting Areas ──────────────────────────────────────────────────────────
@@ -274,30 +217,20 @@ export const getPlantingAreas = async (filters?: { seasonId?: string; frontId?: 
   const url = params.toString()
     ? `${BASE_URL}/planting/areas?${params.toString()}`
     : `${BASE_URL}/planting/areas`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("Erro ao buscar áreas de plantio")
-  return res.json()
+  return apiRequest<PlantingArea[]>(url)
 }
 
 export const createPlantingArea = async (data: PlantingAreaFormData) => {
-  const res = await fetch(`${BASE_URL}/planting/areas`, {
+  return apiRequest(`${BASE_URL}/planting/areas`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) {
-    const errorData = await res.json()
-    throw new Error(errorData.error || "Erro ao criar área")
-  }
-  return res.json()
 }
 
 export const deletePlantingArea = async (id: string) => {
-  const res = await fetch(`${BASE_URL}/planting/areas/${id}`, {
+  return apiRequest(`${BASE_URL}/planting/areas/${id}`, {
     method: "DELETE",
   })
-  if (!res.ok) throw new Error("Erro ao remover área")
-  return res.json()
 }
 
 // ─── Advances ────────────────────────────────────────────────────────────────
@@ -311,7 +244,6 @@ export const getAdvances = async (filters?: { seasonId?: string; frontId?: strin
     filters.tagIds.forEach(id => params.append("tagIds", id))
   }
   
-  const res = await fetch(`${BASE_URL}/planting/advances?${params.toString()}`)
-  if (!res.ok) throw new Error("Erro ao buscar adiantamentos")
-  return res.json()
+  const url = `${BASE_URL}/planting/advances?${params.toString()}`
+  return apiRequest<PlantingAdvance[]>(url)
 }

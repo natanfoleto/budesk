@@ -13,14 +13,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { apiRequest } from "@/lib/api-client"
 
 export function TopNav() {
   const router = useRouter()
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" })
-    router.push("/")
-    router.refresh()
+    try {
+      await apiRequest("/api/auth/logout", { method: "POST" })
+    } catch (error) {
+      console.error("Erro no logout:", error)
+    } finally {
+      router.push("/")
+      router.refresh()
+    }
   }
 
   return (

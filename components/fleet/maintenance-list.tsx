@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { apiRequest } from "@/lib/api-client"
 import { formatCentsToReal } from "@/lib/utils"
 import { Maintenance } from "@/types/vehicle"
 
@@ -79,13 +80,9 @@ export function MaintenanceList({
         await onDelete(id)
         // Toast is handled by parent or query invalidated automatically
       } else {
-        const response = await fetch(`/api/vehicles/${vehicleId}/maintenances/${id}`, {
+        await apiRequest(`/api/vehicles/${vehicleId}/maintenances/${id}`, {
           method: "DELETE",
         })
-
-        if (!response.ok) {
-          throw new Error("Erro ao excluir manutenção")
-        }
 
         toast.success("Manutenção excluída")
         fetchMaintenances()

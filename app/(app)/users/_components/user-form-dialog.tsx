@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { apiRequest } from "@/lib/api-client"
 import { User } from "@/types/user"
 
 const userSchema = z.object({
@@ -91,23 +92,18 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
       const method = user ? "PUT" : "POST"
 
       // Remove password if empty on edit to avoid overwriting
-      if (user && !data.password) {
-        delete data.password
+      const payload: Partial<UserFormValues> = { ...data }
+      if (user && !payload.password) {
+        delete payload.password
       }
 
-      const response = await fetch(url, {
+      await apiRequest(url, {
         method,
         headers: {
-          "Content-Type": "application/json",
           "x-user-id": "CURRENT_USER_ID", // TODO: Replace with actual user ID from context/session
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Erro ao salvar usuário")
-      }
 
       toast.success(user ? "Usuário atualizado com sucesso!" : "Usuário criado com sucesso!")
       onSuccess()

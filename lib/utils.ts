@@ -49,6 +49,32 @@ export const maskPhone = (value: string) => {
     .replace(/(-\d{4})\d+?$/, "$1")
 }
 
+export const formatAccountIdentifier = (value: string | undefined | null) => {
+  if (!value) return ""
+  const cleanValue = value.replace(/\D/g, "")
+
+  // CPF
+  if (cleanValue.length === 11) {
+    return maskCPF(cleanValue)
+  }
+
+  // CNPJ
+  if (cleanValue.length === 14) {
+    return cleanValue
+      .replace(/(\d{2})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1/$2")
+      .replace(/(\d{4})(\d)/, "$1-$2")
+  }
+
+  // Phone (Landline or Cell)
+  if (cleanValue.length === 10 || cleanValue.length === 11) {
+    return maskPhone(cleanValue)
+  }
+
+  return value
+}
+
 export const parseLocalDate = (dateStr: string | Date | undefined) => {
   if (!dateStr) return new Date()
   

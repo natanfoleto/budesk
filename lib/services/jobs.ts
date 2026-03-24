@@ -1,3 +1,5 @@
+import { apiRequest } from "@/lib/api-client"
+
 export interface Job {
   id: string
   name: string
@@ -14,35 +16,25 @@ export interface JobFormData {
 }
 
 export async function getJobs() {
-  const res = await fetch("/api/jobs")
-  if (!res.ok) throw new Error("Erro ao buscar cargos")
-  return res.json()
+  return apiRequest<Job[]>("/api/jobs")
 }
 
 export async function createJob(data: JobFormData) {
-  const res = await fetch("/api/jobs", {
+  return apiRequest("/api/jobs", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error("Erro ao criar cargo")
-  return res.json()
 }
 
 export async function updateJob(id: string, data: Partial<JobFormData>) {
-  const res = await fetch(`/api/jobs/${id}`, {
+  return apiRequest(`/api/jobs/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
-  if (!res.ok) throw new Error("Erro ao atualizar cargo")
-  return res.json()
 }
 
 export async function deleteJob(id: string) {
-  const res = await fetch(`/api/jobs/${id}`, {
+  return apiRequest(`/api/jobs/${id}`, {
     method: "DELETE",
   })
-  if (!res.ok) throw new Error("Erro ao excluir cargo")
-  return res.json()
 }

@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEmployeeTags } from "@/hooks/use-employee-tags"
 import { usePlantingSeasons, useWorkFronts } from "@/hooks/use-planting"
+import { apiRequest } from "@/lib/api-client"
 
 import { AdvanceTab } from "./components/AdvanceTab"
 import { ClosingTab } from "./components/ClosingTab"
@@ -61,13 +62,11 @@ function AppointmentsContent() {
 
   const { data: periodStatus } = useQuery({
     queryKey: ["periodStatus", selectedSeasonId, fortnightRange?.start, fortnightRange?.end],
-    queryFn: async () => {
+    queryFn: () => {
       if (selectedSeasonId === "all" || !fortnightRange) return { isClosed: false }
-      const res = await fetch(
+      return apiRequest<{ isClosed: boolean }>(
         `/api/planting/closing?seasonId=${selectedSeasonId}&startDate=${fortnightRange.start}T00:00:00Z&endDate=${fortnightRange.end}T23:59:59Z`
       )
-      if (!res.ok) return { isClosed: false }
-      return res.json() as Promise<{ isClosed: boolean }>
     },
     enabled: selectedSeasonId !== "all" && !!fortnightRange,
   })

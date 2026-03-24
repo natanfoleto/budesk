@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { apiRequest } from "@/lib/api-client"
 
 interface SecureActionDialogProps {
   open: boolean
@@ -49,15 +50,12 @@ export function SecureActionDialog({
     setError("")
 
     try {
-      const response = await fetch("/api/auth/verify-password", {
+      const data = await apiRequest<{ success: boolean; error?: string }>("/api/auth/verify-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       })
 
-      const data = await response.json()
-
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         setError(data.error || "Senha incorreta.")
         setIsLoading(false)
         return

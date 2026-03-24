@@ -2,31 +2,23 @@ import { EmployeeTag } from "@prisma/client"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+import { apiRequest } from "@/lib/api-client"
+
 export const useEmployeeTags = () => {
   return useQuery<EmployeeTag[]>({
     queryKey: ["employee-tags"],
-    queryFn: async () => {
-      const res = await fetch("/api/employee-tags")
-      if (!res.ok) throw new Error("Erro ao buscar etiquetas")
-      return res.json()
-    }
+    queryFn: () => apiRequest<EmployeeTag[]>("/api/employee-tags")
   })
 }
 
 export const useCreateEmployeeTag = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (data: { name: string; color: string }) => {
-      const res = await fetch("/api/employee-tags", {
+    mutationFn: (data: { name: string; color: string }) => {
+      return apiRequest("/api/employee-tags", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       })
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || "Erro ao criar etiqueta")
-      }
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-tags"] })
@@ -39,17 +31,11 @@ export const useCreateEmployeeTag = () => {
 export const useUpdateEmployeeTag = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; name?: string; color?: string; employeeIds?: string[] }) => {
-      const res = await fetch(`/api/employee-tags/${id}`, {
+    mutationFn: ({ id, ...data }: { id: string; name?: string; color?: string; employeeIds?: string[] }) => {
+      return apiRequest(`/api/employee-tags/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       })
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || "Erro ao atualizar etiqueta")
-      }
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-tags"] })
@@ -63,15 +49,10 @@ export const useUpdateEmployeeTag = () => {
 export const useDeleteEmployeeTag = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/employee-tags/${id}`, {
+    mutationFn: (id: string) => {
+      return apiRequest(`/api/employee-tags/${id}`, {
         method: "DELETE",
       })
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || "Erro ao excluir etiqueta")
-      }
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-tags"] })
@@ -86,26 +67,16 @@ export const useEmployeeTagAssignment = (employeeId: string) => {
   
   const query = useQuery<EmployeeTag[]>({
     queryKey: ["employee-tags", employeeId],
-    queryFn: async () => {
-      const res = await fetch(`/api/employees/${employeeId}/tags`)
-      if (!res.ok) throw new Error("Erro ao buscar etiquetas do funcionário")
-      return res.json()
-    },
+    queryFn: () => apiRequest<EmployeeTag[]>(`/api/employees/${employeeId}/tags`),
     enabled: !!employeeId
   })
 
   const mutation = useMutation({
-    mutationFn: async (tagIds: string[]) => {
-      const res = await fetch(`/api/employees/${employeeId}/tags`, {
+    mutationFn: (tagIds: string[]) => {
+      return apiRequest(`/api/employees/${employeeId}/tags`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tagIds }),
       })
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || "Erro ao atualizar etiquetas")
-      }
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-tags", employeeId] })
