@@ -312,7 +312,7 @@ export function EmployeeDetailsModal({
                         </CardHeader>
                         <CardContent className="h-[250px]">
                           {data.insights.gainEvolution.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-sm text-muted-foreground italic">
+                            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
                               Sem dados de evolução no período selecionado.
                             </div>
                           ) : (
@@ -421,7 +421,7 @@ export function EmployeeDetailsModal({
                         </CardHeader>
                         <CardContent className="h-[300px]">
                           {data.insights.productivityEvolution.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-sm text-muted-foreground italic">
+                            <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
                               Sem dados de produção no período selecionado.
                             </div>
                           ) : (
@@ -515,7 +515,7 @@ export function EmployeeDetailsModal({
                               <tbody>
                                 {data.details.productions.length === 0 ? (
                                   <tr>
-                                    <td colSpan={3} className="py-8 text-center text-muted-foreground italic">Nenhuma produção registrada.</td>
+                                    <td colSpan={3} className="py-8 text-center text-muted-foreground">Nenhuma produção registrada.</td>
                                   </tr>
                                 ) : (
                                   data.details.productions.map((p) => (
@@ -550,7 +550,7 @@ export function EmployeeDetailsModal({
                               <tbody>
                                 {data.details.wages.filter(w => w.presence === "PRESENCA").length === 0 && data.details.drivers.length === 0 ? (
                                   <tr>
-                                    <td colSpan={3} className="py-8 text-center text-muted-foreground italic">Nenhuma diária registrada.</td>
+                                    <td colSpan={3} className="py-8 text-center text-muted-foreground">Nenhuma diária registrada.</td>
                                   </tr>
                                 ) : (
                                   <>
@@ -645,7 +645,7 @@ export function EmployeeDetailsModal({
                     {data.details.presence.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
                         <Calendar className="size-12 opacity-20" />
-                        <p>Nenhum registro de frequência encontrado.</p>
+                        <p className="text-sm">Nenhum registro de frequência encontrado.</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

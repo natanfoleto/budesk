@@ -307,7 +307,7 @@ export function PlantingTab({
   if (seasonId === "all" || frontId === "all" || !date) {
     return (
       <Card>
-        <CardContent className="flex h-40 items-center justify-center text-muted-foreground p-6">
+        <CardContent className="flex h-40 items-center justify-center text-muted-foreground p-6 text-sm">
           Selecione a Safra, Frente de Trabalho e Data acima para visualizar e editar os apontamentos.
         </CardContent>
       </Card>

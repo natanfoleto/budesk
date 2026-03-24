@@ -94,7 +94,7 @@ export default function PlantingClosingPage() {
 
   const closePeriodMutation = useMutation({
     mutationFn: () => {
-      return apiRequest<{ message?: string }>("/api/planting/close", {
+      return apiRequest<{ message?: string }>("/api/planting/closing", {
         method: "POST",
         body: JSON.stringify({
           seasonId: selectedSeasonId,
