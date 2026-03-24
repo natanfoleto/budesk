@@ -83,7 +83,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
   const updateAdvanceMutation = useUpdateEmployeeAdvance()
   const deleteAdvanceMutation = useDeleteEmployeeAdvance()
   const [isAdvanceFormOpen, setIsAdvanceFormOpen] = useState(false)
-  const [selectedAdvance, setSelectedAdvance] = useState<EmployeeAdvance & { transaction?: FinancialTransaction } | null>(null)
+  const [selectedAdvance, setSelectedAdvance] = useState<EmployeeAdvance & { transaction: FinancialTransaction | null } | null>(null)
 
   // Edit Employee
   const [isEditFormOpen, setIsEditFormOpen] = useState(false)
@@ -237,7 +237,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
     }
   }
 
-  const openAdvanceForm = (advance?: EmployeeAdvance & { transaction?: FinancialTransaction }) => {
+  const openAdvanceForm = (advance?: EmployeeAdvance & { transaction: FinancialTransaction | null }) => {
     if (advance) {
       setSelectedAdvance(advance)
     } else {
@@ -338,7 +338,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                   Nenhum vínculo registrado.
                 </div>
               ) : (
-                records?.map((record: EmploymentRecord) => (
+                records?.map((record) => (
                   <Card 
                     key={record.id} 
                     className="cursor-pointer hover:bg-accent/50 transition-colors"
@@ -355,7 +355,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                       <p>Salário: {formatCentsToReal(record.baseSalaryInCents)}</p>
                       {record.terminationDate && <p>Término: {formatDate(record.terminationDate)}</p>}
                       {record.workRegime && <p>Regime: {record.workRegime}</p>}
-                      {record.notes && <p className="mt-2 text-xs text-muted-foreground italic">{record.notes}</p>}
+                      {record.notes && <p className="mt-2 text-xs text-muted-foreground">{record.notes}</p>}
                     </CardContent>
                   </Card>
                 ))
@@ -381,7 +381,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                   Nenhum contrato registrado.
                 </div>
               ) : (
-                contracts?.map((contract: EmployeeContract) => (
+                contracts?.map((contract) => (
                   <Card 
                     key={contract.id}
                     className="cursor-pointer hover:bg-accent/50 transition-colors"
@@ -425,7 +425,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                   Nenhum adiantamento registrado.
                 </div>
               ) : (
-                advances?.map((advance: EmployeeAdvance & { transaction?: FinancialTransaction }) => (
+                advances?.map((advance) => (
                   <Card 
                     key={advance.id} 
                     className="cursor-pointer hover:bg-accent/50 transition-colors"

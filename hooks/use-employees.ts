@@ -1,3 +1,9 @@
+import {
+  EmployeeAdvance,
+  EmployeeContract,
+  EmploymentRecord,
+  FinancialTransaction
+} from "@prisma/client"
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -89,7 +95,7 @@ export const useDeleteEmployee = () => {
 // Sub-resources Hooks
 
 export const useEmploymentRecords = (employeeId: string) => {
-  return useQuery({
+  return useQuery<EmploymentRecord[]>({
     queryKey: ['employment-records', employeeId],
     queryFn: () => getEmploymentRecords(employeeId),
     enabled: !!employeeId,
@@ -117,7 +123,7 @@ export const useCreateEmploymentRecord = () => {
 }
 
 export const useEmployeeContracts = (employeeId: string) => {
-  return useQuery({
+  return useQuery<EmployeeContract[]>({
     queryKey: ['employee-contracts', employeeId],
     queryFn: () => getEmployeeContracts(employeeId),
     enabled: !!employeeId,
@@ -145,7 +151,7 @@ export const useCreateEmployeeContract = () => {
 }
 
 export const useEmployeeAdvances = (employeeId: string) => {
-  return useQuery({
+  return useQuery<(EmployeeAdvance & { transaction: FinancialTransaction | null })[]>({
     queryKey: ['employee-advances', employeeId],
     queryFn: () => getEmployeeAdvances(employeeId),
     enabled: !!employeeId,

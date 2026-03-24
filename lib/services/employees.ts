@@ -1,3 +1,10 @@
+import {
+  EmployeeAdvance,
+  EmployeeContract,
+  EmploymentRecord,
+  FinancialTransaction
+} from "@prisma/client"
+
 import { apiRequest } from "@/lib/api-client"
 import {
   AdvanceFormData,
@@ -72,8 +79,8 @@ export const deleteEmployee = async (id: string) => {
 
 // Sub-resources
 
-export const getEmploymentRecords = async (employeeId: string) => {
-  return apiRequest(`${BASE_URL}/employees/${employeeId}/records`)
+export const getEmploymentRecords = async (employeeId: string): Promise<EmploymentRecord[]> => {
+  return apiRequest<EmploymentRecord[]>(`${BASE_URL}/employees/${employeeId}/records`)
 }
 
 export const createEmploymentRecord = async (employeeId: string, data: EmploymentRecordFormData) => {
@@ -83,8 +90,8 @@ export const createEmploymentRecord = async (employeeId: string, data: Employmen
   })
 }
 
-export const getEmployeeContracts = async (employeeId: string) => {
-  return apiRequest(`${BASE_URL}/employees/${employeeId}/contracts`)
+export const getEmployeeContracts = async (employeeId: string): Promise<EmployeeContract[]> => {
+  return apiRequest<EmployeeContract[]>(`${BASE_URL}/employees/${employeeId}/contracts`)
 }
 
 export const createEmployeeContract = async (employeeId: string, data: ContractFormData) => {
@@ -94,8 +101,8 @@ export const createEmployeeContract = async (employeeId: string, data: ContractF
   })
 }
 
-export const getEmployeeAdvances = async (employeeId: string) => {
-  return apiRequest(`${BASE_URL}/employees/${employeeId}/advances`)
+export const getEmployeeAdvances = async (employeeId: string): Promise<(EmployeeAdvance & { transaction: FinancialTransaction | null })[]> => {
+  return apiRequest<(EmployeeAdvance & { transaction: FinancialTransaction | null })[]>(`${BASE_URL}/employees/${employeeId}/advances`)
 }
 
 export const createEmployeeAdvance = async (employeeId: string, data: AdvanceFormData) => {

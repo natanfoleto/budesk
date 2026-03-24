@@ -294,7 +294,7 @@ export default function PlantingClosingPage() {
                   <Skeleton className="h-20 w-full" />
                 </div>
               ) : !periodSummary ? (
-                <div className="text-center text-muted-foreground p-4 text-sm italic">Nenhum dado encontrado para este período.</div>
+                <div className="text-center text-muted-foreground p-4 text-sm ">Nenhum dado encontrado para este período.</div>
               ) : (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-x-8 gap-y-4">
@@ -353,7 +353,7 @@ export default function PlantingClosingPage() {
                   <Skeleton className="h-20 w-full" />
                 </div>
               ) : !periodSummary ? (
-                <div className="text-center text-muted-foreground p-4 text-sm italic">Nenhum dado encontrado para este mês.</div>
+                <div className="text-center text-muted-foreground p-4 text-sm ">Nenhum dado encontrado para este mês.</div>
               ) : (
                 <div className="space-y-6">
                   <MonthlyMetrics seasonId={selectedSeasonId} monthStr={selectedMonth} />

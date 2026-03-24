@@ -311,8 +311,8 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-muted-foreground mt-3 italic">
-            * Soma de: Custo Plantio + Custo Corte + Diárias + Motoristas + Adiantamentos.
+          <p className="text-[10px] text-muted-foreground mt-3">
+            Soma de: Custo Plantio + Custo Corte + Diárias + Motoristas + Adiantamentos.
           </p>
         </CardContent>
       </Card>

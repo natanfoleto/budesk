@@ -217,7 +217,7 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
             </div>
 
             {!isMonthClosed && (
-              <p className="text-[11px] text-center text-red-600 px-1 italic">
+              <p className="text-[11px] text-center text-red-600 px-1">
                 As duas quinzenas precisam estar fechadas para gerar o relatório mensal.
               </p>
             )}

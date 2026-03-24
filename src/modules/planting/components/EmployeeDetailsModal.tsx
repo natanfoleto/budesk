@@ -378,7 +378,7 @@ export function EmployeeDetailsModal({
                                       <p className="text-sm font-mono font-bold break-all leading-tight">
                                         {formatAccountIdentifier(acc.identifier)}
                                       </p>
-                                      {acc.description && <p className="text-[10px] text-muted-foreground italic">{acc.description}</p>}
+                                      {acc.description && <p className="text-[10px] text-muted-foreground ">{acc.description}</p>}
                                     </div>
                                   </div>
                                   <button 

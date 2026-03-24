@@ -11,7 +11,7 @@ type TableCell = string | number | {
   content: string | number; 
   colSpan?: number; 
   styles?: { 
-    fontStyle?: "normal" | "bold" | "italic" | "bolditalic"; 
+    fontStyle?: "normal" | "bold" | "" | "bold"; 
     fillColor?: [number, number, number]; 
     halign?: 'left' | 'center' | 'right';
     textColor?: [number, number, number];
