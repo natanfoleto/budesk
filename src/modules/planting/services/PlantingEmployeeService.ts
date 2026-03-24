@@ -6,9 +6,15 @@ import {
   PlantingAdvance,
   PlantingProduction,
   PlantingProductionType} from "@prisma/client"
-import { endOfDay,startOfDay } from "date-fns"
 
 import prisma from "@/lib/prisma"
+ 
+function toLocalDateStr(date: Date): string {
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
 
 export interface EmployeeSummary {
   employee: {
@@ -53,8 +59,8 @@ export class PlantingEmployeeService {
     endDate?: Date
   ): Promise<EmployeeSummary> {
     const dateFilter = startDate && endDate ? {
-      gte: startOfDay(startDate),
-      lte: endOfDay(endDate)
+      gte: startDate,
+      lte: endDate
     } : undefined
 
     const employee = await prisma.employee.findUnique({
@@ -101,7 +107,7 @@ export class PlantingEmployeeService {
     productions.forEach(p => {
       if (p.presence === "PRESENCA") {
         totalEarnedInCents += p.totalValueInCents
-        workedDates.add(p.date.toISOString().split("T")[0])
+        workedDates.add(toLocalDateStr(p.date))
         if (p.type === (PlantingProductionType.PLANTIO as string)) totalPlantingMeters += Number(p.meters || 0)
         else totalCuttingMeters += Number(p.meters || 0)
       }
@@ -110,30 +116,30 @@ export class PlantingEmployeeService {
     dailyWages.forEach(w => {
       if (w.presence === (AttendanceType.PRESENCA as string) || w.presence === (AttendanceType.FOLGA as string)) {
         totalEarnedInCents += w.valueInCents
-        workedDates.add(w.date.toISOString().split("T")[0])
+        workedDates.add(toLocalDateStr(w.date))
       }
     })
 
     drivers.forEach(d => {
       totalEarnedInCents += d.valueInCents
-      workedDates.add(d.date.toISOString().split("T")[0])
+      workedDates.add(toLocalDateStr(d.date))
     })
 
     const totalAdvancesInCents = advances.reduce((acc, curr) => acc + curr.valueInCents, 0)
 
     // Detailed presence calculation
     const allDates = new Set<string>()
-    productions.forEach(p => allDates.add(p.date.toISOString().split("T")[0]))
-    dailyWages.forEach(w => allDates.add(w.date.toISOString().split("T")[0]))
-    drivers.forEach(d => allDates.add(d.date.toISOString().split("T")[0]))
+    productions.forEach(p => allDates.add(toLocalDateStr(p.date)))
+    dailyWages.forEach(w => allDates.add(toLocalDateStr(w.date)))
+    drivers.forEach(d => allDates.add(toLocalDateStr(d.date)))
 
     const sortedDates = Array.from(allDates).sort()
     const presenceDetails: { date: string; status: string }[] = []
 
     sortedDates.forEach(dateStr => {
-      const dayProds = productions.filter(p => p.date.toISOString().split("T")[0] === dateStr)
-      const dayWages = dailyWages.filter(w => w.date.toISOString().split("T")[0] === dateStr)
-      const isDriver = drivers.some(d => d.date.toISOString().split("T")[0] === dateStr)
+      const dayProds = productions.filter(p => toLocalDateStr(p.date) === dateStr)
+      const dayWages = dailyWages.filter(w => toLocalDateStr(w.date) === dateStr)
+      const isDriver = drivers.some(d => toLocalDateStr(d.date) === dateStr)
 
       const hasPresence = dayProds.some(p => p.presence === (AttendanceType.PRESENCA as string)) || 
                           dayWages.some(w => w.presence === (AttendanceType.PRESENCA as string) || w.presence === (AttendanceType.FOLGA as string)) ||
@@ -161,15 +167,15 @@ export class PlantingEmployeeService {
       let dayPlanting = 0
       let dayCutting = 0
 
-      productions.filter(p => p.date.toISOString().split("T")[0] === dateStr && p.presence === (AttendanceType.PRESENCA as string)).forEach(p => {
+      productions.filter(p => toLocalDateStr(p.date) === dateStr && p.presence === (AttendanceType.PRESENCA as string)).forEach(p => {
         dayGain += p.totalValueInCents
         if (p.type === (PlantingProductionType.PLANTIO as string)) dayPlanting += Number(p.meters || 0)
         else dayCutting += Number(p.meters || 0)
       })
-      dailyWages.filter(w => w.date.toISOString().split("T")[0] === dateStr && (w.presence === (AttendanceType.PRESENCA as string) || w.presence === (AttendanceType.FOLGA as string))).forEach(w => {
+      dailyWages.filter(w => toLocalDateStr(w.date) === dateStr && (w.presence === (AttendanceType.PRESENCA as string) || w.presence === (AttendanceType.FOLGA as string))).forEach(w => {
         dayGain += w.valueInCents
       })
-      drivers.filter(d => d.date.toISOString().split("T")[0] === dateStr).forEach(d => {
+      drivers.filter(d => toLocalDateStr(d.date) === dateStr).forEach(d => {
         dayGain += d.valueInCents
       })
 

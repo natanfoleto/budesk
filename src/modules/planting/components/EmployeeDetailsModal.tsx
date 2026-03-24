@@ -2,11 +2,8 @@
 
 import { 
   endOfMonth,
-  endOfWeek,
   format,
-  startOfMonth,
-  startOfWeek
-} from "date-fns"
+  startOfMonth} from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { 
   Calendar, 
@@ -64,7 +61,7 @@ interface EmployeeDetailsModalProps {
   onOpenChange: (open: boolean) => void
 }
 
-type FilterType = "GERAL" | "DIARIO" | "SEMANAL" | "QUINZENAL" | "MENSAL" | "CUSTOM"
+type FilterType = "GERAL" | "HOJE" | "P_QUINZENAL" | "S_QUINZENAL" | "MES_ATUAL" | "CUSTOM"
 
 export function EmployeeDetailsModal({ 
   employeeId, 
@@ -82,23 +79,21 @@ export function EmployeeDetailsModal({
   const calculateDateRange = useCallback((type: FilterType) => {
     const now = new Date()
     switch (type) {
-    case "DIARIO":
+    case "HOJE":
       return { start: format(now, "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") }
-    case "SEMANAL":
+    case "P_QUINZENAL": {
       return { 
-        start: format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"), 
-        end: format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd") 
-      }
-    case "QUINZENAL": {
-      const day = now.getDate()
-      const start = day <= 15 ? 1 : 16
-      const end = day <= 15 ? 15 : format(endOfMonth(now), "dd")
-      return { 
-        start: format(now, `yyyy-MM-${String(start).padStart(2, "0")}`), 
-        end: format(now, `yyyy-MM-${String(end).padStart(2, "0")}`) 
+        start: format(startOfMonth(now), "yyyy-MM-dd"), 
+        end: format(startOfMonth(now).setDate(15), "yyyy-MM-dd") 
       }
     }
-    case "MENSAL":
+    case "S_QUINZENAL": {
+      return { 
+        start: format(startOfMonth(now).setDate(16), "yyyy-MM-dd"), 
+        end: format(endOfMonth(now), "yyyy-MM-dd") 
+      }
+    }
+    case "MES_ATUAL":
       return { 
         start: format(startOfMonth(now), "yyyy-MM-dd"), 
         end: format(endOfMonth(now), "yyyy-MM-dd") 
@@ -181,15 +176,15 @@ export function EmployeeDetailsModal({
 
         <div className="px-6 py-3 border-b bg-muted/20 flex flex-wrap items-center gap-4 shrink-0">
           <Select value={filterType} onValueChange={(val: FilterType) => setFilterType(val)}>
-            <SelectTrigger className="w-[180px] h-8 bg-background">
+            <SelectTrigger className="h-8 bg-background">
               <SelectValue placeholder="Selecione o período" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="GERAL">Geral</SelectItem>
-              <SelectItem value="DIARIO">Hoje</SelectItem>
-              <SelectItem value="SEMANAL">Semana Atual</SelectItem>
-              <SelectItem value="QUINZENAL">Quinzena Atual</SelectItem>
-              <SelectItem value="MENSAL">Mês Atual</SelectItem>
+              <SelectItem value="HOJE">Hoje</SelectItem>
+              <SelectItem value="P_QUINZENAL">Primeira quinzena (01-15)</SelectItem>
+              <SelectItem value="S_QUINZENAL">Segunda quinzena (16-31)</SelectItem>
+              <SelectItem value="MES_ATUAL">Mês Atual</SelectItem>
               <SelectItem value="CUSTOM">Personalizado</SelectItem>
             </SelectContent>
           </Select>

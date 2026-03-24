@@ -51,15 +51,23 @@ export const maskPhone = (value: string) => {
 
 export const parseLocalDate = (dateStr: string | Date | undefined) => {
   if (!dateStr) return new Date()
-  if (dateStr instanceof Date) return dateStr
   
+  // If it's a Date object, use its UTC components to avoid shift
+  if (dateStr instanceof Date) {
+    return new Date(dateStr.getUTCFullYear(), dateStr.getUTCMonth(), dateStr.getUTCDate())
+  }
+
   // If it's a string, try to extract the YYYY-MM-DD part
-  // This handles both "2024-03-23" and "2024-03-23T00:00:00.000Z"
-  // by parsing it as local time (YYYY/MM/DD)
   const dateMatch = typeof dateStr === "string" && dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (dateMatch) {
     return new Date(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]))
   }
   
-  return new Date(dateStr)
+  // Fallback for other string formats: use UTC components of the parsed date
+  const d = new Date(dateStr)
+  if (!isNaN(d.getTime())) {
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  }
+
+  return d
 }

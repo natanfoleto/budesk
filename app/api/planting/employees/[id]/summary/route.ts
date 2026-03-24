@@ -17,8 +17,17 @@ export async function GET(
       return NextResponse.json({ error: "Safra não identificada" }, { status: 400 })
     }
 
-    const startDate = startDateStr ? new Date(startDateStr) : undefined
-    const endDate = endDateStr ? new Date(endDateStr) : undefined
+    const parseDate = (dateStr: string | null, isEnd: boolean) => {
+      if (!dateStr) return undefined
+      const [y, m, d] = dateStr.split("-").map(Number)
+      if (isEnd) {
+        return new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999))
+      }
+      return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0))
+    }
+
+    const startDate = parseDate(startDateStr, false)
+    const endDate = parseDate(endDateStr, true)
 
     const summary = await PlantingEmployeeService.getSummary(
       id,

@@ -334,7 +334,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
             </CardHeader>
             <CardContent className="space-y-4">
               {records?.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
+                <div className="text-center text-sm py-6 text-muted-foreground">
                   Nenhum vínculo registrado.
                 </div>
               ) : (

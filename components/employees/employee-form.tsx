@@ -247,7 +247,7 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
                     <FormLabel>Tamanho Camisa</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="cursor-pointer">
+                        <SelectTrigger className="w-full cursor-pointer">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
