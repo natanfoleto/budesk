@@ -1,4 +1,4 @@
-import { AccountStatus, Prisma } from "@prisma/client"
+import { AccountStatus, PaymentMethod, Prisma } from "@prisma/client"
 import { addMonths } from "date-fns"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -10,11 +10,16 @@ const AUDIT_CREATE = "CREATE"
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const statusFilter = searchParams.get("status") // PENDENTE, PAGA, ATRASADA
+  const paymentMethod = searchParams.get("paymentMethod")
   const startDate = searchParams.get("startDate")
   const endDate = searchParams.get("endDate")
 
   try {
     const where: Prisma.AccountPayableWhereInput = {}
+
+    if (paymentMethod) {
+      where.paymentMethod = paymentMethod as PaymentMethod
+    }
 
     if (startDate && endDate) {
       // Filtrar pelo vencimento das parcelas
@@ -23,6 +28,22 @@ export async function GET(request: NextRequest) {
           dueDate: {
             gte: new Date(startDate),
             lte: new Date(endDate),
+          }
+        }
+      }
+    } else if (startDate) {
+      where.installments = {
+        some: {
+          dueDate: {
+            gte: new Date(startDate)
+          }
+        }
+      }
+    } else if (endDate) {
+      where.installments = {
+        some: {
+          dueDate: {
+            lte: new Date(endDate)
           }
         }
       }
@@ -65,6 +86,19 @@ export async function GET(request: NextRequest) {
     const filteredAccounts = statusFilter 
       ? processedAccounts.filter(a => a.status === statusFilter)
       : processedAccounts
+
+    // Ordenar: sempre o registro mais próximo a vencer no topo
+    filteredAccounts.sort((a, b) => {
+      const dateA = a.nextDueDate ? new Date(a.nextDueDate).getTime() : Infinity
+      const dateB = b.nextDueDate ? new Date(b.nextDueDate).getTime() : Infinity
+      
+      // Se ambos são Infinity (Ex: PAGOS), desempata pela data de criação
+      if (dateA === Infinity && dateB === Infinity) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      }
+      
+      return dateA - dateB
+    })
 
     return NextResponse.json(filteredAccounts)
   } catch (error) {

@@ -1,7 +1,7 @@
 "use client"
 
-import { Loader2,Plus } from "lucide-react"
-import { useState } from "react"
+import { FilterX, Loader2, Plus } from "lucide-react"
+import { useMemo, useState } from "react"
 
 import { AccountPayableForm } from "@/components/financial/account-payable-form"
 import { AccountsPayableTable } from "@/components/financial/accounts-payable-table"
@@ -16,15 +16,40 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { useAccountsPayable, useCreateAccountPayable, useDeleteAccountPayable,useUpdateAccountPayable } from "@/hooks/use-financial"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAccountsPayable, useCreateAccountPayable, useDeleteAccountPayable, useUpdateAccountPayable } from "@/hooks/use-financial"
 import { AccountPayable } from "@/types/financial"
 
 export default function PayablesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingAccount, setEditingAccount] = useState<AccountPayable | null>(null)
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null)
-  
-  const { data: accounts, isLoading } = useAccountsPayable()
+
+  const [statusFilter, setStatusFilter] = useState("TODOS")
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState("TODOS")
+  const [dateFilterType, setDateFilterType] = useState("ALL") 
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+
+  const filters = useMemo(() => {
+    const params: Record<string, string> = {}
+    if (statusFilter !== "TODOS") params.status = statusFilter
+    if (paymentMethodFilter !== "TODOS") params.paymentMethod = paymentMethodFilter
+    
+    if (dateFilterType === "SPECIFIC" && startDate) {
+      params.startDate = startDate
+      params.endDate = startDate
+    } else if (dateFilterType === "RANGE") {
+      if (startDate) params.startDate = startDate
+      if (endDate) params.endDate = endDate
+    }
+    return params
+  }, [statusFilter, paymentMethodFilter, dateFilterType, startDate, endDate])
+
+  const { data: accounts, isLoading } = useAccountsPayable(filters)
   const createMutation = useCreateAccountPayable()
   const updateMutation = useUpdateAccountPayable()
   const deleteMutation = useDeleteAccountPayable()
@@ -73,9 +98,96 @@ export default function PayablesPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Contas a Pagar</h2>
         <Button onClick={openCreate}>
-          <Plus className="size-4" /> Nova Conta
+          <Plus className="size-4 mr-2" /> Nova Conta
         </Button>
       </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODOS">Todos</SelectItem>
+                  <SelectItem value="PENDENTE">Pendente</SelectItem>
+                  <SelectItem value="PAGA">Paga</SelectItem>
+                  <SelectItem value="ATRASADA">Atrasada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODOS">Todos</SelectItem>
+                  <SelectItem value="BOLETO">Boleto</SelectItem>
+                  <SelectItem value="CHEQUE">Cheque</SelectItem>
+                  <SelectItem value="CARTAO">Cartão</SelectItem>
+                  <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
+                  <SelectItem value="TRANSFERENCIA">Transferência</SelectItem>
+                  <SelectItem value="PIX">PIX</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Período</Label>
+              <Select value={dateFilterType} onValueChange={setDateFilterType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todas as datas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todas as datas</SelectItem>
+                  <SelectItem value="SPECIFIC">Dia específico</SelectItem>
+                  <SelectItem value="RANGE">Período</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {dateFilterType === "SPECIFIC" && (
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+            )}
+
+            {dateFilterType === "RANGE" && (
+              <>
+                <div className="space-y-2">
+                  <Label>De</Label>
+                  <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Até</Label>
+                  <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                </div>
+              </>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStatusFilter("TODOS")
+                setPaymentMethodFilter("TODOS")
+                setDateFilterType("ALL")
+                setStartDate("")
+                setEndDate("")
+              }}
+              className="text-muted-foreground w-full"
+            >
+              <FilterX className="h-4 w-4 mr-2" /> Limpar Filtros
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <div className="flex justify-center items-center h-full w-full py-10">
