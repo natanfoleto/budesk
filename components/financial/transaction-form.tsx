@@ -84,7 +84,7 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
         date: new Date().toISOString().split("T")[0],
       })
     }
-  }, [initialData, form])
+  }, [initialData, form, open])
 
   const handleSubmit = (values: TransactionFormData) => {
     onSubmit(values)

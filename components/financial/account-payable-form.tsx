@@ -1,6 +1,5 @@
-"use client"
-
 import { zodResolver } from "@hookform/resolvers/zod"
+import { PaymentMethod } from "@prisma/client"
 import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -33,9 +32,11 @@ import { AccountPayable } from "@/types/financial"
 
 const formSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),
-  valueInCents: z.number().min(1, "Valor obrigatório"),
-  dueDate: z.string(),
-  status: z.enum(["PENDENTE", "PAGA", "ATRASADA"]),
+  totalValueInCents: z.number().min(1, "Valor total obrigatório"),
+  paymentMethod: z.nativeEnum(PaymentMethod),
+  installmentsCount: z.number().min(1, "Mínimo de 1 parcela"),
+  firstDueDate: z.string().min(1, "Data de vencimento obrigatória"),
+  supplierId: z.string().optional().nullable(),
 })
 
 type AccountPayableFormData = z.infer<typeof formSchema>
@@ -53,9 +54,11 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
     resolver: zodResolver(formSchema),
     defaultValues: {
       description: "",
-      valueInCents: 0,
-      dueDate: new Date().toISOString().split("T")[0],
-      status: "PENDENTE",
+      totalValueInCents: 0,
+      paymentMethod: PaymentMethod.BOLETO,
+      installmentsCount: 1,
+      firstDueDate: new Date().toISOString().split("T")[0],
+      supplierId: null,
     },
   })
 
@@ -63,19 +66,25 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
     if (initialData) {
       form.reset({
         description: initialData.description || "",
-        valueInCents: initialData.valueInCents || 0,
-        dueDate: initialData.dueDate ? new Date(initialData.dueDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-        status: initialData.status || "PENDENTE",
+        totalValueInCents: initialData.totalValueInCents || 0,
+        paymentMethod: (initialData.paymentMethod as PaymentMethod) || PaymentMethod.BOLETO,
+        installmentsCount: initialData.installmentsCount || 1,
+        firstDueDate: initialData.installments?.[0]?.dueDate 
+          ? new Date(initialData.installments[0].dueDate).toISOString().split("T")[0] 
+          : new Date().toISOString().split("T")[0],
+        supplierId: initialData.supplier?.id || null,
       })
     } else {
       form.reset({
         description: "",
-        valueInCents: 0,
-        dueDate: new Date().toISOString().split("T")[0],
-        status: "PENDENTE",
+        totalValueInCents: 0,
+        paymentMethod: PaymentMethod.BOLETO,
+        installmentsCount: 1,
+        firstDueDate: new Date().toISOString().split("T")[0],
+        supplierId: null,
       })
     }
-  }, [initialData, form])
+  }, [initialData, form, open])
 
   const handleSubmit = (values: AccountPayableFormData) => {
     onSubmit(values)
@@ -83,7 +92,7 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{initialData ? "Editar Conta" : "Nova Conta a Pagar"}</DialogTitle>
         </DialogHeader>
@@ -96,7 +105,7 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
                 <FormItem>
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input placeholder="Ex: Aluguel, Fornecedor X..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -105,11 +114,11 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
             
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                name="valueInCents"
+                name="totalValueInCents"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor</FormLabel>
+                    <FormLabel>Valor Total</FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="R$ 0,00"
@@ -125,11 +134,11 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
                 )}
               />
               <FormField
-                name="dueDate"
+                name="firstDueDate"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Vencimento</FormLabel>
+                    <FormLabel>1º Vencimento</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -139,28 +148,51 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
               />
             </div>
 
-            <FormField
-              name="status"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                name="paymentMethod"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Método</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="BOLETO">Boleto</SelectItem>
+                        <SelectItem value="CHEQUE">Cheque</SelectItem>
+                        <SelectItem value="CARTAO">Cartão</SelectItem>
+                        <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
+                        <SelectItem value="TRANSFERENCIA">Transferência</SelectItem>
+                        <SelectItem value="PIX">PIX</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="installmentsCount"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Parcelas</FormLabel>
                     <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
+                      <Input 
+                        type="number" 
+                        min={1} 
+                        {...field} 
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="PENDENTE">Pendente</SelectItem>
-                      <SelectItem value="PAGA">Paga</SelectItem>
-                      <SelectItem value="ATRASADA">Atrasada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Salvando..." : "Salvar"}

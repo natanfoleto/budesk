@@ -17,16 +17,32 @@ export interface Transaction {
 
 export type AccountStatus = "PENDENTE" | "PAGA" | "ATRASADA"
 
-export interface AccountPayable {
+export interface AccountInstallment {
   id: string
-  description: string
+  accountPayableId: string
+  installmentNumber: number
   valueInCents: number
   dueDate: string | Date
   status: AccountStatus
+  paymentDate?: string | Date | null
+  createdAt?: string | Date
+  updatedAt?: string | Date
+}
+
+export interface AccountPayable {
+  id: string
+  description: string
+  paymentMethod: PaymentMethod | string
+  totalValueInCents: number
+  installmentsCount: number
+  status?: AccountStatus // Calculated aggregate
+  paidInstallmentsCount?: number // Calculated
+  nextDueDate?: string | Date | null // Calculated earliest pending Vencimento
   supplier?: {
     id: string
     name: string
   } | null
+  installments?: AccountInstallment[]
   createdAt?: string | Date
   updatedAt?: string | Date
 }

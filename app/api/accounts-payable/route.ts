@@ -1,41 +1,72 @@
-import { ExpenseCategory, Prisma } from "@prisma/client"
+import { AccountStatus, Prisma } from "@prisma/client"
+import { addMonths } from "date-fns"
 import { NextRequest, NextResponse } from "next/server"
 
 import prisma from "@/lib/prisma"
 import { AuditService } from "@/src/modules/audit/services/AuditService"
-import { FinanceService } from "@/src/modules/finance/services/FinanceService"
 
 const AUDIT_CREATE = "CREATE"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
-  const status = searchParams.get("status") // PENDENTE, PAGA, ATRASADA
+  const statusFilter = searchParams.get("status") // PENDENTE, PAGA, ATRASADA
   const startDate = searchParams.get("startDate")
   const endDate = searchParams.get("endDate")
 
   try {
     const where: Prisma.AccountPayableWhereInput = {}
 
-    if (status) {
-      where.status = status as Prisma.AccountPayableWhereInput["status"]
-    }
-
     if (startDate && endDate) {
-      where.dueDate = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
+      // Filtrar pelo vencimento das parcelas
+      where.installments = {
+        some: {
+          dueDate: {
+            gte: new Date(startDate),
+            lte: new Date(endDate),
+          }
+        }
       }
     }
 
     const accounts = await prisma.accountPayable.findMany({
       where,
-      orderBy: { dueDate: "asc" },
+      orderBy: { createdAt: "desc" },
       include: {
-        supplier: { select: { name: true } },
+        supplier: { select: { id: true, name: true } },
+        installments: {
+          orderBy: { installmentNumber: "asc" }
+        }
       },
     })
 
-    return NextResponse.json(accounts)
+    // Calcular status de cada conta baseado nas parcelas
+    const processedAccounts = accounts.map(account => {
+      const installments = account.installments
+      const totalInstallments = installments.length
+      const paidInstallments = installments.filter(i => i.status === "PAGA").length
+      
+      const status = paidInstallments === totalInstallments && totalInstallments > 0
+        ? "PAGA"
+        : installments.some(i => i.status !== "PAGA" && new Date(i.dueDate) < new Date())
+          ? "ATRASADA"
+          : "PENDENTE"
+
+      const nextInstallment = installments.find(i => i.status !== "PAGA")
+
+      return {
+        ...account,
+        status,
+        paidInstallmentsCount: paidInstallments,
+        nextDueDate: nextInstallment?.dueDate || null
+      }
+    })
+
+    // Aplicar filtro de status se houver
+    const filteredAccounts = statusFilter 
+      ? processedAccounts.filter(a => a.status === statusFilter)
+      : processedAccounts
+
+    return NextResponse.json(filteredAccounts)
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: "Erro ao buscar contas" }, { status: 500 })
@@ -47,39 +78,58 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { description, valueInCents, dueDate, status, supplierId, costCenterId } = body
+    const { 
+      description, 
+      totalValueInCents, 
+      installmentsCount, 
+      paymentMethod,
+      firstDueDate,
+      supplierId, 
+      costCenterId 
+    } = body
 
     const account = await prisma.$transaction(async (tx) => {
       const createdAccount = await tx.accountPayable.create({
         data: {
           description,
-          valueInCents,
-          dueDate: new Date(dueDate),
-          status: status || "PENDENTE",
+          totalValueInCents,
+          installmentsCount: installmentsCount || 1,
+          paymentMethod: paymentMethod || "BOLETO",
           supplierId: supplierId || null,
           costCenterId: costCenterId || null,
         },
       })
 
-      // Se nascer já PAGA, gera transação
-      if (createdAccount.status === "PAGA") {
-        await FinanceService.registerTransaction(tx, {
-          type: "SAIDA",
-          category: ExpenseCategory.OUTROS,
-          amountInCents: createdAccount.valueInCents,
-          paymentMethod: "TRANSFERENCIA", // default
-          description: `Pagamento da Conta: ${createdAccount.description}`,
-          date: new Date(),
-          costCenterId: createdAccount.costCenterId || undefined,
-          referenceId: createdAccount.supplierId || undefined,
-          referenceType: createdAccount.supplierId ? "supplier" : undefined,
-          userId: userId || undefined
+      // Gerar parcelas
+      const installmentBaseValue = Math.floor(totalValueInCents / (installmentsCount || 1))
+      const remainder = totalValueInCents - (installmentBaseValue * (installmentsCount || 1))
+      
+      const installmentsData = []
+      const startDate = firstDueDate ? new Date(firstDueDate) : new Date()
+
+      for (let i = 1; i <= (installmentsCount || 1); i++) {
+        // A última parcela leva o resto se houver arredondamento
+        const value = i === (installmentsCount || 1) ? installmentBaseValue + remainder : installmentBaseValue
+        
+        installmentsData.push({
+          accountPayableId: createdAccount.id,
+          installmentNumber: i,
+          valueInCents: value,
+          dueDate: addMonths(startDate, i - 1),
+          status: "PENDENTE" as AccountStatus,
         })
       }
 
+      await tx.accountInstallment.createMany({
+        data: installmentsData
+      })
+
       await AuditService.logAction(tx, AUDIT_CREATE, "AccountPayable", createdAccount.id, createdAccount, userId || null)
 
-      return createdAccount
+      return await tx.accountPayable.findUnique({
+        where: { id: createdAccount.id },
+        include: { installments: true }
+      })
     })
 
     return NextResponse.json(account, { status: 201 })

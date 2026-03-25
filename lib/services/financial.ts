@@ -53,6 +53,13 @@ export const deleteAccountPayable = async (id: string) => {
   })
 }
 
+export const updateAccountInstallment = async (id: string, status: string, paymentDate?: string | Date) => {
+  return apiRequest(`${BASE_URL}/accounts-payable-installments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, paymentDate }),
+  })
+}
+
 export const getDashboardMetrics = async (month?: number, year?: number) => {
   const params = new URLSearchParams()
   if (month) params.append("month", month.toString())

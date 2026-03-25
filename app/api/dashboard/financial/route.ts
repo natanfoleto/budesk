@@ -44,21 +44,21 @@ export async function GET(request: NextRequest) {
     const afterTomorrow = new Date(tomorrow)
     afterTomorrow.setDate(afterTomorrow.getDate() + 1)
 
-    const payables = await prisma.accountPayable.findMany({
+    const installments = await prisma.accountInstallment.findMany({
       where: {
-        status: "PENDENTE",
+        status: { in: ["PENDENTE", "ATRASADA"] }
       },
     })
 
-    const overdue = payables.filter((p) => new Date(p.dueDate) < today)
-    const dueToday = payables.filter(
-      (p) =>
-        new Date(p.dueDate) >= today && new Date(p.dueDate) < tomorrow
+    const overdue = installments.filter((i) => new Date(i.dueDate) < today)
+    const dueToday = installments.filter(
+      (i) =>
+        new Date(i.dueDate) >= today && new Date(i.dueDate) < tomorrow
     )
-    const dueTomorrow = payables.filter(
-      (p) =>
-        new Date(p.dueDate) >= tomorrow &&
-        new Date(p.dueDate) < afterTomorrow
+    const dueTomorrow = installments.filter(
+      (i) =>
+        new Date(i.dueDate) >= tomorrow &&
+        new Date(i.dueDate) < afterTomorrow
     )
 
     // 3. Category Expenses

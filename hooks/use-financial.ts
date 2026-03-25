@@ -9,14 +9,16 @@ import {
   getAccountsPayable,
   getDashboardMetrics,
   getTransactions,
+  updateAccountInstallment,
   updateAccountPayable,
   updateTransaction,
 } from "@/lib/services/financial"
+import { AccountPayable, Transaction } from "@/types/financial"
 
-export const useTransactions = (filters?: any) => {
+export const useTransactions = (filters?: Record<string, string>) => {
   return useQuery({
     queryKey: ["transactions", filters],
-    queryFn: () => getTransactions(filters),
+    queryFn: () => getTransactions(filters || {}),
   })
 }
 
@@ -36,7 +38,7 @@ export const useCreateTransaction = () => {
 export const useUpdateTransaction = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateTransaction(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<Transaction> }) => updateTransaction(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] })
@@ -59,10 +61,10 @@ export const useDeleteTransaction = () => {
   })
 }
 
-export const useAccountsPayable = (filters?: any) => {
+export const useAccountsPayable = (filters?: Record<string, string>) => {
   return useQuery({
     queryKey: ["payables", filters],
-    queryFn: () => getAccountsPayable(filters),
+    queryFn: () => getAccountsPayable(filters || {}),
   })
 }
 
@@ -82,7 +84,7 @@ export const useCreateAccountPayable = () => {
 export const useUpdateAccountPayable = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateAccountPayable(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<AccountPayable> }) => updateAccountPayable(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payables"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] })
@@ -102,6 +104,20 @@ export const useDeleteAccountPayable = () => {
       toast.success("Conta a pagar excluída!")
     },
     onError: () => toast.error("Erro ao excluir conta"),
+  })
+}
+
+export const useUpdateAccountInstallment = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, status, paymentDate }: { id: string; status: string; paymentDate?: string | Date }) => 
+      updateAccountInstallment(id, status, paymentDate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payables"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] })
+      toast.success("Parcela atualizada!")
+    },
+    onError: (error: Error) => toast.error(error.message || "Erro ao atualizar parcela"),
   })
 }
 

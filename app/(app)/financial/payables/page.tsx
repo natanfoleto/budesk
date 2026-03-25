@@ -29,13 +29,13 @@ export default function PayablesPage() {
   const updateMutation = useUpdateAccountPayable()
   const deleteMutation = useDeleteAccountPayable()
 
-  const handleCreate = (data: Omit<AccountPayable, "id" | "createdAt" | "updatedAt">) => {
+  const handleCreate = (data: Record<string, unknown>) => {
     createMutation.mutate(data, {
       onSuccess: () => setIsFormOpen(false),
     })
   }
 
-  const handleUpdate = (data: Partial<AccountPayable>) => {
+  const handleUpdate = (data: Record<string, unknown>) => {
     if (editingAccount) {
       updateMutation.mutate({ id: editingAccount.id, data }, {
         onSuccess: () => {

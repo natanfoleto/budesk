@@ -1,6 +1,5 @@
-"use client"
-
-import { Edit, Trash2 } from "lucide-react"
+import { ChevronDown, ChevronUp, Edit, Trash2 } from "lucide-react"
+import React, { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useUpdateAccountInstallment } from "@/hooks/use-financial"
 import { formatCentsToReal, formatDate } from "@/lib/utils"
 import { AccountPayable } from "@/types/financial"
 
@@ -22,25 +22,25 @@ interface AccountsPayableTableProps {
 }
 
 export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPayableTableProps) {
-  const getStatusColor = (status: string, date: string | Date) => {
+  const [expandedRows, setExpandedRows] = useState<string[]>([])
+  const updateInstallment = useUpdateAccountInstallment()
+
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => 
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    )
+  }
+
+  const getStatusColor = (status: string): "success" | "destructive" | "warning" | "secondary" | "default" | "outline" => {
     if (status === "PAGA") return "success"
-    const dueDate = new Date(date)
-    const today = new Date()
-    today.setHours(0,0,0,0)
-    
-    if (dueDate < today) return "destructive"
-    if (dueDate.getTime() === today.getTime()) return "secondary" // changed from warning since badge variant might not exist
+    if (status === "ATRASADA") return "destructive"
+    if (status === "PENDENTE") return "warning"
     return "secondary"
   }
 
-  const getStatusLabel = (status: string, date: string | Date) => {
+  const getStatusLabel = (status: string) => {
     if (status === "PAGA") return "Paga"
-    const dueDate = new Date(date)
-    const today = new Date()
-    today.setHours(0,0,0,0)
-
-    if (dueDate < today) return "Atrasada"
-    if (dueDate.getTime() === today.getTime()) return "Vence Hoje"
+    if (status === "ATRASADA") return "Atrasada"
     return "Pendente"
   }
 
@@ -49,10 +49,12 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Vencimento</TableHead>
+            <TableHead className="w-0"></TableHead>
+            <TableHead>Próximo Vencimento</TableHead>
             <TableHead>Descrição</TableHead>
-            <TableHead>Fornecedor</TableHead>
-            <TableHead>Valor</TableHead>
+            <TableHead>Tipo</TableHead>
+            <TableHead>Valor Total</TableHead>
+            <TableHead>Parcelas</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -60,33 +62,113 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
         <TableBody>
           {accounts.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center h-24">
+              <TableCell colSpan={9} className="text-center h-24">
                 Nenhuma conta encontrada.
               </TableCell>
             </TableRow>
           ) : (
-            accounts.map((account: AccountPayable) => (
-              <TableRow key={account.id}>
-                <TableCell>{formatDate(account.dueDate)}</TableCell>
-                <TableCell>{account.description}</TableCell>
-                <TableCell>{account.supplier?.name}</TableCell>
-                <TableCell>{formatCentsToReal(account.valueInCents)}</TableCell>
-                <TableCell>
-                  <Badge variant={getStatusColor(account.status, account.dueDate) as "default" | "destructive" | "secondary" | "outline" | "success"}>
-                    {getStatusLabel(account.status, account.dueDate)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="icon" onClick={() => onEdit(account)}>
-                      <Edit className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => onDelete(account.id)}>
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
+            accounts.map((account) => (
+              <React.Fragment key={account.id}>
+                <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRow(account.id)}>
+                  <TableCell>
+                    {expandedRows.includes(account.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </TableCell>
+                  <TableCell>
+                    {formatDate(account.nextDueDate || account.installments?.[account.installments.length - 1]?.dueDate || account.createdAt || new Date())}
+                  </TableCell>
+                  <TableCell>{account.description}</TableCell>
+                  <TableCell className="capitalize">
+                    {account.paymentMethod.toLowerCase()}
+                  </TableCell>
+                  <TableCell>{formatCentsToReal(account.totalValueInCents)}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-muted-foreground">
+                        {account.paidInstallmentsCount}/{account.installmentsCount} pagas
+                      </span>
+                      <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary" 
+                          style={{ width: `${(account.paidInstallmentsCount || 0) / (account.installmentsCount || 1) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusColor(account.status || "")}>
+                      {getStatusLabel(account.status || "")}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" size="icon" onClick={() => onEdit(account)}>
+                        <Edit className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => onDelete(account.id)}>
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                {expandedRows.includes(account.id) && (
+                  <TableRow className="bg-muted/30">
+                    <TableCell colSpan={8} className="p-0">
+                      <div className="p-4">
+                        <div className="rounded-md border bg-background">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Nº</TableHead>
+                                <TableHead>Vencimento</TableHead>
+                                <TableHead>Valor</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {account.installments?.map((inst) => (
+                                <TableRow key={inst.id}>
+                                  <TableCell>{inst.installmentNumber}/{account.installmentsCount}</TableCell>
+                                  <TableCell>{formatDate(inst.dueDate)}</TableCell>
+                                  <TableCell>{formatCentsToReal(inst.valueInCents)}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={getStatusColor(inst.status)}>
+                                      {getStatusLabel(inst.status)}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {inst.status === "PAGA" ? (
+                                      <Button 
+                                        variant="link" 
+                                        size="sm"
+                                        className="text-xs"
+                                        disabled={updateInstallment.isPending}
+                                        onClick={() => updateInstallment.mutate({ id: inst.id, status: "PENDENTE" })}
+                                      >
+                                          Estornar
+                                      </Button>
+                                    ) : (
+                                      <Button 
+                                        variant="link" 
+                                        size="sm"
+                                        className="text-xs"
+                                        disabled={updateInstallment.isPending}
+                                        onClick={() => updateInstallment.mutate({ id: inst.id, status: "PAGA" })}
+                                      >
+                                          Pagar
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
             ))
           )}
         </TableBody>

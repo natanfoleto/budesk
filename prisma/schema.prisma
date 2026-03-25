@@ -444,6 +444,7 @@ model FinancialTransaction {
   rhPayment     RHPayment? @relation(fields: [rhPaymentId], references: [id])
   
   plantingExpense PlantingExpense?
+  installment     AccountInstallment?
 
   @@index([type])
   @@index([date])
@@ -454,21 +455,42 @@ model FinancialTransaction {
 // CONTAS A PAGAR
 
 model AccountPayable {
-  id           String        @id @default(cuid())
-  description  String
-  valueInCents Int           @map("value_in_cents")
-  dueDate      DateTime
-  status       AccountStatus
-  supplierId   String?
-  costCenterId String?
-  createdAt    DateTime      @default(now())
+  id                String        @id @default(cuid())
+  description       String
+  paymentMethod     PaymentMethod @default(BOLETO) @map("payment_method")
+  totalValueInCents Int           @map("total_value_in_cents")
+  installmentsCount Int           @default(1) @map("installments_count")
+  supplierId        String?
+  costCenterId      String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
-  supplier   Supplier? @relation(fields: [supplierId], references: [id])
-  costCenter CostCenter? @relation(fields: [costCenterId], references: [id])
+  supplier          Supplier?     @relation(fields: [supplierId], references: [id])
+  costCenter        CostCenter?   @relation(fields: [costCenterId], references: [id])
+  installments      AccountInstallment[]
 
+  @@map("accounts_payable")
+}
+
+model AccountInstallment {
+  id               String        @id @default(cuid())
+  accountPayableId String        @map("account_payable_id")
+  installmentNumber Int           @map("installment_number")
+  valueInCents     Int           @map("value_in_cents")
+  dueDate          DateTime      @map("due_date")
+  status           AccountStatus @default(PENDENTE)
+  paymentDate      DateTime?     @map("payment_date")
+  transactionId    String?       @unique @map("transaction_id")
+  transaction      FinancialTransaction? @relation(fields: [transactionId], references: [id])
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  account          AccountPayable @relation(fields: [accountPayableId], references: [id], onDelete: Cascade)
+
+  @@index([accountPayableId])
   @@index([dueDate])
   @@index([status])
-  @@map("accounts_payable")
+  @@map("account_installments")
 }
 
 // DOCUMENTOS
