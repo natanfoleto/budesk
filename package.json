@@ -11,7 +11,8 @@
     "db:migrate": "pnpm prisma migrate dev",
     "db:seed": "pnpm tsx prisma/seed.ts",
     "db:truncate": "pnpm tsx prisma/truncate.ts",
-    "db:seed-employeers": "pnpm tsx prisma/seed-employeers.ts"
+    "db:seed-employeers": "pnpm tsx prisma/seed-employeers.ts",
+    "db:backup": "pnpm tsx scripts/backup.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
