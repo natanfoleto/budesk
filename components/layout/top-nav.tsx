@@ -30,7 +30,7 @@ export function TopNav() {
   }
 
   return (
-    <div className="flex h-16 items-center justify-between border-b bg-background px-6">
+    <div className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background px-6">
       <div className="flex-1" />
       
       <div className="flex items-center gap-2">

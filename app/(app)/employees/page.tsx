@@ -62,17 +62,36 @@ function EmployeesContent() {
   const page = Number(searchParams.get('page')) || 1
 
   const [searchTerm, setSearchTerm] = useState(name)
+  const [cpfTerm, setCpfTerm] = useState(cpf)
+
   const debouncedSearchTerm = useDebounce(searchTerm, 250)
+  const debouncedCpfTerm = useDebounce(cpfTerm, 250)
 
   useEffect(() => {
     setSearchTerm(name)
   }, [name])
 
   useEffect(() => {
+    setCpfTerm(cpf)
+  }, [cpf])
+
+  useEffect(() => {
+    const newFilters: Record<string, string | number | undefined> = {}
+    let hasChanges = false
+    
     if (debouncedSearchTerm !== name) {
-      updateFilters({ name: debouncedSearchTerm })
+      newFilters.name = debouncedSearchTerm
+      hasChanges = true
     }
-  }, [debouncedSearchTerm, name])
+    if (debouncedCpfTerm !== cpf) {
+      newFilters.cpf = debouncedCpfTerm
+      hasChanges = true
+    }
+    
+    if (hasChanges) {
+      updateFilters(newFilters)
+    }
+  }, [debouncedSearchTerm, debouncedCpfTerm, name, cpf])
 
   const { data: jobs } = useJobs()
   const { data: tags } = useEmployeeTags()
@@ -136,6 +155,8 @@ function EmployeesContent() {
 
   const clearFilters = () => {
     router.replace(pathname, { scroll: false })
+    setSearchTerm('')
+    setCpfTerm('')
   }
 
   return (
@@ -204,9 +225,9 @@ function EmployeesContent() {
               <Label>CPF</Label>
               <Input
                 placeholder="000.000.000-00"
-                value={cpf}
+                value={cpfTerm}
                 maxLength={14}
-                onChange={(e) => updateFilters({ cpf: maskCPF(e.target.value) })}
+                onChange={(e) => setCpfTerm(maskCPF(e.target.value))}
               />
             </div>
 

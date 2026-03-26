@@ -104,6 +104,13 @@ export const TagManagementModal = ({
     }
   }, [isOpen, defaultTagId, allTags])
 
+  // Reset form when modal closes to guarantee a clean slate on next open
+  useEffect(() => {
+    if (!isOpen) {
+      resetForm()
+    }
+  }, [isOpen])
+
   const filteredEmployees = useMemo(() => {
     if (!employeeSearchTerm.trim()) return allEmployees
     const term = employeeSearchTerm.toLowerCase()

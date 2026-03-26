@@ -160,6 +160,17 @@ enum ExpenseCategory {
   OUTROS
 }
 
+enum PersonType {
+  PHYSICAL
+  LEGAL
+}
+
+enum SupplierAccountType {
+  CHECKING
+  SAVINGS
+  PIX
+}
+
 // USUÁRIOS
 
 model User {
@@ -257,14 +268,42 @@ model Client {
 // FORNECEDORES
 
 model Supplier {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  email     String?
-  document  String? // CNPJ/CPF
-  address   String?
-  category  String?
-  createdAt DateTime @default(now())
+  id                    String              @id @default(cuid())
+  name                  String
+  tradeName             String?
+  personType            PersonType          @default(LEGAL)
+  document              String?             @unique // CNPJ/CPF
+  stateRegistration     String?
+  municipalRegistration String?
+
+  // Contact
+  email                 String?
+  phone                 String?
+  mobile                String?
+  contactName           String?
+
+  // Address
+  zipCode               String?
+  street                String?
+  number                String?
+  complement            String?
+  neighborhood          String?
+  city                  String?
+  state                 String?
+
+  // Finance
+  bank                  String?
+  branch                String?
+  account               String?
+  accountType           SupplierAccountType?
+  pixKey                String?
+
+  // Control
+  active                Boolean             @default(true)
+  notes                 String?             @db.Text
+  category              String?             // Keep for compatibility
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   transactions FinancialTransaction[]
   accounts     AccountPayable[]

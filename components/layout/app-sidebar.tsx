@@ -120,7 +120,7 @@ export function AppSidebar({ userRole: initialRole }: AppSidebarProps) {
   }
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r bg-muted/40">
+    <div className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r bg-muted/40">
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
           <LayoutDashboard className="h-6 w-6" />
