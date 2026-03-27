@@ -28,6 +28,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { useDebounce } from '@/hooks/use-debounce'
 import { useEmployeeTags } from '@/hooks/use-employee-tags'
 import {
@@ -60,6 +66,13 @@ function EmployeesContent() {
   const cpf = searchParams.get('cpf') || ''
   const status = searchParams.get('status') || 'all'
   const page = Number(searchParams.get('page')) || 1
+
+  const hasActiveFilters = 
+    name !== '' || 
+    jobId !== '' || 
+    tagId !== '' || 
+    cpf !== '' || 
+    status !== 'all'
 
   const [searchTerm, setSearchTerm] = useState(name)
   const [cpfTerm, setCpfTerm] = useState(cpf)
@@ -184,8 +197,7 @@ function EmployeesContent() {
           </Button>
         </div>
       </div>
-
-      <Card>
+      <Card className="relative overflow-visible">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2 lg:col-span-2">
@@ -245,8 +257,8 @@ function EmployeesContent() {
                   {tags?.map((tag) => (
                     <SelectItem key={tag.id} value={tag.id}>
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="size-2 rounded-full" 
+                        <div
+                          className="size-2 rounded-full"
                           style={{ backgroundColor: tag.color }}
                         />
                         {tag.name}
@@ -273,16 +285,30 @@ function EmployeesContent() {
                 </SelectContent>
               </Select>
             </div>
-
-            <Button
-              variant="outline"
-              onClick={clearFilters}
-              className="text-muted-foreground w-full"
-            >
-              <FilterX className="h-4 w-4" /> Limpar Filtros
-            </Button>
           </div>
         </CardContent>
+
+        {hasActiveFilters && (
+          <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={clearFilters}
+                    className="h-8 w-8 rounded-full border bg-background shadow-xs hover:bg-accent"
+                  >
+                    <FilterX className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Limpar filtros</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </Card>
 
       {isLoading ? (

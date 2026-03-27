@@ -90,26 +90,25 @@ export const TagManagementModal = ({
     }
   }, [editingId, allEmployees])
 
-  // Set editing tag from prop
+  // Set editing tag from prop or reset if opened clean
   useEffect(() => {
-    if (isOpen && defaultTagId) {
-      const tag = allTags.find(t => t.id === defaultTagId)
-      if (tag) {
-        setEditingId(tag.id)
-        setName(tag.name)
-        setColor(tag.color)
+    if (isOpen) {
+      if (defaultTagId) {
+        const tag = allTags.find(t => t.id === defaultTagId)
+        if (tag) {
+          setEditingId(tag.id)
+          setName(tag.name)
+          setColor(tag.color)
+        }
+      } else {
+        // Always reset when opening without a specific tag to edit
+        resetForm()
       }
-    } else if (isOpen && !defaultTagId && !editingId) {
+    } else {
+      // Cleanup when closed
       resetForm()
     }
   }, [isOpen, defaultTagId, allTags])
-
-  // Reset form when modal closes to guarantee a clean slate on next open
-  useEffect(() => {
-    if (!isOpen) {
-      resetForm()
-    }
-  }, [isOpen])
 
   const filteredEmployees = useMemo(() => {
     if (!employeeSearchTerm.trim()) return allEmployees

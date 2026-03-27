@@ -13,7 +13,7 @@ import {
   updateAccountPayable,
   updateTransaction,
 } from "@/lib/services/financial"
-import { AccountPayable, Transaction } from "@/types/financial"
+import { AccountPayableInput, Transaction } from "@/types/financial"
 
 export const useTransactions = (filters?: Record<string, string>) => {
   return useQuery({
@@ -84,7 +84,7 @@ export const useCreateAccountPayable = () => {
 export const useUpdateAccountPayable = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<AccountPayable> }) => updateAccountPayable(id, data),
+    mutationFn: ({ id, data }: { id: string; data: AccountPayableInput }) => updateAccountPayable(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payables"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] })

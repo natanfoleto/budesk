@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/api-client"
-import { AccountPayable, Transaction } from "@/types/financial"
+import { AccountPayable, AccountPayableInput, Transaction } from "@/types/financial"
 
 const BASE_URL = "/api"
 
@@ -33,14 +33,14 @@ export const getAccountsPayable = async (filters: Record<string, string>): Promi
   return apiRequest<AccountPayable[]>(`${BASE_URL}/accounts-payable?${params}`)
 }
 
-export const createAccountPayable = async (data: Partial<AccountPayable>) => {
+export const createAccountPayable = async (data: AccountPayableInput) => {
   return apiRequest(`${BASE_URL}/accounts-payable`, {
     method: "POST",
     body: JSON.stringify(data),
   })
 }
 
-export const updateAccountPayable = async (id: string, data: Partial<AccountPayable>) => {
+export const updateAccountPayable = async (id: string, data: AccountPayableInput) => {
   return apiRequest(`${BASE_URL}/accounts-payable/${id}`, {
     method: "PUT",
     body: JSON.stringify(data),

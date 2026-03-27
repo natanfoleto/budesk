@@ -13,6 +13,11 @@ export interface Transaction {
   supplier?: { name: string } | null
   employee?: { name: string } | null
   service?: { title: string } | null
+  supplierId?: string | null
+  employeeId?: string | null
+  attachmentUrl?: string | null
+  conciled?: boolean
+  userId?: string | null
 }
 
 export type AccountStatus = "PENDENTE" | "PAGA" | "ATRASADA"
@@ -38,11 +43,19 @@ export interface AccountPayable {
   status?: AccountStatus // Calculated aggregate
   paidInstallmentsCount?: number // Calculated
   nextDueDate?: string | Date | null // Calculated earliest pending Vencimento
+  supplierId?: string | null
   supplier?: {
     id: string
     name: string
   } | null
   installments?: AccountInstallment[]
+  category?: ExpenseCategory | string
+  attachmentUrl?: string | null
+  userId?: string | null
   createdAt?: string | Date
   updatedAt?: string | Date
+}
+
+export interface AccountPayableInput extends Partial<Omit<AccountPayable, 'id'>> {
+  firstDueDate?: string | Date
 }

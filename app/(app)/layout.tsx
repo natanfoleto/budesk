@@ -12,11 +12,11 @@ export default async function AppLayout({
   const userRole = headersList.get("x-user-role") as string | undefined
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex h-screen w-full overflow-hidden">
       <AppSidebar userRole={userRole} />
       <div className="flex flex-1 flex-col min-w-0">
         <TopNav />
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 overflow-y-auto bg-muted/10">
           {children}
         </main>
       </div>

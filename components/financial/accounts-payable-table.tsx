@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronUp, Edit, Trash2 } from "lucide-react"
+import { ExpenseCategory, PaymentMethod } from "@prisma/client"
+import { ChevronDown, ChevronUp, Edit, FileText, Paperclip, Trash2 } from "lucide-react"
 import React, { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useUpdateAccountInstallment } from "@/hooks/use-financial"
+import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/constants"
 import { formatCentsToReal, formatDate } from "@/lib/utils"
 import { AccountPayable } from "@/types/financial"
 
@@ -51,11 +53,14 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
           <TableHeader>
             <TableRow>
               <TableHead className="w-0"></TableHead>
-              <TableHead>Próximo Vencimento</TableHead>
+              <TableHead>Vencimento</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Valor Total</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead>Fornecedor</TableHead>
               <TableHead>Parcelas</TableHead>
+              <TableHead>Doc</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -63,7 +68,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
           <TableBody>
             {accounts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center h-24">
+                <TableCell colSpan={10} className="text-center h-24">
                 Nenhuma conta encontrada.
                 </TableCell>
               </TableRow>
@@ -78,10 +83,22 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                       {formatDate(account.nextDueDate || account.installments?.[account.installments.length - 1]?.dueDate || account.createdAt || new Date())}
                     </TableCell>
                     <TableCell>{account.description}</TableCell>
-                    <TableCell className="capitalize">
-                      {account.paymentMethod.toLowerCase()}
+                    <TableCell>
+                      {(account.paymentMethod in PAYMENT_METHOD_LABELS)
+                        ? PAYMENT_METHOD_LABELS[account.paymentMethod as PaymentMethod]
+                        : account.paymentMethod}
                     </TableCell>
                     <TableCell>{formatCentsToReal(account.totalValueInCents)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {account.category && (account.category in EXPENSE_CATEGORY_LABELS)
+                          ? EXPENSE_CATEGORY_LABELS[account.category as ExpenseCategory]
+                          : account.category || "-"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[150px] truncate">
+                      {account.supplier?.name || "-"}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
                         <span className="text-xs text-muted-foreground">
@@ -94,6 +111,23 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                           />
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {account.attachmentUrl ? (
+                        <a 
+                          href={account.attachmentUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground/30">
+                          <FileText className="h-4 w-4" />
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={getStatusColor(account.status || "")}>
@@ -113,7 +147,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                   </TableRow>
                   {expandedRows.includes(account.id) && (
                     <TableRow className="bg-muted/30">
-                      <TableCell colSpan={8} className="p-0">
+                      <TableCell colSpan={10} className="p-0">
                         <div className="p-4">
                           <div className="rounded-md border bg-background">
                             <Table>

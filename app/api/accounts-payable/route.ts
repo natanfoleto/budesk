@@ -1,4 +1,4 @@
-import { AccountStatus, PaymentMethod, Prisma } from "@prisma/client"
+import { AccountStatus, ExpenseCategory, PaymentMethod, Prisma } from "@prisma/client"
 import { addMonths } from "date-fns"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -21,8 +21,15 @@ export async function GET(request: NextRequest) {
       where.paymentMethod = paymentMethod as PaymentMethod
     }
 
+    if (searchParams.get("supplierId")) {
+      where.supplierId = searchParams.get("supplierId")
+    }
+
+    if (searchParams.get("category")) {
+      where.category = searchParams.get("category") as ExpenseCategory
+    }
+
     if (startDate && endDate) {
-      // Filtrar pelo vencimento das parcelas
       where.installments = {
         some: {
           dueDate: {
@@ -60,7 +67,6 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Calcular status de cada conta baseado nas parcelas
     const processedAccounts = accounts.map(account => {
       const installments = account.installments
       const totalInstallments = installments.length
@@ -82,17 +88,14 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Aplicar filtro de status se houver
     const filteredAccounts = statusFilter 
       ? processedAccounts.filter(a => a.status === statusFilter)
       : processedAccounts
 
-    // Ordenar: sempre o registro mais próximo a vencer no topo
     filteredAccounts.sort((a, b) => {
       const dateA = a.nextDueDate ? new Date(a.nextDueDate).getTime() : Infinity
       const dateB = b.nextDueDate ? new Date(b.nextDueDate).getTime() : Infinity
       
-      // Se ambos são Infinity (Ex: PAGOS), desempata pela data de criação
       if (dateA === Infinity && dateB === Infinity) {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       }
@@ -119,7 +122,9 @@ export async function POST(request: NextRequest) {
       paymentMethod,
       firstDueDate,
       supplierId, 
-      costCenterId 
+      costCenterId,
+      category,
+      attachmentUrl
     } = body
 
     const account = await prisma.$transaction(async (tx) => {
@@ -131,10 +136,12 @@ export async function POST(request: NextRequest) {
           paymentMethod: paymentMethod || "BOLETO",
           supplierId: supplierId || null,
           costCenterId: costCenterId || null,
+          category: category || "OUTROS",
+          attachmentUrl: attachmentUrl || null,
+          userId: userId || null,
         },
       })
 
-      // Gerar parcelas
       const installmentBaseValue = Math.floor(totalValueInCents / (installmentsCount || 1))
       const remainder = totalValueInCents - (installmentBaseValue * (installmentsCount || 1))
       
@@ -142,7 +149,6 @@ export async function POST(request: NextRequest) {
       const startDate = firstDueDate ? new Date(firstDueDate) : new Date()
 
       for (let i = 1; i <= (installmentsCount || 1); i++) {
-        // A última parcela leva o resto se houver arredondamento
         const value = i === (installmentsCount || 1) ? installmentBaseValue + remainder : installmentBaseValue
         
         installmentsData.push({

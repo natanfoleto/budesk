@@ -1,10 +1,12 @@
 "use client"
 
+import { ExpenseCategory, PaymentMethod } from "@prisma/client"
 import { FilterX, Loader2, Plus } from "lucide-react"
 import { useMemo, useState } from "react"
 
-import { AccountPayableForm } from "@/components/financial/account-payable-form"
+import { AccountPayableForm, AccountPayableFormData } from "@/components/financial/account-payable-form"
 import { AccountsPayableTable } from "@/components/financial/accounts-payable-table"
+import { SupplierSelect } from "@/components/suppliers/supplier-select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +22,14 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useAccountsPayable, useCreateAccountPayable, useDeleteAccountPayable, useUpdateAccountPayable } from "@/hooks/use-financial"
+import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/constants"
 import { AccountPayable } from "@/types/financial"
 
 export default function PayablesPage() {
@@ -30,14 +39,27 @@ export default function PayablesPage() {
 
   const [statusFilter, setStatusFilter] = useState("TODOS")
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("TODOS")
+  const [categoryFilter, setCategoryFilter] = useState("TODOS")
+  const [supplierIdFilter, setSupplierIdFilter] = useState<string | null>(null)
   const [dateFilterType, setDateFilterType] = useState("ALL") 
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  
+  const hasActiveFilters = 
+    statusFilter !== "TODOS" || 
+    paymentMethodFilter !== "TODOS" || 
+    categoryFilter !== "TODOS" || 
+    supplierIdFilter !== null || 
+    dateFilterType !== "ALL" || 
+    startDate !== "" || 
+    endDate !== ""
 
   const filters = useMemo(() => {
     const params: Record<string, string> = {}
     if (statusFilter !== "TODOS") params.status = statusFilter
     if (paymentMethodFilter !== "TODOS") params.paymentMethod = paymentMethodFilter
+    if (categoryFilter !== "TODOS") params.category = categoryFilter
+    if (supplierIdFilter) params.supplierId = supplierIdFilter
     
     if (dateFilterType === "SPECIFIC" && startDate) {
       params.startDate = startDate
@@ -47,20 +69,20 @@ export default function PayablesPage() {
       if (endDate) params.endDate = endDate
     }
     return params
-  }, [statusFilter, paymentMethodFilter, dateFilterType, startDate, endDate])
+  }, [statusFilter, paymentMethodFilter, categoryFilter, supplierIdFilter, dateFilterType, startDate, endDate])
 
   const { data: accounts, isLoading } = useAccountsPayable(filters)
   const createMutation = useCreateAccountPayable()
   const updateMutation = useUpdateAccountPayable()
   const deleteMutation = useDeleteAccountPayable()
 
-  const handleCreate = (data: Record<string, unknown>) => {
+  const handleCreate = (data: AccountPayableFormData) => {
     createMutation.mutate(data, {
       onSuccess: () => setIsFormOpen(false),
     })
   }
 
-  const handleUpdate = (data: Record<string, unknown>) => {
+  const handleUpdate = (data: AccountPayableFormData) => {
     if (editingAccount) {
       updateMutation.mutate({ id: editingAccount.id, data }, {
         onSuccess: () => {
@@ -102,9 +124,9 @@ export default function PayablesPage() {
         </Button>
       </div>
 
-      <Card>
+      <Card className="relative overflow-visible">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -128,14 +150,38 @@ export default function PayablesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="TODOS">Todos</SelectItem>
-                  <SelectItem value="BOLETO">Boleto</SelectItem>
-                  <SelectItem value="CHEQUE">Cheque</SelectItem>
-                  <SelectItem value="CARTAO">Cartão</SelectItem>
-                  <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
-                  <SelectItem value="TRANSFERENCIA">Transferência</SelectItem>
-                  <SelectItem value="PIX">PIX</SelectItem>
+                  {Object.values(PaymentMethod).map(method => (
+                    <SelectItem key={method} value={method}>
+                      {PAYMENT_METHOD_LABELS[method]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODOS">Todas</SelectItem>
+                  {Object.values(ExpenseCategory).map(cat => (
+                    <SelectItem key={cat} value={cat}>
+                      {EXPENSE_CATEGORY_LABELS[cat]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fornecedor</Label>
+              <SupplierSelect 
+                value={supplierIdFilter} 
+                onChange={setSupplierIdFilter} 
+              />
             </div>
 
             <div className="space-y-2">
@@ -151,42 +197,62 @@ export default function PayablesPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            {dateFilterType === "SPECIFIC" && (
-              <div className="space-y-2">
-                <Label>Data</Label>
-                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-              </div>
-            )}
-
-            {dateFilterType === "RANGE" && (
-              <>
+          {(dateFilterType === "SPECIFIC" || dateFilterType === "RANGE") && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 mt-4 items-end">
+              {dateFilterType === "SPECIFIC" && (
                 <div className="space-y-2">
-                  <Label>De</Label>
+                  <Label>Data</Label>
                   <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Até</Label>
-                  <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                </div>
-              </>
-            )}
+              )}
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                setStatusFilter("TODOS")
-                setPaymentMethodFilter("TODOS")
-                setDateFilterType("ALL")
-                setStartDate("")
-                setEndDate("")
-              }}
-              className="text-muted-foreground w-full"
-            >
-              <FilterX className="h-4 w-4 mr-2" /> Limpar Filtros
-            </Button>
-          </div>
+              {dateFilterType === "RANGE" && (
+                <>
+                  <div className="space-y-2">
+                    <Label>De</Label>
+                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Até</Label>
+                    <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </CardContent>
+
+        {hasActiveFilters && (
+          <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={() => {
+                      setStatusFilter("TODOS")
+                      setPaymentMethodFilter("TODOS")
+                      setCategoryFilter("TODOS")
+                      setSupplierIdFilter(null)
+                      setDateFilterType("ALL")
+                      setStartDate("")
+                      setEndDate("")
+                    }}
+                    className="h-8 w-8 rounded-full border bg-background shadow-xs hover:bg-accent"
+                  >
+                    <FilterX className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Limpar filtros</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </Card>
 
       {isLoading ? (

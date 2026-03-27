@@ -6,6 +6,7 @@ import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 
+import { SupplierSelect } from "@/components/suppliers/supplier-select"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -13,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { FileUploader } from "@/components/ui/file-uploader"
 import {
   Form,
   FormControl,
@@ -29,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/constants"
 import { formatCentsToReal } from "@/lib/utils"
 import { Transaction } from "@/types/financial"
 
@@ -39,6 +42,9 @@ const formSchema = z.object({
   category: z.nativeEnum(ExpenseCategory),
   paymentMethod: z.nativeEnum(PaymentMethod),
   date: z.string(),
+  supplierId: z.string().nullable().optional(),
+  attachmentUrl: z.string().nullable().optional(),
+  conciled: z.boolean(),
 })
 
 type TransactionFormData = z.infer<typeof formSchema>
@@ -61,28 +67,39 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
       category: ExpenseCategory.OUTROS,
       paymentMethod: PaymentMethod.PIX,
       date: new Date().toISOString().split("T")[0],
+      supplierId: null,
+      attachmentUrl: null,
+      conciled: false,
     },
   })
 
   useEffect(() => {
-    if (initialData) {
-      form.reset({
-        description: initialData.description || "",
-        valueInCents: initialData.valueInCents || 0,
-        type: (initialData.type as TransactionType) || TransactionType.SAIDA,
-        category: (initialData.category as ExpenseCategory) || ExpenseCategory.OUTROS,
-        paymentMethod: (initialData.paymentMethod as PaymentMethod) || PaymentMethod.PIX,
-        date: initialData.date ? new Date(initialData.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-      })
-    } else {
-      form.reset({
-        description: "",
-        valueInCents: 0,
-        type: TransactionType.SAIDA,
-        category: ExpenseCategory.OUTROS,
-        paymentMethod: PaymentMethod.PIX,
-        date: new Date().toISOString().split("T")[0],
-      })
+    if (open) {
+      if (initialData) {
+        form.reset({
+          description: initialData.description || "",
+          valueInCents: initialData.valueInCents || 0,
+          type: (initialData.type as TransactionType) || TransactionType.SAIDA,
+          category: (initialData.category as ExpenseCategory) || ExpenseCategory.OUTROS,
+          paymentMethod: (initialData.paymentMethod as PaymentMethod) || PaymentMethod.PIX,
+          date: initialData.date ? new Date(initialData.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          supplierId: initialData.supplierId || null,
+          attachmentUrl: initialData.attachmentUrl || null,
+          conciled: initialData.conciled || false,
+        })
+      } else {
+        form.reset({
+          description: "",
+          valueInCents: 0,
+          type: TransactionType.SAIDA,
+          category: ExpenseCategory.OUTROS,
+          paymentMethod: PaymentMethod.PIX,
+          date: new Date().toISOString().split("T")[0],
+          supplierId: null,
+          attachmentUrl: null,
+          conciled: false,
+        })
+      }
     }
   }, [initialData, form, open])
 
@@ -92,7 +109,7 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initialData ? "Editar Transação" : "Nova Transação"}</DialogTitle>
         </DialogHeader>
@@ -106,6 +123,23 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
                     <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              name="supplierId"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fornecedor (Opcional)</FormLabel>
+                  <FormControl>
+                    <SupplierSelect 
+                      value={field.value} 
+                      onChange={(val) => field.onChange(val)} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -162,8 +196,8 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="ENTRADA">Entrada</SelectItem>
-                        <SelectItem value="SAIDA">Saída</SelectItem>
+                        <SelectItem value={TransactionType.ENTRADA}>Entrada</SelectItem>
+                        <SelectItem value={TransactionType.SAIDA}>Saída</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -184,7 +218,9 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
                       </FormControl>
                       <SelectContent>
                         {Object.values(ExpenseCategory).map((cat) => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          <SelectItem key={cat} value={cat}>
+                            {EXPENSE_CATEGORY_LABELS[cat]}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -207,14 +243,31 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
-                      <SelectItem value="PIX">Pix</SelectItem>
-                      <SelectItem value="CARTAO">Cartão</SelectItem>
-                      <SelectItem value="BOLETO">Boleto</SelectItem>
-                      <SelectItem value="CHEQUE">Cheque</SelectItem>
-                      <SelectItem value="TRANSFERENCIA">Transferência</SelectItem>
+                      {Object.values(PaymentMethod).map((method) => (
+                        <SelectItem key={method} value={method}>
+                          {PAYMENT_METHOD_LABELS[method]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              name="attachmentUrl"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Comprovante / Anexo</FormLabel>
+                  <FormControl>
+                    <FileUploader 
+                      value={field.value} 
+                      onChange={(url) => field.onChange(url)} 
+                      folder="financial" 
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

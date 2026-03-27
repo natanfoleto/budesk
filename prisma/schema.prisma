@@ -186,6 +186,8 @@ model User {
   services  Service[]
   auditLogs AuditLog[]
   loginLogs LoginLog[]
+  financialTransactions FinancialTransaction[]
+  accountsPayable       AccountPayable[]
 
   @@map("users")
 }
@@ -469,12 +471,16 @@ model FinancialTransaction {
   employeeId    String?
   supplierId    String?
   costCenterId  String?
+  attachmentUrl String?         @map("attachment_url")
+  conciled      Boolean         @default(false)
+  userId        String?         @map("user_id")
   createdAt     DateTime        @default(now())
 
   service    Service?  @relation(fields: [serviceId], references: [id])
   employee   Employee? @relation(fields: [employeeId], references: [id])
   supplier   Supplier? @relation(fields: [supplierId], references: [id])
   costCenter CostCenter? @relation(fields: [costCenterId], references: [id])
+  user       User?       @relation(fields: [userId], references: [id])
 
   advance  EmployeeAdvance?
   maintenanceId String? @unique
@@ -488,6 +494,7 @@ model FinancialTransaction {
   @@index([type])
   @@index([date])
   @@index([category])
+  @@index([supplierId])
   @@map("financial_transactions")
 }
 
@@ -501,13 +508,18 @@ model AccountPayable {
   installmentsCount Int           @default(1) @map("installments_count")
   supplierId        String?
   costCenterId      String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  category          ExpenseCategory @default(OUTROS)
+  attachmentUrl     String?         @map("attachment_url")
+  userId            String?         @map("user_id")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   supplier          Supplier?     @relation(fields: [supplierId], references: [id])
   costCenter        CostCenter?   @relation(fields: [costCenterId], references: [id])
+  user              User?         @relation(fields: [userId], references: [id])
   installments      AccountInstallment[]
 
+  @@index([supplierId])
   @@map("accounts_payable")
 }
 

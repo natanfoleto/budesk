@@ -19,6 +19,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useEmployeeTags } from "@/hooks/use-employee-tags"
 import { usePlantingSeasons, useWorkFronts } from "@/hooks/use-planting"
 import { apiRequest } from "@/lib/api-client"
@@ -41,6 +47,14 @@ function AppointmentsContent() {
   const [activeTab, setActiveTab] = useState<string>(searchParams.get("tab") || "plantio")
   const [employeeNameFilter, setEmployeeNameFilter] = useState<string>("")
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
+  
+  const today = format(new Date(), "yyyy-MM-dd")
+  const hasActiveFilters = 
+    selectedSeasonId !== "all" || 
+    selectedFrontId !== "all" || 
+    selectedDate !== today || 
+    employeeNameFilter !== "" || 
+    selectedTagId !== null
 
   const { data: seasons } = usePlantingSeasons()
   const { data: fronts } = useWorkFronts(selectedSeasonId !== "all" ? selectedSeasonId : undefined)
@@ -139,11 +153,10 @@ function AppointmentsContent() {
               Quinzena fechada.
             </div>
           )}
-          
         </div>
       </div>
 
-      <Card>
+      <Card className="relative overflow-visible">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="space-y-2">
@@ -213,7 +226,7 @@ function AppointmentsContent() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-10 mt-4 items-end">
-            <div className="space-y-2 lg:col-span-5">
+            <div className="space-y-2 lg:col-span-6">
               <Label>Buscar Funcionário</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
@@ -227,7 +240,7 @@ function AppointmentsContent() {
               </div>
             </div>
 
-            <div className="space-y-2 lg:col-span-3">
+            <div className="space-y-2 lg:col-span-4">
               <Label>Filtrar por Etiquetas</Label>
               <Select
                 value={selectedTagId || 'all'}
@@ -252,14 +265,30 @@ function AppointmentsContent() {
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="lg:col-span-2">
-              <Button variant="outline" onClick={clearFilters} className="text-muted-foreground w-full gap-2">
-                <FilterX className="h-4 w-4" /> Limpar Filtros
-              </Button>
-            </div>
           </div>
         </CardContent>
+
+        {hasActiveFilters && (
+          <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={clearFilters}
+                    className="h-8 w-8 rounded-full border bg-background shadow-xs hover:bg-accent"
+                  >
+                    <FilterX className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Limpar filtros</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </Card>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -334,7 +363,6 @@ function AppointmentsContent() {
           </TabsContent>
         </div>
       </Tabs>
-
     </div>
   )
 }
