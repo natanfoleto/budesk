@@ -17,10 +17,11 @@ import { Vehicle, VehicleTypeLabels } from "@/types/vehicle"
 
 interface VehiclesTableProps {
   vehicles: Vehicle[]
+  onEdit?: (vehicle: Vehicle) => void
   onDelete: (id: string) => void
 }
 
-export function VehiclesTable({ vehicles, onDelete }: VehiclesTableProps) {
+export function VehiclesTable({ vehicles, onEdit, onDelete }: VehiclesTableProps) {
   return (
     <div className="rounded-md border">
       <Table>
@@ -63,11 +64,17 @@ export function VehiclesTable({ vehicles, onDelete }: VehiclesTableProps) {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Link href={`/fleet/${vehicle.id}`}>
-                      <Button variant="outline" size="icon">
+                    {onEdit ? (
+                      <Button variant="outline" size="icon" onClick={() => onEdit(vehicle)}>
                         <Edit className="h-4 w-4 text-muted-foreground" />
                       </Button>
-                    </Link>
+                    ) : (
+                      <Link href={`/fleet/${vehicle.id}`}>
+                        <Button variant="outline" size="icon">
+                          <Edit className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </Link>
+                    )}
                     <Button
                       variant="outline"
                       size="icon"

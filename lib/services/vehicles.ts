@@ -1,13 +1,15 @@
 import { MaintenanceFormData } from "@/components/fleet/maintenance-schema"
 import { apiRequest } from "@/lib/api-client"
+import { PaginatedResponse } from "@/types/api"
 import { Vehicle, VehicleFormData } from "@/types/vehicle"
 
 const BASE_URL = "/api"
 
 // Vehicles CRUD
 
-export const getVehicles = async (): Promise<Vehicle[]> => {
-  return apiRequest<Vehicle[]>(`${BASE_URL}/vehicles`)
+export const getVehicles = async (filters: Record<string, string> = {}): Promise<PaginatedResponse<Vehicle>> => {
+  const params = new URLSearchParams(filters)
+  return apiRequest<PaginatedResponse<Vehicle>>(`${BASE_URL}/vehicles?${params.toString()}`)
 }
 
 export const createVehicle = async (data: VehicleFormData) => {

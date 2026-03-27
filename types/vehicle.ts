@@ -86,6 +86,7 @@ export interface Vehicle {
   description: string | null
   type: VehicleType
   active: boolean
+  documentUrl?: string | null
   createdAt: string | Date
 }
 
@@ -96,6 +97,7 @@ export interface VehicleFormData {
   year?: number | null
   description?: string
   type: VehicleType
+  documentUrl?: string | null
   active: boolean
 }
 

@@ -29,6 +29,10 @@ export async function GET(request: NextRequest) {
       where.category = searchParams.get("category") as ExpenseCategory
     }
 
+    const page = Number(searchParams.get("page")) || 1
+    const limit = Number(searchParams.get("limit")) || 10
+    const skip = (page - 1) * limit
+
     if (startDate && endDate) {
       where.installments = {
         some: {
@@ -103,7 +107,19 @@ export async function GET(request: NextRequest) {
       return dateA - dateB
     })
 
-    return NextResponse.json(filteredAccounts)
+    // Manual pagination after filtering by status (since status is computed)
+    const paginatedAccounts = filteredAccounts.slice(skip, skip + limit)
+    const totalFiltered = filteredAccounts.length
+
+    return NextResponse.json({
+      data: paginatedAccounts,
+      meta: {
+        total: totalFiltered,
+        page,
+        limit,
+        totalPages: Math.ceil(totalFiltered / limit)
+      }
+    })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: "Erro ao buscar contas" }, { status: 500 })
@@ -124,7 +140,8 @@ export async function POST(request: NextRequest) {
       supplierId, 
       costCenterId,
       category,
-      attachmentUrl
+      attachmentUrl,
+      invoiceUrl
     } = body
 
     const account = await prisma.$transaction(async (tx) => {
@@ -138,6 +155,7 @@ export async function POST(request: NextRequest) {
           costCenterId: costCenterId || null,
           category: category || "OUTROS",
           attachmentUrl: attachmentUrl || null,
+          invoiceUrl: invoiceUrl || null,
           userId: userId || null,
         },
       })

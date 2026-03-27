@@ -11,6 +11,7 @@ export const vehicleSchema = z.object({
   type: z.nativeEnum(VehicleType, {
     message: "Selecione um tipo válido",
   }),
+  documentUrl: z.string().optional().nullable(),
   active: z.boolean().default(true),
 })
 

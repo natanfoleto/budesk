@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { FileUploader } from "@/components/ui/file-uploader"
 import {
   Form,
   FormControl,
@@ -55,6 +56,7 @@ export function VehicleFormDialog({
       year: undefined,
       description: "",
       type: VehicleType.CAMINHAO,
+      documentUrl: null,
       active: true,
     },
     mode: "onChange",
@@ -73,6 +75,7 @@ export function VehicleFormDialog({
         year: initialData.year || null,
         description: initialData.description || "",
         type: initialData.type as VehicleType,
+        documentUrl: initialData.documentUrl || null,
         active: initialData.active,
       })
     } else {
@@ -83,6 +86,7 @@ export function VehicleFormDialog({
         year: null,
         description: "",
         type: VehicleType.CAMINHAO,
+        documentUrl: null,
         active: true,
       })
     }
@@ -239,6 +243,24 @@ export function VehicleFormDialog({
                   <FormLabel>Descrição (Opcional)</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="Informações adicionais" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="documentUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Documento do Veículo (Opcional)</FormLabel>
+                  <FormControl>
+                    <FileUploader
+                      value={field.value || ""}
+                      onChange={field.onChange}
+                      folder="fleet"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

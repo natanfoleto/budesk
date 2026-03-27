@@ -44,7 +44,17 @@ export async function PUT(
 
   try {
     const body = await request.json()
-    const { description, supplierId, costCenterId, paymentMethod, totalValueInCents, installmentsCount, firstDueDate } = body
+    const { 
+      description, 
+      supplierId, 
+      costCenterId, 
+      paymentMethod, 
+      totalValueInCents, 
+      installmentsCount, 
+      firstDueDate,
+      attachmentUrl,
+      invoiceUrl
+    } = body
 
     const oldData = await prisma.accountPayable.findUnique({ 
       where: { id },
@@ -79,6 +89,8 @@ export async function PUT(
           paymentMethod,
           totalValueInCents: newTotalValue,
           installmentsCount: newInstallmentsCount,
+          attachmentUrl: attachmentUrl !== undefined ? attachmentUrl : oldData.attachmentUrl,
+          invoiceUrl: invoiceUrl !== undefined ? invoiceUrl : oldData.invoiceUrl,
         },
       })
 

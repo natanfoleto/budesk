@@ -62,7 +62,7 @@ export function FileUploader({ value, onChange, disabled, folder = "financial" }
         <div className="flex items-center justify-between rounded-md border p-2 bg-muted/50">
           <div className="flex items-center gap-2 overflow-hidden">
             <FileIcon className="h-4 w-4 shrink-0 text-primary" />
-            <span className="text-xs truncate max-w-[200px] font-medium">
+            <span className="text-xs truncate font-medium flex-1 min-w-0">
               {value.split("/").pop()}
             </span>
           </div>

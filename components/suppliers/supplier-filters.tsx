@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface SupplierFiltersProps {
   filters: {
@@ -26,6 +32,12 @@ interface SupplierFiltersProps {
 }
 
 export function SupplierFilters({ filters, onFilterChange, onClearFilters }: SupplierFiltersProps) {
+  const hasActiveFilters = 
+    filters.name !== "" || 
+    filters.document !== "" || 
+    filters.city !== "" || 
+    filters.status !== "all"
+
   const handleDocumentMask = (value: string) => {
     const raw = value.replace(/\D/g, "")
     if (raw.length <= 11) {
@@ -43,7 +55,7 @@ export function SupplierFilters({ filters, onFilterChange, onClearFilters }: Sup
   }
 
   return (
-    <Card>
+    <Card className="relative overflow-visible">
       <CardContent className="p-4">
         <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-2 lg:col-span-2">
@@ -93,16 +105,30 @@ export function SupplierFilters({ filters, onFilterChange, onClearFilters }: Sup
               </SelectContent>
             </Select>
           </div>
-
-          <Button
-            variant="outline"
-            onClick={onClearFilters}
-            className="text-muted-foreground w-full lg:col-start-5"
-          >
-            <FilterX className="h-4 w-4 mr-2" /> Limpar Filtros
-          </Button>
         </div>
       </CardContent>
+
+      {hasActiveFilters && (
+        <div className="absolute -top-4 left-1/2 z-10 -translate-x-1/2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  onClick={onClearFilters}
+                  className="h-8 w-8 rounded-full border bg-background shadow-xs hover:bg-accent"
+                >
+                  <FilterX className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Limpar filtros</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
     </Card>
   )
 }

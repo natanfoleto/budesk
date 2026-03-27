@@ -12,6 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useUpdateAccountInstallment } from "@/hooks/use-financial"
 import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/constants"
 import { formatCentsToReal, formatDate } from "@/lib/utils"
@@ -113,21 +119,49 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                       </div>
                     </TableCell>
                     <TableCell>
-                      {account.attachmentUrl ? (
-                        <a 
-                          href={account.attachmentUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary hover:text-primary/80 transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Paperclip className="h-4 w-4" />
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground/30">
-                          <FileText className="h-4 w-4" />
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {account.attachmentUrl ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <a 
+                                  href={account.attachmentUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:text-primary/80 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Paperclip className="h-4 w-4" />
+                                </a>
+                              </TooltipTrigger>
+                              <TooltipContent>Comprovante</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span className="text-muted-foreground/30">
+                            <FileText className="h-4 w-4" />
+                          </span>
+                        )}
+
+                        {account.invoiceUrl && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <a 
+                                  href={account.invoiceUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-600 hover:text-emerald-700 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </a>
+                              </TooltipTrigger>
+                              <TooltipContent>Boleto / Nota</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={getStatusColor(account.status || "")}>
@@ -147,7 +181,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                   </TableRow>
                   {expandedRows.includes(account.id) && (
                     <TableRow className="bg-muted/30">
-                      <TableCell colSpan={10} className="p-0">
+                      <TableCell colSpan={11} className="p-0">
                         <div className="p-4">
                           <div className="rounded-md border bg-background">
                             <Table>

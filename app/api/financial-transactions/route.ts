@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
   try {
     const where: Prisma.FinancialTransactionWhereInput = {}
 
+    const page = Number(searchParams.get("page")) || 1
+    const limit = Number(searchParams.get("limit")) || 10
+    const skip = (page - 1) * limit
+
     if (type) {
       where.type = type as TransactionType
     }
@@ -33,17 +37,30 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const transactions = await prisma.financialTransaction.findMany({
-      where,
-      orderBy: { date: "desc" },
-      include: {
-        service: { select: { title: true } },
-        supplier: { select: { name: true } },
-        employee: { select: { name: true } },
-      },
-    })
+    const [total, transactions] = await Promise.all([
+      prisma.financialTransaction.count({ where }),
+      prisma.financialTransaction.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { date: "desc" },
+        include: {
+          service: { select: { title: true } },
+          supplier: { select: { name: true } },
+          employee: { select: { name: true } },
+        },
+      })
+    ])
 
-    return NextResponse.json(transactions)
+    return NextResponse.json({
+      data: transactions,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
     console.error("Erro ao buscar transações:", error)
     return NextResponse.json({ error: "Erro ao buscar transações" }, { status: 500 })

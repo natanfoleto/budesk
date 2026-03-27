@@ -51,6 +51,7 @@ export interface AccountPayable {
   installments?: AccountInstallment[]
   category?: ExpenseCategory | string
   attachmentUrl?: string | null
+  invoiceUrl?: string | null
   userId?: string | null
   createdAt?: string | Date
   updatedAt?: string | Date

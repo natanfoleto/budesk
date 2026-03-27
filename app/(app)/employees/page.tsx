@@ -80,23 +80,33 @@ function EmployeesContent() {
   const debouncedSearchTerm = useDebounce(searchTerm, 250)
   const debouncedCpfTerm = useDebounce(cpfTerm, 250)
 
+  // Sync searchTerm when name from URL changes
   useEffect(() => {
-    setSearchTerm(name)
+    if (name !== searchTerm) {
+      setSearchTerm(name)
+    }
   }, [name])
 
+  // Sync cpfTerm when cpf from URL changes
   useEffect(() => {
-    setCpfTerm(cpf)
+    if (cpf !== cpfTerm) {
+      setCpfTerm(cpf)
+    }
   }, [cpf])
 
+  // Update URL only when debounced terms change and they differ from current URL
   useEffect(() => {
+    const currentName = searchParams.get('name') || ''
+    const currentCpf = searchParams.get('cpf') || ''
+
     const newFilters: Record<string, string | number | undefined> = {}
     let hasChanges = false
     
-    if (debouncedSearchTerm !== name) {
+    if (debouncedSearchTerm !== currentName) {
       newFilters.name = debouncedSearchTerm
       hasChanges = true
     }
-    if (debouncedCpfTerm !== cpf) {
+    if (debouncedCpfTerm !== currentCpf) {
       newFilters.cpf = debouncedCpfTerm
       hasChanges = true
     }
@@ -104,7 +114,7 @@ function EmployeesContent() {
     if (hasChanges) {
       updateFilters(newFilters)
     }
-  }, [debouncedSearchTerm, debouncedCpfTerm, name, cpf])
+  }, [debouncedSearchTerm, debouncedCpfTerm]) // Depend only on debounced values
 
   const { data: jobs } = useJobs()
   const { data: tags } = useEmployeeTags()

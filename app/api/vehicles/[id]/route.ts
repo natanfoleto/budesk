@@ -40,7 +40,7 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     const { 
-      plate, model, brand, year, description, type, active
+      plate, model, brand, year, description, type, documentUrl, active
     } = body
 
     const currentVehicle = await prisma.vehicle.findUnique({
@@ -52,7 +52,7 @@ export async function PUT(
     }
 
     // Check if plate is being changed and if it's already taken
-    if (plate !== currentVehicle.plate) {
+    if (plate && plate !== currentVehicle.plate) {
       const existingVehicle = await prisma.vehicle.findUnique({
         where: { plate }
       })
@@ -67,9 +67,10 @@ export async function PUT(
         plate,
         model,
         brand,
-        year: year ? parseInt(year) : null,
+        year: year ? parseInt(year.toString()) : null,
         description,
         type,
+        documentUrl,
         active: active !== undefined ? active : currentVehicle.active
       }
     })

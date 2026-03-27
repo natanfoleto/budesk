@@ -510,6 +510,7 @@ model AccountPayable {
   costCenterId      String?
   category          ExpenseCategory @default(OUTROS)
   attachmentUrl     String?         @map("attachment_url")
+  invoiceUrl        String?         @map("invoice_url")
   userId            String?         @map("user_id")
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
@@ -575,6 +576,7 @@ model Vehicle {
   year        Int?
   description String?
   type        VehicleType
+  documentUrl String?     @map("document_url")
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())
 

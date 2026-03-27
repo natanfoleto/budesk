@@ -1,17 +1,4 @@
-
-export async function GET() {
-  try {
-    const vehicles = await prisma.vehicle.findMany({
-      orderBy: { createdAt: "desc" },
-    })
-    return NextResponse.json(vehicles)
-  } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: "Erro ao buscar veículos" }, { status: 500 })
-  }
-}
-
-import { AuditAction } from "@prisma/client"
+import { AuditAction, Prisma, VehicleType } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { vehicleSchema } from "@/components/fleet/vehicle-schema"
@@ -19,6 +6,64 @@ import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
 
 const AUDIT_Action = AuditAction.CREATE
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const plate = searchParams.get("plate")
+  const brand = searchParams.get("brand")
+  const year = searchParams.get("year")
+  const type = searchParams.get("type")
+  const active = searchParams.get("active")
+  
+  const page = Number(searchParams.get("page")) || 1
+  const limit = Number(searchParams.get("limit")) || 10
+  const skip = (page - 1) * limit
+
+  try {
+    const where: Prisma.VehicleWhereInput = {}
+
+    if (plate) {
+      where.plate = { contains: plate, mode: "insensitive" }
+    }
+    if (brand) {
+      where.brand = { contains: brand, mode: "insensitive" }
+    }
+    if (year) {
+      where.year = Number(year)
+    }
+    if (type) {
+      where.type = type as VehicleType
+    }
+    if (active === "true") {
+      where.active = true
+    } else if (active === "false") {
+      where.active = false
+    }
+
+    const [total, vehicles] = await Promise.all([
+      prisma.vehicle.count({ where }),
+      prisma.vehicle.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+      })
+    ])
+
+    return NextResponse.json({
+      data: vehicles,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json({ error: "Erro ao buscar veículos" }, { status: 500 })
+  }
+}
 
 export async function POST(request: NextRequest) {
   const userId = request.headers.get("x-user-id")
@@ -40,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { 
-      plate, model, brand, year, description, type, active
+      plate, model, brand, year, description, type, documentUrl, active
     } = validationResult.data
 
     const existingVehicle = await prisma.vehicle.findUnique({
@@ -59,6 +104,7 @@ export async function POST(request: NextRequest) {
         year,
         description,
         type,
+        documentUrl,
         active
       }
     })

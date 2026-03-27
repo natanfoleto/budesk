@@ -1,11 +1,12 @@
 import { apiRequest } from "@/lib/api-client"
+import { PaginatedResponse } from "@/types/api"
 import { AccountPayable, AccountPayableInput, Transaction } from "@/types/financial"
 
 const BASE_URL = "/api"
 
-export const getTransactions = async (filters: Record<string, string>): Promise<Transaction[]> => {
+export const getTransactions = async (filters: Record<string, string>): Promise<PaginatedResponse<Transaction>> => {
   const params = new URLSearchParams(filters)
-  return apiRequest<Transaction[]>(`${BASE_URL}/financial-transactions?${params}`)
+  return apiRequest<PaginatedResponse<Transaction>>(`${BASE_URL}/financial-transactions?${params}`)
 }
 
 export const createTransaction = async (data: Partial<Transaction>) => {
@@ -28,9 +29,9 @@ export const deleteTransaction = async (id: string) => {
   })
 }
 
-export const getAccountsPayable = async (filters: Record<string, string>): Promise<AccountPayable[]> => {
+export const getAccountsPayable = async (filters: Record<string, string>): Promise<PaginatedResponse<AccountPayable>> => {
   const params = new URLSearchParams(filters)
-  return apiRequest<AccountPayable[]>(`${BASE_URL}/accounts-payable?${params}`)
+  return apiRequest<PaginatedResponse<AccountPayable>>(`${BASE_URL}/accounts-payable?${params}`)
 }
 
 export const createAccountPayable = async (data: AccountPayableInput) => {

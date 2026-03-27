@@ -45,6 +45,7 @@ const formSchema = z.object({
   firstDueDate: z.string().min(1, "Data de vencimento obrigatória"),
   supplierId: z.string().nullable().optional(),
   attachmentUrl: z.string().nullable().optional(),
+  invoiceUrl: z.string().nullable().optional(),
 })
 
 export type AccountPayableFormData = z.infer<typeof formSchema>
@@ -70,6 +71,7 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
       firstDueDate: new Date().toISOString().split("T")[0],
       supplierId: null,
       attachmentUrl: null,
+      invoiceUrl: null,
     },
   })
 
@@ -90,6 +92,7 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
             : new Date().toISOString().split("T")[0],
           supplierId: initialData.supplierId || null,
           attachmentUrl: initialData.attachmentUrl || null,
+          invoiceUrl: initialData.invoiceUrl || null,
         })
       } else {
         form.reset({
@@ -102,6 +105,7 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
           firstDueDate: new Date().toISOString().split("T")[0],
           supplierId: null,
           attachmentUrl: null,
+          invoiceUrl: null,
         })
       }
     }
@@ -118,7 +122,7 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initialData ? "Editar Conta" : "Nova Conta a Pagar"}</DialogTitle>
         </DialogHeader>
@@ -268,23 +272,43 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
               )}
             />
 
-            <FormField
-              name="attachmentUrl"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Comprovante / Anexo</FormLabel>
-                  <FormControl>
-                    <FileUploader 
-                      value={field.value} 
-                      onChange={(url) => field.onChange(url)} 
-                      folder="financial" 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-4 pb-4">
+              <FormField
+                name="attachmentUrl"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Comprovante</FormLabel>
+                    <FormControl>
+                      <FileUploader 
+                        value={field.value} 
+                        onChange={(url) => field.onChange(url)} 
+                        folder="financial" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                name="invoiceUrl"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Boleto / Nota</FormLabel>
+                    <FormControl>
+                      <FileUploader 
+                        value={field.value} 
+                        onChange={(url) => field.onChange(url)} 
+                        folder="financial" 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Salvando..." : "Salvar"}
