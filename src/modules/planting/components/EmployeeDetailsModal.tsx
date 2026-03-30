@@ -322,13 +322,17 @@ export function EmployeeDetailsModal({
                                 <XAxis 
                                   dataKey="date" 
                                   fontSize={10}
+                                  stroke="#888888"
                                   tickFormatter={(val) => format(parseLocalDate(val), "dd/MM", { locale: ptBR })}
                                 />
                                 <YAxis 
                                   fontSize={10}
+                                  stroke="#888888"
                                   tickFormatter={(val) => `R$ ${val / 100}`}
                                 />
                                 <Tooltip 
+                                  contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", color: "var(--color-card-foreground)", borderRadius: "var(--radius-md)" }}
+                                  itemStyle={{ color: "var(--color-card-foreground)" }}
                                   formatter={(value: number | string | readonly (number | string)[] | undefined) => [
                                     formatCurrency(Number(Array.isArray(value) ? value[0] : value) || 0), 
                                     "Ganho"
@@ -431,13 +435,19 @@ export function EmployeeDetailsModal({
                                 <XAxis 
                                   dataKey="date" 
                                   fontSize={10}
+                                  stroke="#888888"
                                   tickFormatter={(val) => format(parseLocalDate(val), "dd/MM", { locale: ptBR })}
                                 />
-                                <YAxis fontSize={10} />
+                                <YAxis 
+                                  fontSize={10}
+                                  stroke="#888888"
+                                />
                                 <Tooltip 
+                                  contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", color: "var(--color-card-foreground)", borderRadius: "var(--radius-md)" }}
+                                  itemStyle={{ color: "var(--color-card-foreground)" }}
                                   labelFormatter={(label) => format(parseLocalDate(label), "dd 'de' MMM", { locale: ptBR })}
                                 />
-                                <Legend wrapperStyle={{ fontSize: 10 }} />
+                                <Legend wrapperStyle={{ fontSize: 10, paddingTop: "10px" }} />
                                 <Bar dataKey="planting" name="Plantio" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                                 <Bar dataKey="cutting" name="Corte" fill="#f97316" radius={[4, 4, 0, 0]} />
                               </BarChart>
