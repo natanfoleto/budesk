@@ -1,10 +1,16 @@
 "use client"
 
 import { ExpenseCategory, PaymentMethod } from "@prisma/client"
-import { Edit, FileText, Paperclip, Trash2 } from "lucide-react"
+import { FileText, MoreHorizontal, Paperclip } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Table,
   TableBody,
@@ -35,6 +41,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
             <TableHead>Fornecedor</TableHead>
             <TableHead>Tipo</TableHead>
             <TableHead>Valor</TableHead>
+            <TableHead>Pagamento</TableHead>
             <TableHead>Doc</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -42,7 +49,7 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
         <TableBody>
           {transactions.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center h-24">
+              <TableCell colSpan={9} className="text-center h-24">
                 Nenhuma transação encontrada.
               </TableCell>
             </TableRow>
@@ -98,14 +105,28 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
                 </TableCell>
                 
                 <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="icon" onClick={() => onEdit(transaction)}>
-                      <Edit className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => onDelete(transaction.id)}>
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Ações</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem 
+                        className="cursor-pointer" 
+                        onClick={() => onEdit(transaction)}
+                      >
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="cursor-pointer text-destructive focus:text-destructive" 
+                        onClick={() => onDelete(transaction.id)}
+                      >
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))

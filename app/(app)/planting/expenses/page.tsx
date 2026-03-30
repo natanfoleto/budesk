@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ExpenseCategory } from "@prisma/client"
-import { useQuery } from "@tanstack/react-query"
 import { Edit, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { Resolver, SubmitHandler, useForm } from "react-hook-form"
@@ -62,11 +61,9 @@ import {
   useUpdateExpense,
   useWorkFronts,
 } from "@/hooks/use-planting"
-import { apiRequest } from "@/lib/api-client"
+import { useVehicles } from "@/hooks/use-vehicles"
 import { formatCurrency } from "@/lib/utils"
 import { PlantingExpense, PlantingExpenseFormData } from "@/types/planting"
-
-type Vehicle = { id: string; plate: string; model: string }
 
 const categoryLabels: Record<ExpenseCategory, string> = {
   [ExpenseCategory.ALIMENTACAO]: "Alimentação",
@@ -120,12 +117,8 @@ export default function PlantingExpensesPage() {
     selectedSeasonId !== "all" ? { seasonId: selectedSeasonId } : undefined
   )
 
-  // Vehicles fetch using useQuery
-  const { data: vehicles } = useQuery<Vehicle[]>({
-    queryKey: ["vehicles"],
-    queryFn: () => apiRequest<Vehicle[]>("/api/vehicles"),
-    enabled: isModalOpen,
-  })
+  // Vehicles fetch using shared hook
+  const { data: vehicles } = useVehicles({ active: "true", limit: "100" })
 
   // Mutations
   const createExpenseMutation = useCreateExpense()
@@ -371,7 +364,7 @@ export default function PlantingExpensesPage() {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="none">Nenhum veículo</SelectItem>
-                              {vehicles?.map((v) => (
+                              {vehicles?.data?.map((v: { id: string; plate: string; model: string | null }) => (
                                 <SelectItem key={v.id} value={v.id}>{v.model} ({v.plate})</SelectItem>
                               ))}
                             </SelectContent>

@@ -74,8 +74,8 @@ export const EmployeeTagsTab = ({ employeeId }: EmployeeTagsTabProps) => {
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all duration-200 group relative overflow-hidden",
                     isActive 
-                      ? "bg-white border-primary shadow-md ring-1 ring-primary/20 scale-[1.02]" 
-                      : "bg-white/50 border-transparent hover:border-muted-foreground/30 hover:bg-white/80 grayscale-[0.6] hover:grayscale-0",
+                      ? "bg-accent/40 border-primary shadow-md ring-1 ring-primary/20 scale-[1.02]" 
+                      : "bg-muted/30 border-transparent hover:border-muted-foreground/20 hover:bg-muted/40",
                     isSyncing && "opacity-60 cursor-not-allowed"
                   )}
                 >
@@ -90,7 +90,7 @@ export const EmployeeTagsTab = ({ employeeId }: EmployeeTagsTabProps) => {
                   
                   <div 
                     className={cn(
-                      "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                      "shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors",
                       isActive ? "bg-opacity-100" : "bg-opacity-20 group-hover:bg-opacity-100"
                     )}
                     style={{ 
@@ -103,12 +103,15 @@ export const EmployeeTagsTab = ({ employeeId }: EmployeeTagsTabProps) => {
                   
                   <div className="flex flex-col min-w-0">
                     <span className={cn(
-                      "text-sm font-semibold truncate",
-                      isActive ? "text-foreground" : "text-muted-foreground"
+                      "text-sm font-semibold truncate transition-colors",
+                      isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
                     )}>
                       {tag.name}
                     </span>
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-bold">
+                    <span className={cn(
+                      "text-[10px] uppercase tracking-wider font-bold transition-colors",
+                      isActive ? "text-primary/90" : "text-muted-foreground/60"
+                    )}>
                       {isActive ? "Ativa" : "Inativa"}
                     </span>
                   </div>

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table"
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDriverAllocation } from "@/hooks/use-planting"
+import { useVehicles } from "@/hooks/use-vehicles"
 import { apiRequest } from "@/lib/api-client"
 import { cn, formatCentsToReal, formatCurrency, parseCurrencyToCents } from "@/lib/utils"
 
@@ -64,10 +65,7 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
   const { data: employees } = useEmployees({ tagIds: selectedTagIds })
 
   // Fetch vehicles
-  const { data: vehicles, isLoading: isLoadingVehicles } = useQuery({
-    queryKey: ["vehicles"],
-    queryFn: () => apiRequest<{ id: string; plate: string; model: string | null }[]>("/api/vehicles")
-  })
+  const { data: vehicles, isLoading: isLoadingVehicles } = useVehicles({ active: "true", limit: "100" })
 
   // Fetch existing driver allocations
   const { data: existingRecords, isLoading, refetch } = useQuery({
@@ -251,7 +249,7 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
                 <SelectValue placeholder={isLoadingVehicles ? "Carregando..." : "Selecione..."} />
               </SelectTrigger>
               <SelectContent>
-                {vehicles?.map((v: { id: string; plate: string; model: string | null }) => (
+                {vehicles?.data?.map((v: { id: string; plate: string; model: string | null }) => (
                   <SelectItem key={v.id} value={v.id}>
                     {v.plate} {v.model ? `- ${v.model}` : ""}
                   </SelectItem>

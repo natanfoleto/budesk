@@ -57,10 +57,10 @@ type ProductionRecord = {
 }
 
 const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-  FALTA: { bg: "bg-red-50/50 hover:bg-red-50", text: "text-red-600", label: "FALTA" },
-  FALTA_JUSTIFICADA: { bg: "bg-orange-50/50 hover:bg-orange-50", text: "text-orange-600", label: "FALTA JUST." },
-  ATESTADO: { bg: "bg-blue-50/50 hover:bg-blue-50", text: "text-blue-600", label: "ATESTADO" },
-  FOLGA: { bg: "bg-slate-50/50 hover:bg-slate-50", text: "text-slate-600", label: "FOLGA" }
+  FALTA: { bg: "bg-red-500/10 hover:bg-red-500/20", text: "text-red-700", label: "FALTA" },
+  FALTA_JUSTIFICADA: { bg: "bg-orange-500/10 hover:bg-orange-500/20", text: "text-orange-700", label: "FALTA JUST." },
+  ATESTADO: { bg: "bg-blue-500/10 hover:bg-blue-500/20", text: "text-blue-700", label: "ATESTADO" },
+  FOLGA: { bg: "bg-muted/50 hover:bg-muted", text: "text-muted-foreground", label: "FOLGA" }
 }
 
 export function PlantingTab({ 
@@ -514,8 +514,9 @@ export function PlantingTab({
                         className={cn(
                           record.isClosed && "bg-muted/50",
                           isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg,
-                          record.employeeId === focusedEmployeeId && "bg-slate-200/60",
-                          isTerminated && "opacity-60 bg-slate-50"
+                          record.employeeId === focusedEmployeeId && "bg-accent/40",
+                          (isTerminated || isAbsent) && "opacity-60",
+                          isTerminated && "bg-muted/50"
                         )}
                       >
                         <TableCell className="font-medium">
@@ -563,7 +564,7 @@ export function PlantingTab({
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <div className="bg-slate-100 text-slate-600 text-[9px] font-black px-1 py-0.5 rounded border border-slate-200 shadow-sm whitespace-nowrap cursor-help">
+                                    <div className="bg-muted text-muted-foreground text-[9px] font-black px-1 py-0.5 rounded border border-border shadow-sm whitespace-nowrap cursor-help">
                                       ENCERRADO
                                     </div>
                                   </TooltipTrigger>
@@ -609,7 +610,7 @@ export function PlantingTab({
                               onBlur={() => setFocusedEmployeeId(null)}
                               onKeyDownCustom={(e) => handleKeyDown(e, record.employeeId, "plantingMeters")}
                               disabled={isTerminated}
-                              className={cn("h-8 text-center w-24", isTerminated && "bg-slate-100 cursor-not-allowed")}
+                              className={cn("h-8 text-center w-24", isTerminated && "bg-muted/50 cursor-not-allowed")}
                             />
                           </TableCell>
                         )}

@@ -1,5 +1,5 @@
 import { AttachmentType, ExpenseCategory, PaymentMethod } from "@prisma/client"
-import { ChevronDown, ChevronUp, Eye, MoreHorizontal, Paperclip, Plus, Receipt, Trash } from "lucide-react"
+import { ChevronDown, ChevronUp, MoreHorizontal, Plus } from "lucide-react"
 import React, { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
@@ -90,7 +90,6 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
               <TableHead>Categoria</TableHead>
               <TableHead>Fornecedor</TableHead>
               <TableHead>Parcelas</TableHead>
-              <TableHead>Doc</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -143,21 +142,6 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {/* Legacy indicators or summary indicators */}
-                        {(account.installments?.[0]?.attachments?.some(a => a.type === "BOLETO") || account.invoiceUrl) ? (
-                          <Receipt className="h-4 w-4 text-emerald-600" />
-                        ) : (
-                          <Receipt className="h-4 w-4 text-muted-foreground/30" />
-                        )}
-                        {(account.installments?.[0]?.attachments?.some(a => a.type === "COMPROVANTE") || account.attachmentUrl) ? (
-                          <Paperclip className="h-4 w-4 text-primary" />
-                        ) : (
-                          null
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
                       <Badge variant={getStatusColor(account.status || "")}>
                         {getStatusLabel(account.status || "")}
                       </Badge>
@@ -183,7 +167,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                   </TableRow>
                   {expandedRows.includes(account.id) && (
                     <TableRow className="bg-muted/30">
-                      <TableCell colSpan={11} className="p-0">
+                      <TableCell colSpan={10} className="p-0">
                         <div className="p-4">
                           <div className="rounded-md border bg-background">
                             <Table>
@@ -211,35 +195,39 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                     <TableCell>
                                       <div className="flex items-center gap-2">
                                         {inst.attachments?.map((att) => (
-                                          <div key={att.id} className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-md border text-[10px]">
-                                            <span className="font-medium text-primary uppercase">
-                                              {att.type === "BOLETO" ? "Bol" : att.type === "COMPROVANTE" ? "Comp" : "Out"}
-                                            </span>
-                                            <div className="flex items-center gap-0.5 ml-1">
-                                              <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-5 w-5 hover:text-emerald-600"
-                                                asChild
+                                          <Dialog key={att.id}>
+                                            <DialogTrigger asChild>
+                                              <Badge 
+                                                variant="outline" 
+                                                className="cursor-pointer hover:bg-accent uppercase text-[10px] h-6"
                                               >
-                                                <a href={att.fileUrl} target="_blank" rel="noopener noreferrer">
-                                                  <Eye className="h-3 w-3" />
-                                                </a>
-                                              </Button>
-                                              <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-5 w-5 hover:text-destructive"
-                                                onClick={() => {
-                                                  if (confirm("Tem certeza que deseja remover este anexo?")) {
-                                                    deleteAttachment.mutate({ installmentId: inst.id, attachmentId: att.id })
-                                                  }
-                                                }}
-                                              >
-                                                <Trash className="h-3 w-3" />
-                                              </Button>
-                                            </div>
-                                          </div>
+                                                {att.type === "BOLETO" ? "Boleto" : att.type === "COMPROVANTE" ? "Comprovante" : att.type}
+                                              </Badge>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-[300px]">
+                                              <DialogHeader>
+                                                <DialogTitle>Anexo: {att.type}</DialogTitle>
+                                              </DialogHeader>
+                                              <div className="flex flex-col gap-2 mt-4">
+                                                <Button variant="outline" asChild className="w-full">
+                                                  <a href={att.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                    Visualizar
+                                                  </a>
+                                                </Button>
+                                                <Button 
+                                                  variant="destructive" 
+                                                  className="w-full"
+                                                  onClick={() => {
+                                                    if (confirm("Remover este anexo?")) {
+                                                      deleteAttachment.mutate({ installmentId: inst.id, attachmentId: att.id })
+                                                    }
+                                                  }}
+                                                >
+                                                  Excluir
+                                                </Button>
+                                              </div>
+                                            </DialogContent>
+                                          </Dialog>
                                         ))}
 
                                         <Dialog 
@@ -267,7 +255,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                                   value={newAttachmentType} 
                                                   onValueChange={(val) => setNewAttachmentType(val as AttachmentType)}
                                                 >
-                                                  <SelectTrigger>
+                                                  <SelectTrigger className="w-full">
                                                     <SelectValue placeholder="Selecione o tipo" />
                                                   </SelectTrigger>
                                                   <SelectContent>
@@ -303,27 +291,29 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                       </div>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                      {inst.status === "PAGA" ? (
-                                        <Button 
-                                          variant="link" 
-                                          size="sm"
-                                          className="text-xs"
-                                          disabled={updateInstallment.isPending}
-                                          onClick={() => updateInstallment.mutate({ id: inst.id, status: "PENDENTE" })}
-                                        >
-                                          Estornar
-                                        </Button>
-                                      ) : (
-                                        <Button 
-                                          variant="link" 
-                                          size="sm"
-                                          className="text-xs"
-                                          disabled={updateInstallment.isPending}
-                                          onClick={() => updateInstallment.mutate({ id: inst.id, status: "PAGA" })}
-                                        >
-                                          Pagar
-                                        </Button>
-                                      )}
+                                      <div className="flex justify-end gap-2 text-right">
+                                        {inst.status === "PAGA" ? (
+                                          <Button 
+                                            variant="link" 
+                                            size="sm"
+                                            className="text-xs px-0"
+                                            disabled={updateInstallment.isPending}
+                                            onClick={() => updateInstallment.mutate({ id: inst.id, status: "PENDENTE" })}
+                                          >
+                                            Estornar
+                                          </Button>
+                                        ) : (
+                                          <Button 
+                                            variant="link" 
+                                            size="sm"
+                                            className="text-xs px-0"
+                                            disabled={updateInstallment.isPending}
+                                            onClick={() => updateInstallment.mutate({ id: inst.id, status: "PAGA" })}
+                                          >
+                                            Pagar
+                                          </Button>
+                                        )}
+                                      </div>
                                     </TableCell>
                                   </TableRow>
                                 ))}

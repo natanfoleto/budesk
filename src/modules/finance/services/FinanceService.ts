@@ -29,28 +29,33 @@ export class FinanceService {
   ) {
     const db = tx || prisma
     
-    const relationMap: Record<string, { connect: { id: string } }> = {}
+    const createData: Prisma.FinancialTransactionCreateInput = {
+      type: data.type,
+      category: data.category,
+      valueInCents: data.amountInCents,
+      description: data.description,
+      date: data.date,
+      paymentMethod: data.paymentMethod,
+    }
+
+    // Direct relations via connect
+    if (data.costCenterId) createData.costCenter = { connect: { id: data.costCenterId } }
+    if (data.supplierId) createData.supplier = { connect: { id: data.supplierId } }
+    if (data.userId) createData.user = { connect: { id: data.userId } }
+
+    // Specific reference relations
     if (data.referenceId && data.referenceType) {
-      if (data.referenceType === "employeeAdvance") relationMap.advance = { connect: { id: data.referenceId } }
-      if (data.referenceType === "maintenance") relationMap.maintenance = { connect: { id: data.referenceId } }
-      if (data.referenceType === "rhPayment") relationMap.rhPayment = { connect: { id: data.referenceId } }
-      if (data.referenceType === "service") relationMap.service = { connect: { id: data.referenceId } }
-      if (data.referenceType === "supplier") relationMap.supplier = { connect: { id: data.referenceId } }
-      if (data.referenceType === "employee") relationMap.employee = { connect: { id: data.referenceId } }
+      const ref = { connect: { id: data.referenceId } }
+      if (data.referenceType === "employeeAdvance") createData.advance = ref
+      if (data.referenceType === "maintenance") createData.maintenance = ref
+      if (data.referenceType === "rhPayment") createData.rhPayment = ref
+      if (data.referenceType === "service") createData.service = ref
+      if (data.referenceType === "supplier") createData.supplier = ref
+      if (data.referenceType === "employee") createData.employee = ref
     }
 
     const transaction = await db.financialTransaction.create({
-      data: {
-        type: data.type,
-        category: data.category,
-        valueInCents: data.amountInCents,
-        description: data.description,
-        date: data.date,
-        paymentMethod: data.paymentMethod,
-        costCenterId: data.costCenterId || null,
-        supplierId: data.supplierId || null,
-        ...relationMap
-      }
+      data: createData
     })
 
     if (data.userId) {
