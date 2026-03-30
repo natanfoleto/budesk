@@ -1,9 +1,30 @@
-import { ExpenseCategory, PaymentMethod } from "@prisma/client"
-import { ChevronDown, ChevronUp, Edit, FileText, Paperclip, Trash2 } from "lucide-react"
+import { AttachmentType, ExpenseCategory, PaymentMethod } from "@prisma/client"
+import { ChevronDown, ChevronUp, Eye, MoreHorizontal, Paperclip, Plus, Receipt, Trash } from "lucide-react"
 import React, { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { FileUploader } from "@/components/ui/file-uploader"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -12,13 +33,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { useUpdateAccountInstallment } from "@/hooks/use-financial"
+import { 
+  useAddInstallmentAttachment, 
+  useDeleteInstallmentAttachment, 
+  useUpdateAccountInstallment 
+} from "@/hooks/use-financial"
 import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/constants"
 import { formatCentsToReal, formatDate } from "@/lib/utils"
 import { AccountPayable } from "@/types/financial"
@@ -31,7 +50,12 @@ interface AccountsPayableTableProps {
 
 export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPayableTableProps) {
   const [expandedRows, setExpandedRows] = useState<string[]>([])
+  const [uploadingForInstallment, setUploadingForInstallment] = useState<string | null>(null)
+  const [newAttachmentType, setNewAttachmentType] = useState<AttachmentType>("BOLETO")
+  
   const updateInstallment = useUpdateAccountInstallment()
+  const addAttachment = useAddInstallmentAttachment()
+  const deleteAttachment = useDeleteInstallmentAttachment()
 
   const toggleRow = (id: string) => {
     setExpandedRows(prev => 
@@ -120,46 +144,16 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {account.attachmentUrl ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <a 
-                                  href={account.attachmentUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:text-primary/80 transition-colors"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Paperclip className="h-4 w-4" />
-                                </a>
-                              </TooltipTrigger>
-                              <TooltipContent>Comprovante</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                        {/* Legacy indicators or summary indicators */}
+                        {(account.installments?.[0]?.attachments?.some(a => a.type === "BOLETO") || account.invoiceUrl) ? (
+                          <Receipt className="h-4 w-4 text-emerald-600" />
                         ) : (
-                          <span className="text-muted-foreground/30">
-                            <FileText className="h-4 w-4" />
-                          </span>
+                          <Receipt className="h-4 w-4 text-muted-foreground/30" />
                         )}
-
-                        {account.invoiceUrl && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <a 
-                                  href={account.invoiceUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-emerald-600 hover:text-emerald-700 transition-colors"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <FileText className="h-4 w-4" />
-                                </a>
-                              </TooltipTrigger>
-                              <TooltipContent>Boleto / Nota</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                        {(account.installments?.[0]?.attachments?.some(a => a.type === "COMPROVANTE") || account.attachmentUrl) ? (
+                          <Paperclip className="h-4 w-4 text-primary" />
+                        ) : (
+                          null
                         )}
                       </div>
                     </TableCell>
@@ -169,14 +163,22 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="icon" onClick={() => onEdit(account)}>
-                          <Edit className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                        <Button variant="outline" size="icon" onClick={() => onDelete(account.id)}>
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Ações</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => onEdit(account)}>
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={() => onDelete(account.id)}>
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                   {expandedRows.includes(account.id) && (
@@ -191,7 +193,8 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                   <TableHead>Vencimento</TableHead>
                                   <TableHead>Valor</TableHead>
                                   <TableHead>Status</TableHead>
-                                  <TableHead></TableHead>
+                                  <TableHead>Anexos</TableHead>
+                                  <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -204,6 +207,100 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                       <Badge variant={getStatusColor(inst.status)}>
                                         {getStatusLabel(inst.status)}
                                       </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-2">
+                                        {inst.attachments?.map((att) => (
+                                          <div key={att.id} className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded-md border text-[10px]">
+                                            <span className="font-medium text-primary uppercase">
+                                              {att.type === "BOLETO" ? "Bol" : att.type === "COMPROVANTE" ? "Comp" : "Out"}
+                                            </span>
+                                            <div className="flex items-center gap-0.5 ml-1">
+                                              <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-5 w-5 hover:text-emerald-600"
+                                                asChild
+                                              >
+                                                <a href={att.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                  <Eye className="h-3 w-3" />
+                                                </a>
+                                              </Button>
+                                              <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-5 w-5 hover:text-destructive"
+                                                onClick={() => {
+                                                  if (confirm("Tem certeza que deseja remover este anexo?")) {
+                                                    deleteAttachment.mutate({ installmentId: inst.id, attachmentId: att.id })
+                                                  }
+                                                }}
+                                              >
+                                                <Trash className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        ))}
+
+                                        <Dialog 
+                                          open={uploadingForInstallment === inst.id} 
+                                          onOpenChange={(open) => !open && setUploadingForInstallment(null)}
+                                        >
+                                          <DialogTrigger asChild>
+                                            <Button 
+                                              variant="outline" 
+                                              size="icon" 
+                                              className="h-7 w-7 rounded-full border-dashed"
+                                              onClick={() => setUploadingForInstallment(inst.id)}
+                                            >
+                                              <Plus className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </DialogTrigger>
+                                          <DialogContent className="sm:max-w-md">
+                                            <DialogHeader>
+                                              <DialogTitle>Adicionar Anexo - Parcela {inst.installmentNumber}</DialogTitle>
+                                            </DialogHeader>
+                                            <div className="space-y-4 py-4">
+                                              <div className="space-y-2">
+                                                <label className="text-sm font-medium">Tipo de Documento</label>
+                                                <Select 
+                                                  value={newAttachmentType} 
+                                                  onValueChange={(val) => setNewAttachmentType(val as AttachmentType)}
+                                                >
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Selecione o tipo" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="BOLETO">Boleto / Nota</SelectItem>
+                                                    <SelectItem value="COMPROVANTE">Comprovante de Pagamento</SelectItem>
+                                                    <SelectItem value="NOTA_FISCAL">Nota Fiscal</SelectItem>
+                                                    <SelectItem value="CONTRATO">Contrato</SelectItem>
+                                                    <SelectItem value="OUTROS">Outros</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                              <FileUploader
+                                                label="Upload de Arquivo"
+                                                value={""}
+                                                onChange={(url) => {
+                                                  if (url) {
+                                                    addAttachment.mutate({
+                                                      installmentId: inst.id,
+                                                      data: {
+                                                        type: newAttachmentType,
+                                                        fileUrl: url,
+                                                        fileName: url.split("/").pop() || "arquivo"
+                                                      }
+                                                    })
+                                                    setUploadingForInstallment(null)
+                                                  }
+                                                }}
+                                                folder="financial"
+                                              />
+                                            </div>
+                                          </DialogContent>
+                                        </Dialog>
+                                      </div>
                                     </TableCell>
                                     <TableCell className="text-right">
                                       {inst.status === "PAGA" ? (

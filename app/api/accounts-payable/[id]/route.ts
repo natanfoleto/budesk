@@ -20,7 +20,8 @@ export async function GET(
       include: {
         supplier: true,
         installments: {
-          orderBy: { installmentNumber: "asc" }
+          orderBy: { installmentNumber: "asc" },
+          include: { attachments: true }
         }
       }
     })
@@ -143,7 +144,12 @@ export async function PUT(
 
       return await tx.accountPayable.findUnique({
         where: { id },
-        include: { installments: { orderBy: { installmentNumber: "asc" } } }
+        include: { 
+          installments: { 
+            orderBy: { installmentNumber: "asc" },
+            include: { attachments: true }
+          } 
+        }
       })
     })
 

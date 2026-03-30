@@ -171,6 +171,14 @@ enum SupplierAccountType {
   PIX
 }
 
+enum AttachmentType {
+  BOLETO
+  COMPROVANTE
+  NOTA_FISCAL
+  CONTRATO
+  OUTROS
+}
+
 // USUÁRIOS
 
 model User {
@@ -538,11 +546,25 @@ model AccountInstallment {
   updatedAt        DateTime      @updatedAt
 
   account          AccountPayable @relation(fields: [accountPayableId], references: [id], onDelete: Cascade)
+  attachments      AccountInstallmentAttachment[]
 
   @@index([accountPayableId])
   @@index([dueDate])
   @@index([status])
   @@map("account_installments")
+}
+
+model AccountInstallmentAttachment {
+  id               String         @id @default(cuid())
+  installmentId    String         @map("installment_id")
+  type             AttachmentType
+  fileName         String         @map("file_name")
+  fileUrl          String         @map("file_url")
+  createdAt        DateTime       @default(now())
+
+  installment      AccountInstallment @relation(fields: [installmentId], references: [id], onDelete: Cascade)
+
+  @@map("account_installment_attachments")
 }
 
 // DOCUMENTOS

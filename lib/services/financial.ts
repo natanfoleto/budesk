@@ -73,3 +73,16 @@ export const getDashboardMetrics = async (month?: number, year?: number) => {
     accountsPayablePendingInCents: number;
   }>(`${BASE_URL}/dashboard/financial?${params}`)
 }
+
+export const addInstallmentAttachment = async (installmentId: string, data: { type: string; fileUrl: string; fileName: string }) => {
+  return apiRequest(`${BASE_URL}/accounts-payable/installments/${installmentId}/attachments`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export const deleteInstallmentAttachment = async (installmentId: string, attachmentId: string) => {
+  return apiRequest(`${BASE_URL}/accounts-payable/installments/${installmentId}/attachments/${attachmentId}`, {
+    method: "DELETE",
+  })
+}

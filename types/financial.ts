@@ -1,4 +1,4 @@
-import { ExpenseCategory, PaymentMethod, TransactionType } from "@prisma/client"
+import { AttachmentType, ExpenseCategory, PaymentMethod, TransactionType } from "@prisma/client"
 
 export interface Transaction {
   id: string
@@ -22,6 +22,15 @@ export interface Transaction {
 
 export type AccountStatus = "PENDENTE" | "PAGA" | "ATRASADA"
 
+export interface AccountInstallmentAttachment {
+  id: string
+  installmentId: string
+  type: AttachmentType
+  fileName: string
+  fileUrl: string
+  createdAt: string | Date
+}
+
 export interface AccountInstallment {
   id: string
   accountPayableId: string
@@ -30,6 +39,7 @@ export interface AccountInstallment {
   dueDate: string | Date
   status: AccountStatus
   paymentDate?: string | Date | null
+  attachments: AccountInstallmentAttachment[]
   createdAt?: string | Date
   updatedAt?: string | Date
 }

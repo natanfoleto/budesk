@@ -1,3 +1,5 @@
+'use client'
+
 import { FilterX, Loader2, Plus, Search } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useMemo, useState } from "react"

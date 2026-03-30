@@ -1,19 +1,20 @@
 "use client"
 
-import { FileIcon, Loader2, UploadCloud, X } from "lucide-react"
+import { Eye, FileIcon, Loader2, UploadCloud, X } from "lucide-react"
 import * as React from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 
 interface FileUploaderProps {
+  label?: string
   value?: string | null
   onChange: (url: string | null) => void
   disabled?: boolean
   folder?: string
 }
 
-export function FileUploader({ value, onChange, disabled, folder = "financial" }: FileUploaderProps) {
+export function FileUploader({ label, value, onChange, disabled, folder = "financial" }: FileUploaderProps) {
   const [isUploading, setIsUploading] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -66,16 +67,29 @@ export function FileUploader({ value, onChange, disabled, folder = "financial" }
               {value.split("/").pop()}
             </span>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={removeFile}
-            disabled={disabled}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-primary"
+              title="Visualizar"
+              onClick={() => window.open(value, "_blank")}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              title="Remover"
+              onClick={removeFile}
+              disabled={disabled}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       ) : (
         <div 
@@ -98,7 +112,7 @@ export function FileUploader({ value, onChange, disabled, folder = "financial" }
             <>
               <UploadCloud className="mb-2 h-6 w-6 text-muted-foreground" />
               <p className="text-center text-xs text-muted-foreground">
-                Clique para enviar comprovante
+                {label || "Clique para enviar arquivo"}
               </p>
             </>
           )}

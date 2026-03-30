@@ -66,7 +66,8 @@ export async function GET(request: NextRequest) {
       include: {
         supplier: { select: { id: true, name: true } },
         installments: {
-          orderBy: { installmentNumber: "asc" }
+          orderBy: { installmentNumber: "asc" },
+          include: { attachments: true }
         }
       },
     })
@@ -182,11 +183,44 @@ export async function POST(request: NextRequest) {
         data: installmentsData
       })
 
+      // Get the first installment to attach legacy files
+      const firstInst = await tx.accountInstallment.findFirst({
+        where: { accountPayableId: createdAccount.id, installmentNumber: 1 }
+      })
+
+      if (firstInst) {
+        if (invoiceUrl) {
+          await tx.accountInstallmentAttachment.create({
+            data: {
+              installmentId: firstInst.id,
+              type: "BOLETO",
+              fileName: invoiceUrl.split("/").pop() || "boleto",
+              fileUrl: invoiceUrl,
+            }
+          })
+        }
+        if (attachmentUrl) {
+          await tx.accountInstallmentAttachment.create({
+            data: {
+              installmentId: firstInst.id,
+              type: "COMPROVANTE",
+              fileName: attachmentUrl.split("/").pop() || "comprovante",
+              fileUrl: attachmentUrl,
+            }
+          })
+        }
+      }
+
       await AuditService.logAction(tx, AUDIT_CREATE, "AccountPayable", createdAccount.id, createdAccount, userId || null)
 
       return await tx.accountPayable.findUnique({
         where: { id: createdAccount.id },
-        include: { installments: true }
+        include: { 
+          installments: {
+            orderBy: { installmentNumber: "asc" },
+            include: { attachments: true }
+          }
+        }
       })
     })
 

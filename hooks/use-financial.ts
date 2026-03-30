@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import {
+  addInstallmentAttachment,
   createAccountPayable,
   createTransaction,
   deleteAccountPayable,
+  deleteInstallmentAttachment,
   deleteTransaction,
   getAccountsPayable,
   getDashboardMetrics,
@@ -125,5 +127,31 @@ export const useDashboardMetrics = (month?: number, year?: number) => {
   return useQuery({
     queryKey: ["dashboard-metrics", month, year],
     queryFn: () => getDashboardMetrics(month, year),
+  })
+}
+
+export const useAddInstallmentAttachment = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ installmentId, data }: { installmentId: string; data: { type: string; fileUrl: string; fileName: string } }) => 
+      addInstallmentAttachment(installmentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payables"] })
+      toast.success("Anexo adicionado!")
+    },
+    onError: () => toast.error("Erro ao adicionar anexo"),
+  })
+}
+
+export const useDeleteInstallmentAttachment = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ installmentId, attachmentId }: { installmentId: string; attachmentId: string }) => 
+      deleteInstallmentAttachment(installmentId, attachmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payables"] })
+      toast.success("Anexo removido!")
+    },
+    onError: () => toast.error("Erro ao remover anexo"),
   })
 }
