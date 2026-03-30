@@ -55,6 +55,7 @@ import {
 import { useEmployees } from "@/hooks/use-employees"
 import { apiRequest } from "@/lib/api-client"
 import { cn, formatCentsToReal } from "@/lib/utils"
+import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
 import { PlantingAdvance, PlantingAdvanceFormData } from "@/types/planting"
 
 interface AdvanceTabProps {
@@ -82,6 +83,8 @@ export function AdvanceTab({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingAdvance, setEditingAdvance] = useState<PlantingAdvance | null>(null)
   const [advanceToDelete, setAdvanceToDelete] = useState<string | null>(null)
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
+  const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false)
 
   const { data: employees } = useEmployees({ tagIds: selectedTagIds })
   
@@ -272,7 +275,15 @@ export function AdvanceTab({
                   >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2 group">
-                        {adv.employee?.name}
+                        <span
+                          className="cursor-pointer hover:underline underline-offset-4 decoration-primary/50 transition-all"
+                          onClick={() => {
+                            setSelectedEmployeeId(adv.employeeId)
+                            setIsEmployeeModalOpen(true)
+                          }}
+                        >
+                          {adv.employee?.name}
+                        </span>
                         <button
                           onClick={() => {
                             if (onEmployeeFilterChange) {
@@ -487,6 +498,12 @@ export function AdvanceTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <EmployeeDetailsModal
+        employeeId={selectedEmployeeId}
+        seasonId={seasonId}
+        open={isEmployeeModalOpen}
+        onOpenChange={setIsEmployeeModalOpen}
+      />
     </Card>
   )
 }

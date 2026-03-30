@@ -363,7 +363,7 @@ export function ClosingTab({ seasonId, frontId, date }: ClosingTabProps) {
       <div className="flex items-center justify-end px-1">
         <Button 
           variant="default"
-          className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-2"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 gap-2"
           onClick={handleDownloadReport}
           disabled={isGenerating}
         >

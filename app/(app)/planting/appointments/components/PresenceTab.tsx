@@ -35,7 +35,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useEmployees } from "@/hooks/use-employees"
-import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
+import { useCreateDailyWage, useDailyWages, useDriverAllocations, usePlantingProductions } from "@/hooks/use-planting"
 import { cn } from "@/lib/utils"
 import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
@@ -63,6 +63,7 @@ interface PresenceRecord {
   isTerminated: boolean
   terminationDate?: string | Date | null
   valueInCents: number
+  driverValueInCents: number  // valor de diária de motorista (DriverAllocation)
 }
 
 const PRESENCE_CONFIG: Record<string, { label: string; color: string; textColor: string }> = {
@@ -113,6 +114,13 @@ export function PresenceTab({
     date: date ? `${date}T00:00:00Z` : undefined,
     tagIds: selectedTagIds
   })
+
+  const { data: driverAllocations } = useDriverAllocations({
+    seasonId,
+    frontId,
+    date: date ? `${date}T00:00:00Z` : undefined,
+    tagIds: selectedTagIds
+  })
   
   const createDailyWageMutation = useCreateDailyWage()
 
@@ -120,14 +128,15 @@ export function PresenceTab({
     if (employees && attendanceRecords) {
       const state: Record<string, PresenceRecord> = {}
       
-      // Filter employees based on termination date
       const dataEmployees = (employees?.data || []) as EmployeeWithDetails[]
       const dataAttendance = (attendanceRecords || []) as DailyWage[]
+      const dataDriverAllocs = (driverAllocations || []) as { employeeId: string; valueInCents: number }[]
       
       const filteredEmployees = dataEmployees.filter(emp => shouldShowEmployeeInMonth(date, emp.terminationDate))
 
       filteredEmployees.forEach((emp) => {
         const existing = dataAttendance.find((dw) => dw.employeeId === emp.id)
+        const driverAlloc = dataDriverAllocs.find((da) => da.employeeId === emp.id)
         state[emp.id] = {
           id: existing?.id,
           employeeId: emp.id,
@@ -138,24 +147,28 @@ export function PresenceTab({
           plantingCategory: emp.plantingCategory || "",
           isTerminated: !isEmployeeActiveAtDate(date, emp.terminationDate),
           terminationDate: emp.terminationDate,
-          valueInCents: existing?.valueInCents || 0
+          valueInCents: existing?.valueInCents || 0,
+          driverValueInCents: driverAlloc?.valueInCents || 0,
         }
       })
       setPresence(state)
       setIsEditing(false)
     }
-  }, [employees, attendanceRecords, isPeriodClosed, date])
+  }, [employees, attendanceRecords, driverAllocations, isPeriodClosed, date])
 
   const handleSave = async () => {
     const toSave: DailyWageFormData[] = []
 
     for (const r of Object.values(presence)) {
-      // Skip terminated employees as they are read-only in the UI
       if (r.isTerminated) continue
 
       if (r.presence !== "PRESENCA") {
         if (r.valueInCents > 0) {
           toast.error(`O funcionário ${r.employeeName} não pode ser marcado como ${getPresenceLabel(r.presence)} pois possui valor de diária registrado.`)
+          return
+        }
+        if (r.driverValueInCents > 0) {
+          toast.error(`O funcionário ${r.employeeName} não pode ser marcado como ${getPresenceLabel(r.presence)} pois possui uma diária de motorista registrada.`)
           return
         }
 
@@ -408,6 +421,13 @@ export function PresenceTab({
                                 </div>
                               </div>
                             )}
+                            {record.driverValueInCents > 0 && (
+                              <div title={`Diária Motorista: ${(record.driverValueInCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}>
+                                <div className="bg-blue-100 text-blue-700 text-[9px] font-black px-1 py-0.5 rounded border border-blue-200 shadow-sm whitespace-nowrap">
+                                  🚗 {(record.driverValueInCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }).replace(",00", "")}
+                                </div>
+                              </div>
+                            )}
                             {(() => {
                               const employeeMetrage = (productions as PlantingProduction[])?.filter(p => p.employeeId === record.employeeId && (p.meters || 0) > 0)
                               const types = Array.from(new Set(employeeMetrage?.map(p => p.type) || []))
@@ -428,25 +448,57 @@ export function PresenceTab({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Select 
-                            value={record.presence} 
-                            onValueChange={(val: AttendanceType) => updateLocalPresence(record.employeeId, "presence", val)}
-                            disabled={isTerminated || record.isClosed}
-                          >
-                            <SelectTrigger className={cn("h-8 w-[200px] ml-auto", record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.bg)}>
-                              <SelectValue placeholder="Status de Presença" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(PRESENCE_CONFIG).map(([value, { label, color }]) => (
-                                <SelectItem key={value} value={value}>
-                                  <div className="flex items-center gap-2">
-                                    <span className={`h-2 w-2 rounded-full ${color}`} />
-                                    {label}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {(() => {
+                            const hasMeterage = (productions as PlantingProduction[])?.some(
+                              (p) => p.employeeId === record.employeeId && (p.meters || 0) > 0
+                            )
+                            const lockedByDiary = record.valueInCents > 0 || record.driverValueInCents > 0
+                            const locked = lockedByDiary || hasMeterage
+
+                            let lockReason: string | null = null
+                            if (record.driverValueInCents > 0) {
+                              lockReason = "Possui diária de motorista — somente Presença permitida."
+                            } else if (record.valueInCents > 0) {
+                              lockReason = "Possui diária registrada — somente Presença permitida."
+                            } else if (hasMeterage) {
+                              lockReason = "Possui metragem de plantio/corte — somente Presença permitida."
+                            }
+
+                            const select = (
+                              <Select
+                                value={record.presence}
+                                onValueChange={(val: AttendanceType) => updateLocalPresence(record.employeeId, "presence", val)}
+                                disabled={isTerminated || record.isClosed || locked}
+                              >
+                                <SelectTrigger className={cn("h-8 w-[200px] ml-auto", record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.bg)}>
+                                  <SelectValue placeholder="Status de Presença" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Object.entries(PRESENCE_CONFIG).map(([value, { label, color }]) => (
+                                    <SelectItem key={value} value={value} disabled={locked && value !== "PRESENCA"}>
+                                      <div className="flex items-center gap-2">
+                                        <span className={`h-2 w-2 rounded-full ${color}`} />
+                                        {label}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )
+                            if (locked && lockReason) {
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="w-full flex justify-end">{select}</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{lockReason}</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )
+                            }
+                            return select
+                          })()}
                         </TableCell>
                       </TableRow>
                     )

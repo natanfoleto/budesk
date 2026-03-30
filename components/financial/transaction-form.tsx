@@ -35,13 +35,20 @@ import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/constants"
 import { formatCentsToReal } from "@/lib/utils"
 import { Transaction } from "@/types/financial"
 
+// Returns current datetime in local timezone formatted for datetime-local input: "YYYY-MM-DDTHH:MM"
+function getLocalDatetimeString() {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
 const formSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),
   valueInCents: z.number().min(1, "Valor obrigatório"),
   type: z.nativeEnum(TransactionType),
   category: z.nativeEnum(ExpenseCategory),
   paymentMethod: z.nativeEnum(PaymentMethod),
-  date: z.string(),
+  date: z.string(), // ISO datetime string (datetime-local input)
   supplierId: z.string().nullable().optional(),
   attachmentUrl: z.string().nullable().optional(),
   conciled: z.boolean(),
@@ -66,7 +73,7 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
       type: TransactionType.SAIDA,
       category: ExpenseCategory.OUTROS,
       paymentMethod: PaymentMethod.PIX,
-      date: new Date().toISOString().split("T")[0],
+      date: getLocalDatetimeString(),
       supplierId: null,
       attachmentUrl: null,
       conciled: false,
@@ -82,7 +89,7 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
           type: (initialData.type as TransactionType) || TransactionType.SAIDA,
           category: (initialData.category as ExpenseCategory) || ExpenseCategory.OUTROS,
           paymentMethod: (initialData.paymentMethod as PaymentMethod) || PaymentMethod.PIX,
-          date: initialData.date ? new Date(initialData.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          date: initialData.date ? (() => { const d = new Date(initialData.date); const pad = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}` })() : getLocalDatetimeString(),
           supplierId: initialData.supplierId || null,
           attachmentUrl: initialData.attachmentUrl || null,
           conciled: initialData.conciled || false,
@@ -94,7 +101,7 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
           type: TransactionType.SAIDA,
           category: ExpenseCategory.OUTROS,
           paymentMethod: PaymentMethod.PIX,
-          date: new Date().toISOString().split("T")[0],
+          date: getLocalDatetimeString(),
           supplierId: null,
           attachmentUrl: null,
           conciled: false,
@@ -172,9 +179,9 @@ export function TransactionForm({ open, onOpenChange, onSubmit, initialData, isL
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data</FormLabel>
+                    <FormLabel>Data e Horário</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="datetime-local" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

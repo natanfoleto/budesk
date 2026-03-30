@@ -142,8 +142,11 @@ export default function PlantingClosingPage() {
   }
 
   const monthOptions = Array.from({ length: 6 }).map((_, i) => {
-    const d = new Date()
-    d.setMonth(d.getMonth() - i)
+    const now = new Date()
+    const totalMonths = now.getFullYear() * 12 + now.getMonth() - i
+    const year = Math.floor(totalMonths / 12)
+    const month = totalMonths % 12
+    const d = new Date(year, month, 1) // always 1st to avoid overflow
     return {
       value: format(d, "yyyy-MM"),
       label: format(d, "MMMM yyyy", { locale: ptBR }),
@@ -165,7 +168,7 @@ export default function PlantingClosingPage() {
             <Button 
               onClick={() => setIsReportModalOpen(true)}
               variant="default"
-              className="bg-emerald-600 hover:bg-emerald-700 font-semibold"
+              className="bg-emerald-600 hover:bg-emerald-700 font-semibold text-white"
             >
               <FileText className="h-4 w-4" />
               Gerar Relatórios PDF
@@ -238,7 +241,7 @@ export default function PlantingClosingPage() {
             ) : isClosed ? (
               isAdminOrRoot ? (
                 <Button
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
                   onClick={handleReopen}
                   disabled={!selectedSeasonId || reopenPeriodMutation.isPending}
                 >

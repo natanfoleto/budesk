@@ -308,7 +308,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                             size="sm"
                                             className="text-xs px-0"
                                             disabled={updateInstallment.isPending}
-                                            onClick={() => updateInstallment.mutate({ id: inst.id, status: "PAGA" })}
+                                            onClick={() => updateInstallment.mutate({ id: inst.id, status: "PAGA", paymentDate: new Date().toISOString() })}
                                           >
                                             Pagar
                                           </Button>
