@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api-client"
+import { PaginatedResponse } from "@/types/api"
 import {
   DailyWage,
   DailyWageFormData,
@@ -67,15 +68,32 @@ export const createWorkFront = async (data: WorkFrontFormData & { seasonId: stri
 
 // ─── Expenses ────────────────────────────────────────────────────────────────
 
-export const getExpenses = async (filters?: { seasonId?: string; frontId?: string; date?: string }): Promise<PlantingExpense[]> => {
+export const getExpenses = async (filters?: { 
+  seasonId?: string; 
+  frontId?: string; 
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  supplierId?: string;
+  category?: string;
+  vehicleId?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedResponse<PlantingExpense>> => {
   const params = new URLSearchParams()
   if (filters?.seasonId && filters.seasonId !== "all") params.set("seasonId", filters.seasonId)
   if (filters?.frontId && filters.frontId !== "all") params.set("frontId", filters.frontId)
   if (filters?.date) params.set("date", filters.date)
-  const url = params.toString()
-    ? `${BASE_URL}/planting/expenses?${params.toString()}`
-    : `${BASE_URL}/planting/expenses`
-  return apiRequest<PlantingExpense[]>(url)
+  if (filters?.startDate) params.set("startDate", filters.startDate)
+  if (filters?.endDate) params.set("endDate", filters.endDate)
+  if (filters?.supplierId) params.set("supplierId", filters.supplierId)
+  if (filters?.category) params.set("category", filters.category)
+  if (filters?.vehicleId) params.set("vehicleId", filters.vehicleId)
+  if (filters?.page) params.set("page", String(filters.page))
+  if (filters?.limit) params.set("limit", String(filters.limit))
+
+  const url = `${BASE_URL}/planting/expenses?${params.toString()}`
+  return apiRequest<PaginatedResponse<PlantingExpense>>(url)
 }
 
 export const createExpense = async (data: PlantingExpenseFormData): Promise<PlantingExpense> => {

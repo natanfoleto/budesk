@@ -188,12 +188,20 @@ export function PlantingTab({
     const toSaveProductions: PlantingProductionFormData[] = []
     const toUpdateEmployees: { id: string, category: string }[] = []
 
+    const currentPlantingMeterValue = globalPlantingPrice ? Math.round(Number(globalPlantingPrice) * 100) : defaultPlantingPrice
+    const currentCuttingMeterValue = globalCuttingPrice ? Math.round(Number(globalCuttingPrice) * 100) : defaultCuttingPrice
+
     Object.values(productions).forEach(p => {
       // Skip terminated employees as they are read-only in the UI
       if (p.isTerminated) return
 
-      // Production records
-      if (p.plantingMeters > 0 || p.plantingId) {
+      // Production records: Check if changed from existing data
+      const existingPlanting = existingRecords?.find(r => r.id === p.plantingId && r.type === "PLANTIO")
+      const plantingChanged = !existingPlanting || 
+                             Number(existingPlanting.meters) !== p.plantingMeters || 
+                             existingPlanting.meterValueInCents !== currentPlantingMeterValue
+
+      if (plantingChanged && (p.plantingMeters > 0 || p.plantingId)) {
         toSaveProductions.push({
           id: p.plantingId,
           employeeId: p.employeeId,
@@ -202,10 +210,16 @@ export function PlantingTab({
           date: `${date}T12:00:00.000Z`,
           type: "PLANTIO",
           meters: p.plantingMeters,
-          meterValueInCents: globalPlantingPrice ? Math.round(Number(globalPlantingPrice) * 100) : defaultPlantingPrice
+          meterValueInCents: currentPlantingMeterValue
         })
       }
-      if (p.cuttingMeters > 0 || p.cuttingId) {
+
+      const existingCutting = existingRecords?.find(r => r.id === p.cuttingId && r.type === "CORTE")
+      const cuttingChanged = !existingCutting || 
+                            Number(existingCutting.meters) !== p.cuttingMeters || 
+                            existingCutting.meterValueInCents !== currentCuttingMeterValue
+
+      if (cuttingChanged && (p.cuttingMeters > 0 || p.cuttingId)) {
         toSaveProductions.push({
           id: p.cuttingId,
           employeeId: p.employeeId,
@@ -214,7 +228,7 @@ export function PlantingTab({
           date: `${date}T12:00:00.000Z`,
           type: "CORTE",
           meters: p.cuttingMeters,
-          meterValueInCents: globalCuttingPrice ? Math.round(Number(globalCuttingPrice) * 100) : defaultCuttingPrice
+          meterValueInCents: currentCuttingMeterValue
         })
       }
 

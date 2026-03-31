@@ -34,10 +34,11 @@ export function VehiclesTable({ vehicles, onEdit, onDelete }: VehiclesTableProps
         <TableHeader>
           <TableRow>
             <TableHead>Placa</TableHead>
+            <TableHead>Apelido</TableHead>
             <TableHead>Modelo</TableHead>
             <TableHead>Marca</TableHead>
-            <TableHead>Ano</TableHead>
             <TableHead>Tipo</TableHead>
+            <TableHead>Propriedade</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -45,18 +46,18 @@ export function VehiclesTable({ vehicles, onEdit, onDelete }: VehiclesTableProps
         <TableBody>
           {vehicles.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center">
+              <TableCell colSpan={8} className="h-24 text-center">
                 Nenhum veículo encontrado.
               </TableCell>
             </TableRow>
           ) : (
             vehicles.map((vehicle) => (
               <TableRow key={vehicle.id}>
-                <TableCell className="font-medium">
+                <TableCell className="font-medium uppercase">
                   <div className="flex items-center gap-2">
                     {vehicle.color && (
                       <div 
-                        className="w-3 h-3 rounded-full border border-muted" 
+                        className="size-2 rounded-full border border-muted" 
                         style={{ backgroundColor: vehicle.color }}
                         title={vehicle.color}
                       />
@@ -66,11 +67,25 @@ export function VehiclesTable({ vehicles, onEdit, onDelete }: VehiclesTableProps
                     </Link>
                   </div>
                 </TableCell>
+                <TableCell className="max-w-[200px] truncate">
+                  {vehicle.nickname || '-'}
+                </TableCell>
                 <TableCell>{vehicle.model}</TableCell>
                 <TableCell>{vehicle.brand}</TableCell>
-                <TableCell>{vehicle.year}</TableCell>
                 <TableCell>
                   {VehicleTypeLabels[vehicle.type]}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold">
+                      {vehicle.ownership === "TERCEIRO" ? "Terceiro" : "Próprio"}
+                    </span>
+                    {vehicle.ownerName && (
+                      <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                        {vehicle.ownerName}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge variant={vehicle.active ? "default" : "secondary"}>

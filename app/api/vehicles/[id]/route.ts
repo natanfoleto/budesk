@@ -40,7 +40,7 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     const { 
-      plate, model, brand, year, description, color, type, documentUrl, active
+      plate, nickname, model, brand, year, description, color, type, ownership, ownerName, documentUrl, active
     } = body
 
     const currentVehicle = await prisma.vehicle.findUnique({
@@ -65,12 +65,15 @@ export async function PUT(
       where: { id },
       data: {
         plate,
+        nickname,
         model,
         brand,
         year: year ? parseInt(year.toString()) : null,
         description,
         color,
         type,
+        ownership,
+        ownerName,
         documentUrl,
         active: active !== undefined ? active : currentVehicle.active
       }

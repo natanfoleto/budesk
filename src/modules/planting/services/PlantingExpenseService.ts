@@ -1,23 +1,67 @@
-import { PaymentMethod,Prisma, TransactionType } from "@prisma/client"
+import { ExpenseCategory, PaymentMethod, Prisma, TransactionType } from "@prisma/client"
 
 import prisma from "@/lib/prisma"
 import { FinanceService } from "@/src/modules/finance/services/FinanceService"
 
 export class PlantingExpenseService {
-  static async list(filters: { seasonId?: string; frontId?: string; date?: Date }, db = prisma) {
+  static async list(filters: { 
+    seasonId?: string; 
+    frontId?: string; 
+    date?: Date;
+    supplierId?: string;
+    category?: string;
+    vehicleId?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }, db = prisma) {
     const where: Prisma.PlantingExpenseWhereInput = {}
     if (filters.seasonId) where.seasonId = filters.seasonId
     if (filters.frontId) where.frontId = filters.frontId
-    if (filters.date) where.date = filters.date
-
-    return db.plantingExpense.findMany({
-      where,
-      orderBy: { date: "desc" },
-      include: {
-        front: { select: { id: true, name: true } },
-        vehicle: { select: { id: true, plate: true, brand: true, model: true } }
+    
+    // Filtro de data específica ou range
+    if (filters.date) {
+      where.date = filters.date
+    } else if (filters.startDate || filters.endDate) {
+      where.date = {
+        gte: filters.startDate ? new Date(filters.startDate) : undefined,
+        lte: filters.endDate ? new Date(filters.endDate) : undefined,
       }
-    })
+    }
+
+    if (filters.supplierId) where.supplierId = filters.supplierId
+    if (filters.category) where.category = filters.category as ExpenseCategory
+    if (filters.vehicleId) where.vehicleId = filters.vehicleId
+
+    const page = filters.page || 1
+    const limit = filters.limit || 10
+    const skip = (page - 1) * limit
+
+    const [total, data] = await Promise.all([
+      db.plantingExpense.count({ where }),
+      db.plantingExpense.findMany({
+        where,
+        orderBy: { date: "desc" },
+        include: {
+          front: { select: { id: true, name: true } },
+          vehicle: { select: { id: true, plate: true, brand: true, model: true, color: true } },
+          supplier: { select: { id: true, name: true } }
+        },
+        take: limit,
+        skip,
+      })
+    ])
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    }
   }
 
   static async create(data: Prisma.PlantingExpenseUncheckedCreateInput, userId?: string, db = prisma) {
@@ -43,10 +87,9 @@ export class PlantingExpenseService {
         amountInCents: expense.totalValueInCents,
         description: expense.description,
         date: new Date(expense.date),
-        paymentMethod: PaymentMethod.DINHEIRO, // Padrão, pode ser editado pelo financeiro dps
-        referenceType: "service", // We could add plantingExpense to referenceType in DTO soon, using 'service' for now or avoiding reference if not mapped
-        // However, relation logic requires we update schema of DTO if needed.
-        // Let's rely on Prisma connect directly for plantingExpenseId
+        paymentMethod: PaymentMethod.DINHEIRO, 
+        supplierId: expense.supplierId,
+        userId: userId,
       })
 
       // Link them together
@@ -99,7 +142,8 @@ export class PlantingExpenseService {
             valueInCents: amount,
             category: category,
             description: desc,
-            date: dt
+            date: dt,
+            supplierId: expense.supplierId
           }
         })
       }

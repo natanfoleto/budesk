@@ -117,10 +117,12 @@ export interface PlantingExpense {
   unitValueInCents: number | null
   totalValueInCents: number
   vehicleId: string | null
+  supplierId: string | null
   notes: string | null
   isClosed: boolean
-  vehicle?: { plate: string }
+  vehicle?: { id: string; plate: string; model: string | null; color: string | null }
   front?: { name: string }
+  supplier?: { name: string }
 }
 
 export interface PlantingParameter {
@@ -241,6 +243,7 @@ export interface PlantingExpenseFormData {
   invoiceNumber?: string
   quantity?: number
   unitValueInCents?: number
+  supplierId?: string
   notes?: string
 }
 

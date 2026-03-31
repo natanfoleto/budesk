@@ -662,11 +662,22 @@ export function EmployeeDetailsModal({
                         {data.details.presence.map((p) => {
                           const getStatusInfo = (status: string) => {
                             switch (status) {
-                            case "TRABALHADO": return { icon: <CheckCircle2 className="size-4" />, color: "bg-green-100 text-green-700 border-green-200", label: "Presença" }
-                            case "FALTA": return { icon: <XCircle className="size-4" />, color: "bg-red-100 text-red-700 border-red-200", label: "Falta" }
-                            case "ATESTADO": return { icon: <Clock className="size-4" />, color: "bg-blue-100 text-blue-700 border-blue-200", label: "Atestado" }
-                            case "FALTA_JUSTIFICADA": return { icon: <Info className="size-4" />, color: "bg-yellow-100 text-yellow-700 border-yellow-200", label: "Justificada" }
-                            default: return { icon: <Calendar className="size-4" />, color: "bg-muted text-muted-foreground", label: status }
+                            case "PRESENCA":
+                            case "TRABALHADO": 
+                              return { icon: <CheckCircle2 className="size-4" />, color: "bg-green-500/10 text-green-700 border-green-200 shadow-sm", label: "Presença" }
+                            case "FOLGA": 
+                              return { icon: <Calendar className="size-4" />, color: "bg-slate-500/10 text-slate-600 border-slate-200 opacity-80", label: "Folga" }
+                            case "FALTA": 
+                              return { icon: <XCircle className="size-4" />, color: "bg-red-500/10 text-red-700 border-red-200", label: "Falta" }
+                            case "ATESTADO": 
+                            case "DECLARACAO":
+                              return { icon: <Clock className="size-4" />, color: "bg-blue-500/10 text-blue-700 border-blue-200", label: status === "ATESTADO" ? "Atestado" : "Declaração" }
+                            case "FALTA_JUSTIFICADA": 
+                              return { icon: <Info className="size-4" />, color: "bg-amber-500/10 text-amber-700 border-amber-200", label: "Justificada" }
+                            case "AFASTAMENTO":
+                              return { icon: <Info className="size-4" />, color: "bg-purple-500/10 text-purple-700 border-purple-200", label: "Afastado" }
+                            default: 
+                              return { icon: <Calendar className="size-4" />, color: "bg-muted/50 text-muted-foreground border-muted", label: status }
                             }
                           }
                           const info = getStatusInfo(p.status)

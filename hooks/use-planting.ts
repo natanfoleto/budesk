@@ -137,9 +137,32 @@ export const usePlantingDashboardCharts = (seasonId: string, days: number = 30) 
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────
 
-export const usePlantingExpenses = (filters?: { seasonId?: string; frontId?: string; date?: string }) => {
+export const usePlantingExpenses = (filters?: { 
+  seasonId?: string; 
+  frontId?: string; 
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  supplierId?: string;
+  category?: string;
+  vehicleId?: string;
+  page?: number;
+  limit?: number;
+}) => {
   return useQuery({
-    queryKey: ["plantingExpenses", filters?.seasonId, filters?.frontId, filters?.date],
+    queryKey: [
+      "plantingExpenses", 
+      filters?.seasonId, 
+      filters?.frontId, 
+      filters?.date,
+      filters?.startDate,
+      filters?.endDate,
+      filters?.supplierId,
+      filters?.category,
+      filters?.vehicleId,
+      filters?.page,
+      filters?.limit
+    ],
     queryFn: () => getExpenses(filters),
   })
 }
@@ -160,7 +183,7 @@ export const useUpdateExpense = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (payload: { id: string; data: Partial<PlantingExpenseFormData> }) => {
-      const { id, ...data } = payload
+      const { id, data } = payload
       return apiRequest('/api/planting/expenses', {
         method: 'PUT',
         body: JSON.stringify({ id, ...data }),
@@ -260,6 +283,23 @@ export const useCreateDailyWage = () => {
       queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
     },
     onError: (error: Error) => toast.error(error.message || "Erro ao salvar diária"),
+  })
+}
+
+export const useCreateDailyWageBulk = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: DailyWageFormData[]) => {
+      // Execute separate POST requests as requested
+      return Promise.all(data.map(item => createDailyWage(item)))
+    },
+    onSuccess: () => {
+      // Only one refetch after all POSTs are done
+      queryClient.invalidateQueries({ queryKey: ["dailyWages"] })
+      queryClient.invalidateQueries({ queryKey: ["plantingDashboard"] })
+      toast.success("Diárias salvas com sucesso!")
+    },
+    onError: (error: Error) => toast.error(error.message || "Erro ao salvar diárias"),
   })
 }
 

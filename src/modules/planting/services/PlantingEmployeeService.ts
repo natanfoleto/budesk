@@ -114,8 +114,9 @@ export class PlantingEmployeeService {
     })
 
     dailyWages.forEach(w => {
-      if (w.presence === (AttendanceType.PRESENCA as string) || w.presence === (AttendanceType.FOLGA as string)) {
-        totalEarnedInCents += w.valueInCents
+      totalEarnedInCents += w.valueInCents
+      // Only count as worked if it's PRESENCA (NOT FOLGA)
+      if (w.presence === (AttendanceType.PRESENCA as string)) {
         workedDates.add(toLocalDateStr(w.date))
       }
     })
@@ -128,12 +129,12 @@ export class PlantingEmployeeService {
     const totalAdvancesInCents = advances.reduce((acc, curr) => acc + curr.valueInCents, 0)
 
     // Detailed presence calculation
-    const allDates = new Set<string>()
-    productions.forEach(p => allDates.add(toLocalDateStr(p.date)))
-    dailyWages.forEach(w => allDates.add(toLocalDateStr(w.date)))
-    drivers.forEach(d => allDates.add(toLocalDateStr(d.date)))
+    const allDatesSet = new Set<string>()
+    productions.forEach(p => allDatesSet.add(toLocalDateStr(p.date)))
+    dailyWages.forEach(w => allDatesSet.add(toLocalDateStr(w.date)))
+    drivers.forEach(d => allDatesSet.add(toLocalDateStr(d.date)))
 
-    const sortedDates = Array.from(allDates).sort()
+    const sortedDates = Array.from(allDatesSet).sort()
     const presenceDetails: { date: string; status: string }[] = []
 
     sortedDates.forEach(dateStr => {
@@ -141,18 +142,31 @@ export class PlantingEmployeeService {
       const dayWages = dailyWages.filter(w => toLocalDateStr(w.date) === dateStr)
       const isDriver = drivers.some(d => toLocalDateStr(d.date) === dateStr)
 
-      const hasPresence = dayProds.some(p => p.presence === (AttendanceType.PRESENCA as string)) || 
-                          dayWages.some(w => w.presence === (AttendanceType.PRESENCA as string) || w.presence === (AttendanceType.FOLGA as string)) ||
-                          isDriver
-
-      if (hasPresence) {
-        presenceDetails.push({ date: dateStr, status: "TRABALHADO" })
+      // Priority for status: DRIVER > PRESENCA > FOLGA > OTHER ABSENCES
+      if (isDriver) {
+        presenceDetails.push({ date: dateStr, status: "PRESENCA" })
       } else {
-        const absenceType = dayWages.find(w => ["FALTA", "FALTA_JUSTIFICADA", "ATESTADO"].includes(w.presence))?.presence ||
-                           dayProds.find(p => ["FALTA", "FALTA_JUSTIFICADA", "ATESTADO"].includes(p.presence))?.presence ||
-                           "FALTA"
-        presenceDetails.push({ date: dateStr, status: absenceType })
-        totalAbsences++
+        const prodPresence = dayProds.find(p => p.presence === (AttendanceType.PRESENCA as string))
+        const wagePresence = dayWages.find(w => w.presence === (AttendanceType.PRESENCA as string))
+        
+        if (prodPresence || wagePresence) {
+          presenceDetails.push({ date: dateStr, status: "PRESENCA" })
+        } else {
+          // Check for FOLGA next
+          const folga = dayWages.find(w => w.presence === (AttendanceType.FOLGA as string))
+          if (folga) {
+            presenceDetails.push({ date: dateStr, status: "FOLGA" })
+          } else {
+            // Find any other status or default to FALTA
+            const otherStatus = dayWages.find(w => w.presence !== "PRESENCA")?.presence ||
+                               dayProds.find(p => p.presence !== "PRESENCA")?.presence ||
+                               "FALTA"
+            presenceDetails.push({ date: dateStr, status: otherStatus })
+            if (otherStatus !== "FOLGA") {
+              totalAbsences++
+            }
+          }
+        }
       }
     })
 

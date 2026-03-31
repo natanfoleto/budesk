@@ -35,7 +35,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useEmployees } from "@/hooks/use-employees"
-import { useCreateDailyWage, useDailyWages, useDriverAllocations, usePlantingProductions } from "@/hooks/use-planting"
+import { useCreateDailyWageBulk, useDailyWages, useDriverAllocations, usePlantingProductions } from "@/hooks/use-planting"
 import { cn } from "@/lib/utils"
 import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
@@ -101,7 +101,7 @@ export function PresenceTab({
   const [showConfirmBulk, setShowConfirmBulk] = useState(false)
 
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees({ tagIds: selectedTagIds })
-  const { data: attendanceRecords, isLoading: isLoadingAttendance, refetch } = useDailyWages({
+  const { data: attendanceRecords, isLoading: isLoadingAttendance } = useDailyWages({
     seasonId,
     frontId,
     date: date ? `${date}T00:00:00Z` : undefined,
@@ -122,7 +122,7 @@ export function PresenceTab({
     tagIds: selectedTagIds
   })
   
-  const createDailyWageMutation = useCreateDailyWage()
+  const bulkCreateDailyWageMutation = useCreateDailyWageBulk()
 
   useEffect(() => {
     if (employees && attendanceRecords) {
@@ -162,6 +162,14 @@ export function PresenceTab({
     for (const r of Object.values(presence)) {
       if (r.isTerminated) continue
 
+      // Check if anything actually changed
+      const original = (attendanceRecords as DailyWage[] || []).find(dw => dw.id === r.id)
+      const hasChanged = r.id 
+        ? (original && (original.presence !== r.presence || (original.notes ?? "") !== (r.notes ?? "")))
+        : (r.presence !== "PRESENCA") // If new, only save if not PRESENCA (default)
+
+      if (!hasChanged) continue
+
       if (r.presence !== "PRESENCA") {
         if (r.valueInCents > 0) {
           toast.error(`O funcionário ${r.employeeName} não pode ser marcado como ${getPresenceLabel(r.presence)} pois possui valor de diária registrado.`)
@@ -190,13 +198,12 @@ export function PresenceTab({
       })
     }
 
-    try {
-      await Promise.all(toSave.map(payload => createDailyWageMutation.mutateAsync(payload)))
-      toast.success("Presenças salvas com sucesso!")
+    if (toSave.length > 0) {
+      await bulkCreateDailyWageMutation.mutateAsync(toSave)
       setIsEditing(false)
-      refetch()
-    } catch {
-      // Error handled by hook
+    } else {
+      toast.info("Nenhuma alteração detectada.")
+      setIsEditing(false)
     }
   }
 
@@ -269,7 +276,7 @@ export function PresenceTab({
             </Button>
             <Button 
               onClick={handleSave} 
-              disabled={!isEditing || createDailyWageMutation.isPending}
+              disabled={!isEditing || bulkCreateDailyWageMutation.isPending}
             >
               <Save className="h-4 w-4" />
               Salvar Alterações

@@ -318,6 +318,7 @@ model Supplier {
   transactions FinancialTransaction[]
   accounts     AccountPayable[]
   maintenances Maintenance[]
+  plantingExpenses PlantingExpense[]
 
   @@map("suppliers")
 }
@@ -590,14 +591,22 @@ model Document {
 
 // FROTA
 
+enum VehicleOwnership {
+  EMPRESA
+  TERCEIRO
+}
+
 model Vehicle {
   id          String      @id @default(cuid())
   plate       String
+  nickname    String?
   model       String?
   brand       String?
   year        Int?
   description String?
   type        VehicleType
+  ownership   VehicleOwnership @default(EMPRESA)
+  ownerName   String?
   color       String?     @map("color")
   documentUrl String?     @map("document_url")
   active      Boolean     @default(true)
@@ -996,7 +1005,7 @@ model PlantingArea {
 
 model PlantingExpense {
   id          String   @id @default(cuid())
-  date        DateTime @db.Date
+  date        DateTime
   frontId     String
   seasonId    String
   category    ExpenseCategory
@@ -1005,6 +1014,7 @@ model PlantingExpense {
   unitValueInCents Int?
   totalValueInCents Int
   vehicleId   String?
+  supplierId  String?
   transactionId String? @unique
   notes       String?
   isClosed    Boolean   @default(false)
@@ -1014,6 +1024,7 @@ model PlantingExpense {
   front       WorkFront @relation(fields: [frontId], references: [id])
   season      PlantingSeason @relation(fields: [seasonId], references: [id])
   vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
+  supplier    Supplier? @relation(fields: [supplierId], references: [id])
   transaction FinancialTransaction? @relation(fields: [transactionId], references: [id])
 
   @@index([date])

@@ -9,8 +9,26 @@ export async function GET(req: Request) {
     const frontId = searchParams.get('frontId') || undefined
     const dateStr = searchParams.get('date')
     const date = dateStr ? new Date(dateStr) : undefined
+    const supplierId = searchParams.get('supplierId') || undefined
+    const category = searchParams.get('category') || undefined
+    const vehicleId = searchParams.get('vehicleId') || undefined
+    const startDate = searchParams.get('startDate') || undefined
+    const endDate = searchParams.get('endDate') || undefined
+    const page = Number(searchParams.get('page')) || 1
+    const limit = Number(searchParams.get('limit')) || 10
     
-    const expenses = await PlantingExpenseService.list({ seasonId, frontId, date })
+    const expenses = await PlantingExpenseService.list({ 
+      seasonId, 
+      frontId, 
+      date,
+      supplierId,
+      category,
+      vehicleId,
+      startDate,
+      endDate,
+      page,
+      limit
+    })
     return NextResponse.json(expenses)
   } catch (error) {
     console.error("Error fetching expenses:", error)

@@ -77,15 +77,28 @@ export const VehicleTypeLabels: Record<VehicleType, string> = {
   [VehicleType.OUTRO]: "Outro",
 }
 
+export enum VehicleOwnership {
+  EMPRESA = "EMPRESA",
+  TERCEIRO = "TERCEIRO",
+}
+
+export const VehicleOwnershipLabels: Record<VehicleOwnership, string> = {
+  [VehicleOwnership.EMPRESA]: "Próprio (Empresa)",
+  [VehicleOwnership.TERCEIRO]: "Terceiro",
+}
+
 export interface Vehicle {
   id: string
   plate: string
+  nickname: string | null
   model: string | null
   brand: string | null
   year: number | null
   description: string | null
   color: string | null
   type: VehicleType
+  ownership: VehicleOwnership
+  ownerName: string | null
   active: boolean
   documentUrl?: string | null
   createdAt: string | Date
@@ -93,12 +106,15 @@ export interface Vehicle {
 
 export interface VehicleFormData {
   plate: string
+  nickname?: string
   model?: string
   brand?: string
   year?: number | null
   description?: string
   color?: string
   type: VehicleType
+  ownership: VehicleOwnership
+  ownerName?: string
   documentUrl?: string | null
   active: boolean
 }

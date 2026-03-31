@@ -25,7 +25,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useEmployees } from "@/hooks/use-employees"
-import { useCreateDailyWage, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
+import { useCreateDailyWageBulk, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCentsToReal } from "@/lib/utils"
 import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
@@ -84,7 +84,7 @@ export function DailyWageTab({
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees({ tagIds: selectedTagIds })
 
   // Fetch existing daily wages via shared hook
-  const { data: existingRecords, isLoading: isLoadingRecords, refetch } = useDailyWages({
+  const { data: existingRecords, isLoading: isLoadingRecords } = useDailyWages({
     seasonId,
     frontId,
     date: date ? `${date}T00:00:00Z` : undefined,
@@ -99,7 +99,7 @@ export function DailyWageTab({
     tagIds: selectedTagIds
   })
 
-  const createDailyWageMutation = useCreateDailyWage()
+  const bulkCreateDailyWageMutation = useCreateDailyWageBulk()
 
   useEffect(() => {
     if (employees && existingRecords) {
@@ -140,26 +140,38 @@ export function DailyWageTab({
 
       const valueInCents = Math.round(r.value * 100)
 
-      if (valueInCents > 0) {
+      // If a record exists, check if any value actually changed
+      if (r.id) {
+        const original = (existingRecords as DailyWage[] || []).find(dw => dw.id === r.id)
+        const hasChanged = original && (
+          original.presence !== r.presence || 
+          original.valueInCents !== valueInCents ||
+          (original.notes ?? "") !== (r.notes ?? "")
+        )
+
+        if (hasChanged) {
+          if (valueInCents > 0 && r.presence !== "PRESENCA") {
+            toast.error(`O funcionário ${r.employeeName} não pode ter valor de diária pois está marcado como ${r.presence === "FOLGA" ? "Folga" : "Falta/Atestado"} neste dia.`)
+            return
+          }
+
+          toSave.push({
+            id: r.id,
+            employeeId: r.employeeId,
+            frontId: frontId,
+            seasonId: seasonId,
+            date: new Date(date).toISOString(),
+            presence: r.presence,
+            valueInCents: valueInCents
+          })
+        }
+      } else if (valueInCents > 0 || r.presence !== "PRESENCA") {
         // Validation: Must be PRESENCA
-        if (r.presence !== "PRESENCA") {
+        if (valueInCents > 0 && r.presence !== "PRESENCA") {
           toast.error(`O funcionário ${r.employeeName} não pode ter valor de diária pois está marcado como ${r.presence === "FOLGA" ? "Folga" : "Falta/Atestado"} neste dia.`)
           return
         }
-      }
 
-      // If a record exists, we always update it (preserving the presence status)
-      if (r.id) {
-        toSave.push({
-          id: r.id,
-          employeeId: r.employeeId,
-          frontId: frontId,
-          seasonId: seasonId,
-          date: new Date(date).toISOString(),
-          presence: r.presence,
-          valueInCents: valueInCents
-        })
-      } else if (valueInCents > 0 || r.presence !== "PRESENCA") {
         // If no record exists but user entered a value or changed presence, create it
         toSave.push({
           employeeId: r.employeeId,
@@ -172,15 +184,12 @@ export function DailyWageTab({
       }
     }
 
-    try {
-      if (toSave.length > 0) {
-        await Promise.all(toSave.map(payload => createDailyWageMutation.mutateAsync(payload)))
-      }
-      toast.success("Diárias salvas com sucesso!")
+    if (toSave.length > 0) {
+      await bulkCreateDailyWageMutation.mutateAsync(toSave)
       setIsEditing(false)
-      refetch()
-    } catch {
-      // Error handled by hook
+    } else {
+      toast.info("Nenhuma alteração detectada.")
+      setIsEditing(false)
     }
   }
 
@@ -241,7 +250,7 @@ export function DailyWageTab({
             Lançamento financeiro das diárias. Não altera o status de falta/presença.
           </CardDescription>
         </div>
-        <Button ref={saveButtonRef} onClick={handleSave} disabled={!isEditing || createDailyWageMutation.isPending}>
+        <Button ref={saveButtonRef} onClick={handleSave} disabled={!isEditing || bulkCreateDailyWageMutation.isPending}>
           <Save className="h-4 w-4" /> Salvar Alterações
         </Button>
       </CardHeader>

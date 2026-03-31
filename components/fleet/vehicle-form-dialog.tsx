@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { apiRequest } from "@/lib/api-client"
-import { Vehicle, VehicleType, VehicleTypeLabels } from "@/types/vehicle"
+import { Vehicle, VehicleOwnership, VehicleOwnershipLabels,VehicleType, VehicleTypeLabels } from "@/types/vehicle"
 
 import { VehicleFormData, vehicleSchema } from "./vehicle-schema"
 
@@ -51,12 +51,15 @@ export function VehicleFormDialog({
     resolver: zodResolver(vehicleSchema) as Resolver<VehicleFormData>,
     defaultValues: {
       plate: "",
+      nickname: "",
       model: "",
       brand: "",
       year: undefined,
       description: "",
       color: "",
       type: VehicleType.CAMINHAO,
+      ownership: VehicleOwnership.EMPRESA,
+      ownerName: "",
       documentUrl: null,
       active: true,
     },
@@ -71,24 +74,30 @@ export function VehicleFormDialog({
     if (initialData) {
       form.reset({
         plate: initialData.plate,
+        nickname: initialData.nickname || "",
         model: initialData.model || "",
         brand: initialData.brand || "",
         year: initialData.year || null,
         description: initialData.description || "",
         color: initialData.color || "",
         type: initialData.type as VehicleType,
+        ownership: initialData.ownership as VehicleOwnership,
+        ownerName: initialData.ownerName || "",
         documentUrl: initialData.documentUrl || null,
         active: initialData.active,
       })
     } else {
       form.reset({
         plate: "",
+        nickname: "",
         model: "",
         brand: "",
         year: null,
         description: "",
         color: "",
         type: VehicleType.CAMINHAO,
+        ownership: VehicleOwnership.EMPRESA,
+        ownerName: "",
         documentUrl: null,
         active: true,
       })
@@ -187,6 +196,67 @@ export function VehicleFormDialog({
                 )}
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="nickname"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apelido / Nome Curto</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Ex: Caminhão do João" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ownership"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Propriedade</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecione a propriedade" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Object.values(VehicleOwnership).map((owner) => (
+                          <SelectItem key={owner} value={owner}>
+                            {VehicleOwnershipLabels[owner]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {form.watch("ownership") === VehicleOwnership.TERCEIRO && (
+              <FormField
+                control={form.control}
+                name="ownerName"
+                render={({ field }) => (
+                  <FormItem className="animate-in fade-in slide-in-from-top-1 duration-200">
+                    <FormLabel>Nome do Proprietário</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Nome completo do proprietário" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
