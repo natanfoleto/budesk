@@ -598,6 +598,7 @@ model Vehicle {
   year        Int?
   description String?
   type        VehicleType
+  color       String?     @map("color")
   documentUrl String?     @map("document_url")
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())

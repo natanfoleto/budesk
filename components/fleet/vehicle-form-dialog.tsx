@@ -55,6 +55,7 @@ export function VehicleFormDialog({
       brand: "",
       year: undefined,
       description: "",
+      color: "",
       type: VehicleType.CAMINHAO,
       documentUrl: null,
       active: true,
@@ -74,6 +75,7 @@ export function VehicleFormDialog({
         brand: initialData.brand || "",
         year: initialData.year || null,
         description: initialData.description || "",
+        color: initialData.color || "",
         type: initialData.type as VehicleType,
         documentUrl: initialData.documentUrl || null,
         active: initialData.active,
@@ -85,6 +87,7 @@ export function VehicleFormDialog({
         brand: "",
         year: null,
         description: "",
+        color: "",
         type: VehicleType.CAMINHAO,
         documentUrl: null,
         active: true,
@@ -243,6 +246,31 @@ export function VehicleFormDialog({
                   <FormLabel>Descrição (Opcional)</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="Informações adicionais" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cor do Veículo (Opcional)</FormLabel>
+                  <FormControl>
+                    <div className="flex gap-2">
+                      <Input 
+                        type="color" 
+                        {...field} 
+                        className="w-12 h-9 p-1 cursor-pointer" 
+                      />
+                      <Input 
+                        {...field} 
+                        placeholder="#000000 ou nome da cor" 
+                        className="flex-1"
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

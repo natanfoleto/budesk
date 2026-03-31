@@ -51,6 +51,7 @@ type DriverRecord = {
   vehicleId?: string
   categoryId?: string
   vehicleNamePlate: string
+  vehicleColor?: string | null
   dailyValueInCents: number
   isClosed: boolean
 }
@@ -91,7 +92,7 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
         employeeId: string;
         vehicleId?: string;
         categoryId?: string;
-        vehicle?: { plate: string; model: string };
+        vehicle?: { plate: string; model: string; color: string | null };
         valueInCents: number;
         isClosed: boolean
       }[]>(`/api/planting/drivers?${params.toString()}`)
@@ -107,6 +108,7 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
         vehicleId: r.vehicleId,
         categoryId: r.categoryId,
         vehicleNamePlate: r.vehicle ? `${r.vehicle.plate}${r.vehicle.model ? ` - ${r.vehicle.model}` : ""}` : "N/A",
+        vehicleColor: r.vehicle?.color,
         dailyValueInCents: r.valueInCents,
         isClosed: r.isClosed
       })))
@@ -305,9 +307,17 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sem frota</SelectItem>
-                  {vehicles?.data?.map((v: { id: string; plate: string; model: string | null }) => (
+                  {vehicles?.data?.map((v: { id: string; plate: string; model: string | null; color?: string | null }) => (
                     <SelectItem key={v.id} value={v.id}>
-                      {v.plate} {v.model ? `- ${v.model}` : ""}
+                      <div className="flex items-center gap-2">
+                        {v.color && (
+                          <div 
+                            className="w-2.5 h-2.5 rounded-full border border-muted-foreground/20" 
+                            style={{ backgroundColor: v.color }} 
+                          />
+                        )}
+                        {v.plate} {v.model ? `- ${v.model}` : ""}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -399,9 +409,18 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
                               </SelectContent>
                             </Select>
                           ) : (
-                            alloc.vehicleNamePlate !== "N/A"
-                              ? alloc.vehicleNamePlate
-                              : <span className="text-muted-foreground text-xs">Sem Frota</span>
+                            <div className="flex items-center gap-2">
+                              {alloc.vehicleColor && (
+                                <div 
+                                  className="w-2.5 h-2.5 rounded-full border border-muted-foreground/20" 
+                                  style={{ backgroundColor: alloc.vehicleColor }} 
+                                />
+                              )}
+                              {alloc.vehicleNamePlate !== "N/A"
+                                ? alloc.vehicleNamePlate
+                                : <span className="text-muted-foreground text-xs">Sem Frota</span>
+                              }
+                            </div>
                           )}
                         </TableCell>
 

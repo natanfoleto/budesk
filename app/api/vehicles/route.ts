@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { 
-      plate, model, brand, year, description, type, documentUrl, active
+      plate, model, brand, year, description, color, type, documentUrl, active
     } = validationResult.data
 
     const existingVehicle = await prisma.vehicle.findUnique({
@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
         brand,
         year,
         description,
+        color,
         type,
         documentUrl,
         active

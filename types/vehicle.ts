@@ -84,6 +84,7 @@ export interface Vehicle {
   brand: string | null
   year: number | null
   description: string | null
+  color: string | null
   type: VehicleType
   active: boolean
   documentUrl?: string | null
@@ -96,6 +97,7 @@ export interface VehicleFormData {
   brand?: string
   year?: number | null
   description?: string
+  color?: string
   type: VehicleType
   documentUrl?: string | null
   active: boolean

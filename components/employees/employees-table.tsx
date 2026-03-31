@@ -1,10 +1,23 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Tag, Trash2 } from "lucide-react"
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  ChevronsLeft, 
+  ChevronsRight, 
+  MoreHorizontal,
+  Tag
+} from "lucide-react"
 import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Select,
   SelectContent,
@@ -96,20 +109,27 @@ export function EmployeesTable({ employees, meta, onPageChange, onLimitChange, o
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Link href={`/employees/${employee.id}`}>
-                        <Button variant="outline" size="icon">
-                          <Edit className="h-4 w-4 text-muted-foreground" />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Abrir menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                      </Link>
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={() => onDelete(employee.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/employees/${employee.id}`} className="cursor-pointer">
+                            Editar
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive focus:text-destructive cursor-pointer"
+                          onClick={() => onDelete(employee.id)}
+                        >
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))

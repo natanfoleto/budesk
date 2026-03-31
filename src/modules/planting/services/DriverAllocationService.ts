@@ -22,7 +22,7 @@ export class DriverAllocationService {
       include: {
         employee: { select: { id: true, name: true } },
         front: { select: { id: true, name: true } },
-        vehicle: { select: { id: true, plate: true, model: true } }
+        vehicle: { select: { id: true, plate: true, model: true, color: true } }
       }
     })
   }

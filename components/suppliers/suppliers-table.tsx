@@ -1,9 +1,15 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Select,
   SelectContent,
@@ -19,12 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { SupplierWithDetails } from "@/types/supplier"
 
 interface SuppliersTableProps {
@@ -96,37 +96,28 @@ export function SuppliersTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
-                              className="size-8"
-                              onClick={() => onEdit(supplier)}
-                            >
-                              <Edit className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Editar</TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
-                              className="size-8"
-                              onClick={() => onDelete(supplier)}
-                            >
-                              <Trash2 className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Excluir</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Abrir menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          className="cursor-pointer"
+                          onClick={() => onEdit(supplier)}
+                        >
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive focus:text-destructive cursor-pointer"
+                          onClick={() => onDelete(supplier)}
+                        >
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))

@@ -8,6 +8,7 @@ export const vehicleSchema = z.object({
   brand: z.string().optional(),
   year: z.number().int().min(1900).max(new Date().getFullYear() + 1).optional().nullable(),
   description: z.string().optional(),
+  color: z.string().optional(),
   type: z.nativeEnum(VehicleType, {
     message: "Selecione um tipo válido",
   }),

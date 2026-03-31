@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
-import { Edit, Loader2, Plus, Search, Trash2 } from "lucide-react"
+import { Loader2, MoreHorizontal, Plus, Search } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -27,6 +27,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Form,
   FormControl,
@@ -321,25 +327,32 @@ export function AdvanceTab({
                       {adv.notes || "-"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          onClick={() => handleEdit(adv)}
-                          disabled={isPeriodClosed}
-                        >
-                          <Edit className="size-4 text-muted-foreground" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => setAdvanceToDelete(adv.id)}
-                          disabled={isPeriodClosed}
-                        >
-                          <Trash2 className="size-4 text-muted-foreground" />
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            className="h-8 w-8 p-0"
+                            disabled={isPeriodClosed}
+                          >
+                            <span className="sr-only">Abrir menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            className="cursor-pointer"
+                            onClick={() => handleEdit(adv)}
+                          >
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive cursor-pointer"
+                            onClick={() => setAdvanceToDelete(adv.id)}
+                          >
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))

@@ -14,6 +14,7 @@ const rolesData = [
   { name: "Auxiliar Adm", salary: 1804.00 },
   { name: "Tecnico Segurança do Trabalho", salary: 3800.00 },
   { name: "Motorista de Onibus", salary: 1950.00 },
+  { name: "Motorista de Caminhão", salary: 1950.00 },
   { name: "Operador de Maquinas", salary: 1950.00 },
   { name: "Tratorista", salary: 1950.00 },
   { name: "Fiscal de Campo", salary: 1950.00 },
@@ -87,7 +88,7 @@ const rawEmployees = [
 
 function normalizeRole(roleName: string): string {
   const norm = roleName.trim()
-  if (norm === "Motorista de Ônibus" || norm === "Motorista de Caminhão") return "Motorista de Onibus"
+  if (norm === "Motorista de Ônibus") return "Motorista de Onibus"
   return norm
 }
 

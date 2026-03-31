@@ -44,6 +44,8 @@ const PRESET_COLORS = [
   "#f43f5e", "#64748b", "#78716c"
 ]
 
+const EMPTY_ARRAY: never[] = []
+
 interface TagManagementModalProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -70,20 +72,30 @@ export const TagManagementModal = ({
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState("")
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([])
 
-  const { data: allTags = [], isLoading } = useEmployeeTags()
-  const { data: employeesResponse, isLoading: isLoadingEmployees } = useEmployees({ limit: 1000, status: "ATIVO" })
-  const allEmployees = useMemo(() => employeesResponse?.data || [], [employeesResponse])
+  const employeesParams = useMemo(() => ({ limit: 1000, status: "ATIVO" as const }), [])
+  const { data: tagsData, isLoading } = useEmployeeTags()
+  const allTags = useMemo(() => tagsData || EMPTY_ARRAY, [tagsData])
+  const { data: employeesResponse, isLoading: isLoadingEmployees } = useEmployees(employeesParams)
+  const allEmployees = useMemo(() => employeesResponse?.data || EMPTY_ARRAY, [employeesResponse])
 
   const { mutate: createTag, isPending: isCreating } = useCreateEmployeeTag()
   const { mutate: updateTag, isPending: isUpdating } = useUpdateEmployeeTag()
   const { mutate: deleteTag, isPending: isDeleting } = useDeleteEmployeeTag()
 
+  const resetForm = useMemo(() => () => {
+    setEditingId(null)
+    setName("")
+    setColor(PRESET_COLORS[0])
+    setEmployeeSearchTerm("")
+    setSelectedEmployeeIds(EMPTY_ARRAY)
+  }, [])
+
   // Initialize selected employees when editing
   useEffect(() => {
     if (editingId && allEmployees.length > 0) {
       const assignedIds = allEmployees
-        .filter(emp => emp.tags?.some(t => t.id === editingId))
-        .map(emp => emp.id)
+        .filter((emp: { id: string; tags?: { id: string }[] }) => emp.tags?.some((t: { id: string }) => t.id === editingId))
+        .map((emp: { id: string }) => emp.id)
       setSelectedEmployeeIds(assignedIds)
     } else if (!editingId) {
       setSelectedEmployeeIds([])
@@ -94,7 +106,7 @@ export const TagManagementModal = ({
   useEffect(() => {
     if (isOpen) {
       if (defaultTagId) {
-        const tag = allTags.find(t => t.id === defaultTagId)
+        const tag = allTags.find((t: { id: string; name: string; color: string }) => t.id === defaultTagId)
         if (tag) {
           setEditingId(tag.id)
           setName(tag.name)
@@ -108,12 +120,12 @@ export const TagManagementModal = ({
       // Cleanup when closed
       resetForm()
     }
-  }, [isOpen, defaultTagId, allTags])
+  }, [isOpen, defaultTagId, allTags, resetForm])
 
   const filteredEmployees = useMemo(() => {
     if (!employeeSearchTerm.trim()) return allEmployees
     const term = employeeSearchTerm.toLowerCase()
-    return allEmployees.filter(emp => emp.name.toLowerCase().includes(term))
+    return allEmployees.filter((emp: { name: string }) => emp.name.toLowerCase().includes(term))
   }, [allEmployees, employeeSearchTerm])
 
   const handleCreateOrUpdate = () => {
@@ -147,14 +159,6 @@ export const TagManagementModal = ({
     deleteTag(id, {
       onSuccess: () => setTagToDelete(null)
     })
-  }
-
-  const resetForm = () => {
-    setEditingId(null)
-    setName("")
-    setColor(PRESET_COLORS[0])
-    setEmployeeSearchTerm("")
-    setSelectedEmployeeIds([])
   }
 
   return (
@@ -255,14 +259,14 @@ export const TagManagementModal = ({
                       </div>
                     ) : (
                       <div className="divide-y">
-                        {filteredEmployees.map((emp) => (
+                        {filteredEmployees.map((emp: { id: string; name: string }) => (
                           <div 
                             key={emp.id} 
                             className="flex items-center gap-3 p-2 hover:bg-accent/20 transition-colors cursor-pointer"
                             onClick={() => {
-                              setSelectedEmployeeIds(prev => 
+                              setSelectedEmployeeIds((prev: string[]) => 
                                 prev.includes(emp.id)
-                                  ? prev.filter(id => id !== emp.id)
+                                  ? prev.filter((id: string) => id !== emp.id)
                                   : [...prev, emp.id]
                               )
                             }}

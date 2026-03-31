@@ -1,10 +1,16 @@
 "use client"
 
-import { Edit, Trash2 } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Table,
   TableBody,
@@ -47,9 +53,18 @@ export function VehiclesTable({ vehicles, onEdit, onDelete }: VehiclesTableProps
             vehicles.map((vehicle) => (
               <TableRow key={vehicle.id}>
                 <TableCell className="font-medium">
-                  <Link href={`/fleet/${vehicle.id}`} className="hover:underline text-primary">
-                    {vehicle.plate}
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    {vehicle.color && (
+                      <div 
+                        className="w-3 h-3 rounded-full border border-muted" 
+                        style={{ backgroundColor: vehicle.color }}
+                        title={vehicle.color}
+                      />
+                    )}
+                    <Link href={`/fleet/${vehicle.id}`} className="hover:underline text-primary">
+                      {vehicle.plate}
+                    </Link>
+                  </div>
                 </TableCell>
                 <TableCell>{vehicle.model}</TableCell>
                 <TableCell>{vehicle.brand}</TableCell>
@@ -63,26 +78,33 @@ export function VehiclesTable({ vehicles, onEdit, onDelete }: VehiclesTableProps
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    {onEdit ? (
-                      <Button variant="outline" size="icon" onClick={() => onEdit(vehicle)}>
-                        <Edit className="h-4 w-4 text-muted-foreground" />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Abrir menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
                       </Button>
-                    ) : (
-                      <Link href={`/fleet/${vehicle.id}`}>
-                        <Button variant="outline" size="icon">
-                          <Edit className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </Link>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => onDelete(vehicle.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {onEdit ? (
+                        <DropdownMenuItem onClick={() => onEdit(vehicle)} className="cursor-pointer">
+                          Editar
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem asChild>
+                          <Link href={`/fleet/${vehicle.id}`} className="cursor-pointer">
+                            Editar
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem 
+                        className="text-destructive focus:text-destructive cursor-pointer"
+                        onClick={() => onDelete(vehicle.id)}
+                      >
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))
