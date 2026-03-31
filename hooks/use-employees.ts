@@ -1,4 +1,5 @@
 import {
+  EmployeeAccount,
   EmployeeAdvance,
   EmployeeContract,
   EmploymentRecord,
@@ -337,9 +338,9 @@ export const useDeleteEmployeeContract = () => {
 }
 
 export const useEmployeeAccounts = (employeeId: string) => {
-  return useQuery({
+  return useQuery<EmployeeAccount[]>({
     queryKey: ['employee-accounts', employeeId],
-    queryFn: () => apiRequest(`/api/employees/${employeeId}/accounts`),
+    queryFn: () => apiRequest<EmployeeAccount[]>(`/api/employees/${employeeId}/accounts`),
     enabled: !!employeeId,
   })
 }

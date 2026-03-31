@@ -15,7 +15,7 @@ export const useCreateEmployeeTag = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: { name: string; color: string }) => {
-      return apiRequest("/api/employee-tags", {
+      return apiRequest<EmployeeTag>("/api/employee-tags", {
         method: "POST",
         body: JSON.stringify(data),
       })
@@ -32,7 +32,7 @@ export const useUpdateEmployeeTag = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, ...data }: { id: string; name?: string; color?: string; employeeIds?: string[] }) => {
-      return apiRequest(`/api/employee-tags/${id}`, {
+      return apiRequest<EmployeeTag>(`/api/employee-tags/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       })
@@ -50,7 +50,7 @@ export const useDeleteEmployeeTag = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => {
-      return apiRequest(`/api/employee-tags/${id}`, {
+      return apiRequest<void>(`/api/employee-tags/${id}`, {
         method: "DELETE",
       })
     },
@@ -73,7 +73,7 @@ export const useEmployeeTagAssignment = (employeeId: string) => {
 
   const mutation = useMutation({
     mutationFn: (tagIds: string[]) => {
-      return apiRequest(`/api/employees/${employeeId}/tags`, {
+      return apiRequest<EmployeeTag[]>(`/api/employees/${employeeId}/tags`, {
         method: "PUT",
         body: JSON.stringify({ tagIds }),
       })

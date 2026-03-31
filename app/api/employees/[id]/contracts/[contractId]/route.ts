@@ -49,7 +49,7 @@ export async function PUT(
       entity: "EmployeeContract",
       entityId: contract.id,
       oldData: existingContract,
-      newData: contract as any,
+      newData: contract,
       userId: userId,
     })
 

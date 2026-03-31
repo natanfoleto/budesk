@@ -21,8 +21,8 @@ async function backup() {
   const fileName = `backup_${timestamp}.sql`
   const filePath = path.join(databaseDir, fileName)
 
-  console.log(`🚀 Starting database backup...`)
-  console.log(`📂 Destination: ${filePath}`)
+  console.log(`Starting database backup`)
+  console.log(`Destination: ${filePath}`)
 
   try {
     // Command to run pg_dump inside the docker container and redirect output to a file
@@ -31,9 +31,23 @@ async function backup() {
     
     execSync(command, { stdio: "inherit" })
     
-    console.log(`✅ Backup completed successfully: ${fileName}`)
+    console.log(`Backup completed successfully: ${fileName}`)
+
+    // Cleanup: Keep only the 3 most recent backups
+    const files = fs.readdirSync(databaseDir)
+      .filter(file => file.startsWith('backup_') && file.endsWith('.sql'))
+      .sort() // Names include timestamps: backup_YYYYMMDD_HHMMSS.sql
+    
+    if (files.length > 3) {
+      const toDelete = files.slice(0, files.length - 3)
+      toDelete.forEach(file => {
+        const fullPath = path.join(databaseDir, file)
+        fs.unlinkSync(fullPath)
+        console.log(`Deleted old backup: ${file}`)
+      })
+    }
   } catch (error) {
-    console.error(`❌ Backup failed:`, error)
+    console.error(`Backup failed:`, error)
     process.exit(1)
   }
 }

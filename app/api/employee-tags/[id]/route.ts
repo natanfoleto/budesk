@@ -5,7 +5,7 @@ import { EmployeeTagService } from "@/src/modules/employees/services/EmployeeTag
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = req.headers.get("x-user-id")
   if (!userId) {
@@ -37,7 +37,7 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = req.headers.get("x-user-id")
   if (!userId) {

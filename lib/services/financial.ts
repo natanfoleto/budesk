@@ -67,10 +67,20 @@ export const getDashboardMetrics = async (month?: number, year?: number) => {
   if (year) params.append("year", year.toString())
   
   return apiRequest<{
-    totalRevenueInCents: number;
-    totalExpensesInCents: number;
-    balanceInCents: number;
-    accountsPayablePendingInCents: number;
+    summary: {
+      income: number;
+      expense: number;
+      balance: number;
+    };
+    payables: {
+      overdue: number;
+      overdueAmount: number;
+      dueToday: number;
+      dueTodayAmount: number;
+      dueTomorrow: number;
+      dueTomorrowAmount: number;
+    };
+    expensesByCategory: Array<{ category: string; amount: number }>;
   }>(`${BASE_URL}/dashboard/financial?${params}`)
 }
 

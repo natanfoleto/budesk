@@ -2,8 +2,8 @@
 "use client"
 
 interface AuditDiffViewerProps {
-  oldData: any
-  newData: any
+  oldData: Record<string, unknown> | null
+  newData: Record<string, unknown> | null
 }
 
 export function AuditDiffViewer({ oldData, newData }: AuditDiffViewerProps) {

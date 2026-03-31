@@ -54,7 +54,7 @@ export async function POST(
       action: AUDIT_Create,
       entity: "EmployeeContract",
       entityId: contract.id,
-      newData: contract as any,
+      newData: contract,
       userId: userId,
     })
 

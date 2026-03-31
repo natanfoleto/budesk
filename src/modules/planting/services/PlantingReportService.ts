@@ -1,6 +1,6 @@
 import { format } from "date-fns"
 import { jsPDF } from "jspdf"
-import autoTable from "jspdf-autotable"
+import autoTable, { RowInput } from "jspdf-autotable"
 
 import prisma from "@/lib/prisma"
 import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
@@ -284,7 +284,7 @@ export class PlantingReportService {
     autoTable(doc, {
       startY: terminationDate ? 60 : 55,
       head: [["Data", "Serviço", "Plantio", "Corte", "Diária", "Adiant.", "Total Dia"]],
-      body: tableData,
+      body: tableData as RowInput[],
       theme: "striped",
       headStyles: { fillColor: [41, 128, 185] },
       margin: { top: 40 },
@@ -548,7 +548,7 @@ export class PlantingReportService {
     autoTable(doc, {
       startY: 40,
       head: [["Funcionário", "Dias", "Faltas", "Plantio", "Corte", "Diárias", "Adiant.", "Bruto", "Líquido"]],
-      body: tableData,
+      body: tableData as RowInput[],
       theme: "grid",
       headStyles: { fillColor: [44, 62, 80] },
       styles: { fontSize: 8, cellPadding: 2, valign: "middle" },

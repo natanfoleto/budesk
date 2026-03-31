@@ -6,8 +6,8 @@ interface CreateAuditLogParams {
   action: AuditAction
   entity: string
   entityId: string
-  oldData?: any
-  newData?: any
+  oldData?: unknown
+  newData?: unknown
   userId: string
 }
 
@@ -31,9 +31,9 @@ export async function createAuditLog({
         userId: userId,
       },
     })
-  } catch (error: any) {
+  } catch (error) {
     // Se falhar por violação de chave estrangeira (usuário não existe), tenta criar sem usuário
-    if (error.code === 'P2003') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2003') {
       console.warn(`Audit log creation failed for userId ${userId}. Retrying without user link.`)
       await prisma.auditLog.create({
         data: {

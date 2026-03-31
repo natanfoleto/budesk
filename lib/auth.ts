@@ -19,7 +19,7 @@ export async function verifyJWT(token: string): Promise<JWTPayload | null> {
       algorithms: ["HS256"],
     })
     return payload as unknown as JWTPayload
-  } catch (_error) {
+  } catch {
     return null
   }
 }

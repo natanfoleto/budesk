@@ -5,7 +5,7 @@ import { EmployeeTagService } from "@/src/modules/employees/services/EmployeeTag
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
@@ -19,7 +19,7 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const userId = req.headers.get("x-user-id")
   if (!userId) {

@@ -1,7 +1,7 @@
 import { MaintenanceFormData } from "@/components/fleet/maintenance-schema"
 import { apiRequest } from "@/lib/api-client"
 import { PaginatedResponse } from "@/types/api"
-import { Vehicle, VehicleFormData } from "@/types/vehicle"
+import { Maintenance, Vehicle, VehicleFormData } from "@/types/vehicle"
 
 const BASE_URL = "/api"
 
@@ -38,8 +38,8 @@ export const deleteVehicle = async (id: string) => {
 
 // Maintenance Sub-resource
 
-export const getMaintenances = async (vehicleId: string) => {
-  return apiRequest(`${BASE_URL}/vehicles/${vehicleId}/maintenances`)
+export const getMaintenances = async (vehicleId: string): Promise<Maintenance[]> => {
+  return apiRequest<Maintenance[]>(`${BASE_URL}/vehicles/${vehicleId}/maintenances`)
 }
 
 export const createMaintenance = async (vehicleId: string, data: MaintenanceFormData) => {

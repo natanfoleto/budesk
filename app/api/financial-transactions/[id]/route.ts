@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { createAuditLog } from "@/lib/audit"
 import prisma from "@/lib/prisma"
 
 const AUDIT_UPDATE = "UPDATE"
@@ -37,19 +38,17 @@ export async function PUT(
       },
     })
 
-    await prisma.auditLog.create({
-      data: {
-        action: AUDIT_UPDATE,
-        entity: "FinancialTransaction",
-        entityId: transaction.id,
-        oldData: oldData as any,
-        newData: transaction as any,
-        userId: userId,
-      }
+    await createAuditLog({
+      action: AUDIT_UPDATE,
+      entity: "FinancialTransaction",
+      entityId: transaction.id,
+      oldData: oldData,
+      newData: transaction,
+      userId: userId || "",
     })
 
     return NextResponse.json(transaction)
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Erro ao atualizar transação" }, { status: 500 })
   }
 }
@@ -72,18 +71,16 @@ export async function DELETE(
       where: { id },
     })
 
-    await prisma.auditLog.create({
-      data: {
-        action: AUDIT_DELETE,
-        entity: "FinancialTransaction",
-        entityId: id,
-        oldData: oldData as any,
-        userId: userId,
-      }
+    await createAuditLog({
+      action: AUDIT_DELETE,
+      entity: "FinancialTransaction",
+      entityId: id,
+      oldData: oldData,
+      userId: userId || "",
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Erro ao excluir transação" }, { status: 500 })
   }
 }

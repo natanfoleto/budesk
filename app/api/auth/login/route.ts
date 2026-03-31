@@ -69,7 +69,8 @@ export async function POST(request: Request) {
       role: user.role
     })
 
-    const { password: _, ...userSafe } = user
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userSafe } = user
 
     // Log Success
     await prisma.loginLog.create({
