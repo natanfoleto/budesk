@@ -1,4 +1,4 @@
-import { format } from "date-fns"
+import { format, getDay, getDaysInMonth } from "date-fns"
 import { jsPDF } from "jspdf"
 import autoTable, { RowInput } from "jspdf-autotable"
 
@@ -42,11 +42,13 @@ interface AdvanceRecord {
 interface EmploymentRecord {
   terminationDate: Date | string | null
   admissionDate: Date | string
+  baseSalaryInCents: number
 }
 
 interface EmployeeWithReportData {
   id: string
   name: string
+  salaryInCents: number
   plantingProductions: ProductionRecord[]
   dailyWages: WageRecord[]
   driverAllocations: WageRecord[]
@@ -145,6 +147,11 @@ export class PlantingReportService {
       .filter(dateStr => isEmployeeActiveAtDate(dateStr, terminationDate))
       .sort()
 
+    // Salary calculation helpers
+    const baseSalary = employee.employmentRecords?.[0]?.baseSalaryInCents || employee.salaryInCents || 0
+    const daysInMonth = getDaysInMonth(startDate)
+    const dailyRate = Math.floor(baseSalary / daysInMonth)
+
     // 1. Identify and Pair Compensations (Chronological)
     const allFaltas = sortedDates.filter(dateStr => {
       const wages = employee.dailyWages.filter(w => this.getISODate(w.date) === dateStr)
@@ -207,22 +214,45 @@ export class PlantingReportService {
       })
 
       wages.forEach((w) => {
+        const isCompensatedFalta = compensations.some(c => c.falta === dateStr)
+        const isUsedFolga = compensations.some(c => c.folga === dateStr)
+        const isSunday = getDay(date) === 0
+
         if (w.presence === "PRESENCA" || w.presence === "FOLGA") {
           const isPresence = w.presence === "PRESENCA"
-          const hasValue = w.valueInCents > 0
+          const hasManualValue = w.valueInCents > 0
           
-          if (hasValue || !isPresence) {
-            dailyWageValue += w.valueInCents
-            services.push(isPresence ? "Diária" : "Folga")
-            totalBruto += w.valueInCents
+          if (hasManualValue || !isPresence) {
+            let label = isPresence ? "Diária" : "Folga"
+            let valueToApply = w.valueInCents
+
+            if (w.presence === "FOLGA" && !isSunday) {
+              label = "Folga (Chuva)"
+              if (!isUsedFolga && valueToApply === 0) {
+                valueToApply = dailyRate
+              }
+            }
+
+            dailyWageValue += valueToApply
+            services.push(label)
+            totalBruto += valueToApply
           }
         } else {
           // Add label for absence/medical certificate
           let label = w.presence
-          if (w.presence === "FALTA") label = "Falta"
+          let valueToApply = 0
+
+          if (w.presence === "FALTA") {
+            label = "Falta"
+            if (!isCompensatedFalta) {
+              valueToApply = -dailyRate
+            }
+          }
           else if (w.presence === "FALTA_JUSTIFICADA") label = "Falta Justificada"
           else if (w.presence === "ATESTADO") label = "Atestado"
           
+          dailyWageValue += valueToApply
+          totalBruto += valueToApply
           services.push(label)
         }
       })
@@ -256,12 +286,15 @@ export class PlantingReportService {
         }
       }
 
+      const isCalculatedExtra = services.includes("Folga (Chuva)") && dailyWageValue === dailyRate
+      const isCalculatedDiscount = services.includes("Falta") && dailyWageValue === -dailyRate
+
       tableData.push([
         format(date, "dd/MM/yyyy"),
         serviceCell,
         dailyPlanting > 0 ? `${dailyPlanting}m` : "-",
         dailyCutting > 0 ? `${dailyCutting}m` : "-",
-        dailyWageValue > 0 ? this.formatCurrency(dailyWageValue) : "-",
+        (dailyWageValue !== 0 && !isCalculatedExtra && !isCalculatedDiscount) ? this.formatCurrency(dailyWageValue) : "-",
         dailyAdvanceValue > 0 ? this.formatCurrency(dailyAdvanceValue) : "-",
         this.formatCurrency(dailyTotal)
       ])
@@ -342,10 +375,14 @@ export class PlantingReportService {
     doc.setFont("helvetica", "normal")
     doc.setFontSize(10)
 
-    const dailyPresenceCount = employee.dailyWages.filter(w => w.presence === "PRESENCA" || w.presence === "FOLGA").length + 
-                             employee.driverAllocations.length
+    const dailyPresenceCount = employee.dailyWages.filter(w => w.presence === "PRESENCA").length + 
+                             employee.driverAllocations.length +
+                             employee.plantingProductions.filter(p => p.presence === "PRESENCA" && p.totalValueInCents > 0).length
     
-    const folgaCount = allFolga.length
+    // Non-Sunday folgas
+    const nonSundayFolgas = allFolga.filter(f => getDay(new Date(f + "T12:00:00")) !== 0)
+    // Sunday / Regular rest days
+    const regularFolgasCount = allFolga.length - nonSundayFolgas.length
     
     // Count days for stats
     let justifiedAbsenceCount = 0
@@ -357,7 +394,7 @@ export class PlantingReportService {
       const prods = employee.plantingProductions.filter(p => this.getISODate(p.date) === dateStr)
 
       const hasPresence = prods.some(p => p.presence === "PRESENCA") ||
-                         wages.some(w => w.presence === "PRESENCA" || w.presence === "FOLGA") ||
+                         wages.some(w => w.presence === "PRESENCA") ||
                          employee.driverAllocations.some(a => this.getISODate(a.date) === dateStr)
 
       if (hasPresence) {
@@ -372,13 +409,15 @@ export class PlantingReportService {
     })
 
     // Final unjustified absences after pairing
-    const finalAbsenceCount = allFaltas.length - compensations.length
+    const extraFolgasCount = Math.max(0, nonSundayFolgas.length - compensations.length)
+
+    // totalBruto already includes extraFolgaValue and faltaDiscountValue from the loop
 
     const summaryData = [
       ["Quantidade de diárias", dailyPresenceCount],
-      ["Dias de folga", folgaCount],
-      ["Dias compensados", compensations.length],
-      ["Quantidade de faltas", finalAbsenceCount],
+      ["Domingos / Folgas Regulares", regularFolgasCount],
+      ["Dias de chuva", `${nonSundayFolgas.length} (${extraFolgasCount} pagos)`],
+      ["Quantidade de faltas", `${allFaltas.length} (${compensations.length} compensadas)`],
       ["Faltas justificadas", justifiedAbsenceCount],
       ["Atestados médicos", atestadoCount],
       ["Total de dias trabalhados", workedDaysCount],
@@ -405,23 +444,30 @@ export class PlantingReportService {
     
     doc.setFontSize(12)
     doc.setTextColor(0)
-    doc.text(`Total Bruto: ${this.formatCurrency(totalBruto)}`, 14, currentY + 10)
+    currentY += 10
+    doc.text(`Total Bruto: ${this.formatCurrency(totalBruto)}`, 14, currentY)
     
+    currentY += 8
     doc.setTextColor(200, 0, 0)
-    doc.text(`Total Adiantamentos: - ${this.formatCurrency(totalAdvances)}`, 14, currentY + 18)
+    doc.text(`Total Adiantamentos: - ${this.formatCurrency(totalAdvances)}`, 14, currentY)
     
+    currentY += 8
     doc.setTextColor(0, 100, 0)
-    doc.text(`Total Líquido: ${this.formatCurrency(totalBruto - totalAdvances)}`, 14, currentY + 26)
+    doc.text(`Total Líquido: ${this.formatCurrency(totalBruto - totalAdvances)}`, 14, currentY)
 
     // Reset color for other operations
     doc.setTextColor(0)
 
     // CLT Disclaimer
+    const disclaimerHeight = 20
+    checkPageSpace(disclaimerHeight + 10)
+    currentY += 15
+
     doc.setFontSize(8)
     doc.setTextColor(100)
-    doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, currentY + 36)
-    doc.text("Os dias de chuva não trabalhados são utilizados para compensar faltas não justificadas.", 14, currentY + 41)
-    doc.text("Os dias de chuva não trabalhados que não foram compensados por faltas, serão pagos proporcionalmente ao salário registrado em carteira.", 14, currentY + 46)
+    doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, currentY)
+    doc.text("Os dias de chuva não trabalhados são utilizados para compensar faltas não justificadas.", 14, currentY + 5)
+    doc.text("Os dias de chuva não trabalhados que não foram compensados por faltas, serão pagos proporcionalmente ao salário registrado em carteira.", 14, currentY + 10)
 
     return doc.output("arraybuffer")
   }
@@ -460,6 +506,10 @@ export class PlantingReportService {
     }).sort((a, b) => a.name.localeCompare(b.name))
 
     filteredEmployees.forEach(emp => {
+      const baseSalary = emp.employmentRecords?.[0]?.baseSalaryInCents || emp.salaryInCents || 0
+      const daysInMonth = getDaysInMonth(startDate)
+      const dailyRate = Math.floor(baseSalary / daysInMonth)
+
       let bruto = 0
       let adiantado = 0
       let plantio = 0
@@ -514,18 +564,34 @@ export class PlantingReportService {
         adiantado += adv.valueInCents
       })
 
-      const liquido = bruto - adiantado
-
       if (bruto > 0 || adiantado > 0) {
-        const folgaCount = emp.dailyWages.filter(w => w.presence === "FOLGA").length
+        const allFolgaDates = emp.dailyWages
+          .filter(w => w.presence === "FOLGA")
+          .map(w => this.getISODate(w.date))
+        
+        const folgaCount = allFolgaDates.length
+        const nonSundayFolgaCount = allFolgaDates.filter(f => getDay(new Date(f + "T12:00:00")) !== 0).length
+        
         const compensatedFaltas = Math.min(faltas, folgaCount)
         const finalFaltas = faltas - compensatedFaltas
+        const extraFolgasCount = Math.max(0, nonSundayFolgaCount - compensatedFaltas)
+
+        // Apply financial adjustments
+        const extraFolgaValue = extraFolgasCount * dailyRate
+        const faltaDiscountValue = finalFaltas * dailyRate
+        
+        bruto += extraFolgaValue - faltaDiscountValue
+        diarias += extraFolgaValue - faltaDiscountValue
+        const liquido = bruto - adiantado
+
+        const sundaysCount = folgaCount - nonSundayFolgaCount
 
         const absenceGroup = [
           finalFaltas > 0 ? `FT: ${finalFaltas}` : null,
           faltasJustificadas > 0 ? `FJ: ${faltasJustificadas}` : null,
           atestados > 0 ? `A: ${atestados}` : null,
-          folgaCount > 0 ? `FG: ${folgaCount}` : null,
+          sundaysCount > 0 ? `D: ${sundaysCount}` : null,
+          nonSundayFolgaCount > 0 ? `CH: ${nonSundayFolgaCount}` : null,
           compensatedFaltas > 0 ? `C: ${compensatedFaltas}` : null
         ].filter(Boolean).join("\n")
 

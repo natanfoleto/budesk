@@ -36,8 +36,8 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
   const [isGeneratingMonthly, setIsGeneratingMonthly] = useState(false)
 
   const handleDownload = async (type: "individual" | "consolidated" | "all-zip", employeeId?: string, isMonthly?: boolean) => {
+    setIsGenerating(type)
     if (isMonthly) setIsGeneratingMonthly(true)
-    else setIsGenerating(type)
     
     try {
       const params = new URLSearchParams({
@@ -184,7 +184,7 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
                     <h4 className="font-semibold text-sm">Mensal Consolidado</h4>
                     <p className="text-[10px] text-muted-foreground">Resumo completo do mês.</p>
                   </div>
-                  {isGeneratingMonthly && isGenerating === null ? (
+                  {isGeneratingMonthly && isGenerating === "consolidated" ? (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   ) : (
                     <Download className="h-4 w-4 text-muted-foreground" />
