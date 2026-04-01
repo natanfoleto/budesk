@@ -102,7 +102,8 @@ export async function GET(request: NextRequest) {
     const formattedEmployees = employees.map(emp => ({
       ...emp,
       tags: emp.tags.map(t => t.tag),
-      terminationDate: emp.employmentRecords[0]?.terminationDate || null
+      terminationDate: emp.employmentRecords[0]?.terminationDate || null,
+      admissionDate: emp.employmentRecords[0]?.admissionDate || null
     }))
 
     return NextResponse.json({
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { 
       name, email, phone, document, rg, birthDate, gender, 
-      shirtSize, pantsSize, shoeSize, role, salaryInCents, jobId
+      shirtSize, pantsSize, shoeSize, role, jobId
     } = body
 
     // Validation: Duplicate document
@@ -162,7 +163,6 @@ export async function POST(request: NextRequest) {
         shoeSize,
         role,
         jobId: jobId || null,
-        salaryInCents,
         active: true
       },
       include: {

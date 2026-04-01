@@ -28,7 +28,7 @@ import {
 import { useEmployees, useUpdateEmployee } from "@/hooks/use-employees"
 import { useCreateProduction, useDailyWages, usePlantingParameters, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCurrency } from "@/lib/utils"
-import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
+import { isBeforeAdmission, isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
 import { EmployeeWithDetails } from "@/types/employee"
 import { DailyWage, PlantingProduction, PlantingProductionFormData } from "@/types/planting"
@@ -53,7 +53,9 @@ type ProductionRecord = {
   isClosed: boolean
   plantingCategory: string
   isTerminated: boolean
+  isPreAdmission: boolean
   terminationDate?: string | Date | null
+  admissionDate?: string | Date | null
 }
 
 const ABSENCE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
@@ -135,7 +137,9 @@ export function PlantingTab({
             isClosed: isPeriodClosed,
             plantingCategory: emp.plantingCategory || "",
             isTerminated: !isEmployeeActiveAtDate(date, emp.terminationDate),
-            terminationDate: emp.terminationDate
+            isPreAdmission: isBeforeAdmission(date, emp.admissionDate),
+            terminationDate: emp.terminationDate,
+            admissionDate: emp.admissionDate
           }
         })
 
@@ -192,8 +196,8 @@ export function PlantingTab({
     const currentCuttingMeterValue = globalCuttingPrice ? Math.round(Number(globalCuttingPrice) * 100) : defaultCuttingPrice
 
     Object.values(productions).forEach(p => {
-      // Skip terminated employees as they are read-only in the UI
-      if (p.isTerminated) return
+      // Terminated or Pre-Admission employees are NO LONGER read-only in the UI, 
+      // but they are visually dimmed.
 
       // Production records: Check if changed from existing data
       const existingPlanting = existingRecords?.find(r => r.id === p.plantingId && r.type === "PLANTIO")
@@ -514,7 +518,8 @@ export function PlantingTab({
                   const dailyWage = dailyWages?.find((dw: DailyWage) => dw.employeeId === record.employeeId)
                   const isAbsent = dailyWage && dailyWage.presence !== "PRESENCA"
                   const presenceType = dailyWage?.presence
-                  const isTerminated = record.isTerminated || record.isClosed
+                  const isVisuallyBlocked = record.isTerminated || record.isPreAdmission
+                  const isFunctionallyBlocked = record.isClosed
 
                   return (
                     <React.Fragment key={record.employeeId}>
@@ -529,8 +534,8 @@ export function PlantingTab({
                           record.isClosed && "bg-muted/50",
                           isAbsent && presenceType && ABSENCE_CONFIG[presenceType]?.bg,
                           record.employeeId === focusedEmployeeId && "bg-accent/40",
-                          (isTerminated || isAbsent) && "opacity-60",
-                          isTerminated && "bg-muted/50"
+                          (isVisuallyBlocked || isAbsent) && "opacity-60",
+                          isVisuallyBlocked && "bg-muted/50"
                         )}
                       >
                         <TableCell className="font-medium">
@@ -574,7 +579,7 @@ export function PlantingTab({
                         </TableCell>
                         <TableCell className="px-2 text-center">
                           <div className="flex flex-col items-center justify-center gap-1">
-                            {isTerminated && record.terminationDate && (
+                            {record.isTerminated && record.terminationDate && (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -584,6 +589,20 @@ export function PlantingTab({
                                   </TooltipTrigger>
                                   <TooltipContent>
                                     Contrato encerrado em {new Date(new Date(record.terminationDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {record.isPreAdmission && record.admissionDate && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="bg-pink-100 text-pink-700 text-[9px] font-black px-1 py-0.5 rounded border border-pink-200 shadow-sm whitespace-nowrap cursor-help">
+                                      PRÉ-ADMISSÃO
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Funcionário admissão em {new Date(new Date(record.admissionDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
@@ -605,7 +624,7 @@ export function PlantingTab({
                             onValueChange={(val) => {
                               handleCategoryChange(record.employeeId, (val === "NONE" || !val) ? "" : val)
                             }}
-                            disabled={isTerminated}
+                            disabled={isFunctionallyBlocked}
                           >
                             <ToggleGroupItem value="PLANTIO" aria-label="Plantio" className="data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-900 border border-transparent data-[state=on]:border-emerald-200">
                               <Sprout className="h-3.5 w-3.5" />
@@ -623,8 +642,8 @@ export function PlantingTab({
                               onFocus={() => setFocusedEmployeeId(record.employeeId)}
                               onBlur={() => setFocusedEmployeeId(null)}
                               onKeyDownCustom={(e) => handleKeyDown(e, record.employeeId, "plantingMeters")}
-                              disabled={isTerminated}
-                              className={cn("h-8 text-center w-24", isTerminated && "bg-muted/50 cursor-not-allowed")}
+                              disabled={isFunctionallyBlocked}
+                              className={cn("h-8 text-center w-24", isVisuallyBlocked && "bg-muted/50")}
                             />
                           </TableCell>
                         )}
@@ -636,7 +655,8 @@ export function PlantingTab({
                               onFocus={() => setFocusedEmployeeId(record.employeeId)}
                               onBlur={() => setFocusedEmployeeId(null)}
                               onKeyDownCustom={(e) => handleKeyDown(e, record.employeeId, "cuttingMeters")}
-                              disabled={record.isClosed}
+                              disabled={isFunctionallyBlocked}
+                              className={cn("h-8 text-center w-24", isVisuallyBlocked && "bg-muted/50")}
                             />
                           </TableCell>
                         )}

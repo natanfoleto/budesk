@@ -134,7 +134,6 @@ async function main() {
         name: name,
         role: normalizedRole,
         jobId: jobId,
-        salaryInCents: salaryInCents,
         active: true,
       },
       create: {
@@ -142,7 +141,6 @@ async function main() {
         document: emp.cpf,
         role: normalizedRole,
         jobId: jobId,
-        salaryInCents: salaryInCents,
         active: true,
       },
     })

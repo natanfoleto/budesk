@@ -15,7 +15,17 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: [{ referenceYear: "desc" }, { createdAt: "desc" }],
       include: {
-        employee: { select: { id: true, name: true, role: true, salaryInCents: true } },
+        employee: { 
+          select: { 
+            id: true, 
+            name: true, 
+            role: true,
+            employmentRecords: {
+              orderBy: { admissionDate: "desc" },
+              take: 1
+            }
+          } 
+        },
       },
     })
 
@@ -36,10 +46,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { employeeId, referenceYear, workedMonths } = body
 
-    const employee = await prisma.employee.findUnique({ where: { id: employeeId } })
+    const employee = await prisma.employee.findUnique({ 
+      where: { id: employeeId },
+      include: {
+        employmentRecords: {
+          orderBy: { admissionDate: "desc" },
+          take: 1
+        }
+      }
+    })
     if (!employee) return NextResponse.json({ error: "Funcionário não encontrado" }, { status: 404 })
 
-    const baseSalaryInCents = Number(employee.salaryInCents || 0)
+    const baseSalaryInCents = Number(employee.employmentRecords?.[0]?.baseSalaryInCents || 0)
     const totalAmountInCents = Math.round((baseSalaryInCents / 12) * Number(workedMonths))
 
     const thirteenth = await prisma.thirteenthSalary.create({

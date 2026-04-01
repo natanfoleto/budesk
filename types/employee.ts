@@ -17,6 +17,7 @@ export interface EmployeeWithDetails extends Employee {
   tags?: { id: string; name: string; color: string }[];
   accounts?: EmployeeAccount[];
   terminationDate?: string | Date | null;
+  admissionDate?: string | Date | null;
 }
 
 export interface EmployeeAccountFormData {
@@ -33,7 +34,7 @@ export interface EmployeeFormData {
   phone?: string;
   role?: string;
   jobId?: string;
-  salaryInCents: number;
+  birthDate?: string | Date | null;
   shirtSize?: string;
   pantsSize?: string;
   shoeSize?: string;

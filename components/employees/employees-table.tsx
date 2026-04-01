@@ -33,7 +33,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { formatCentsToReal } from "@/lib/utils"
 import { EmployeeWithDetails } from "@/types/employee"
 
 interface EmployeesTableProps {
@@ -60,7 +59,7 @@ export function EmployeesTable({ employees, meta, onPageChange, onLimitChange, o
               <TableHead>Nome</TableHead>
               <TableHead>Cargo/Função</TableHead>
               <TableHead>CPF</TableHead>
-              <TableHead>Salário</TableHead>
+              <TableHead>Data de Nasc.</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -102,7 +101,11 @@ export function EmployeesTable({ employees, meta, onPageChange, onLimitChange, o
                   </TableCell>
                   <TableCell>{employee.job?.name || employee.role}</TableCell>
                   <TableCell>{employee.document}</TableCell>
-                  <TableCell>{formatCentsToReal(employee.salaryInCents)}</TableCell>
+                  <TableCell>
+                    {employee.birthDate 
+                      ? new Date(new Date(employee.birthDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")
+                      : "-"}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={employee.active ? "default" : "secondary"}>
                       {employee.active ? "Ativo" : "Encerrado"}

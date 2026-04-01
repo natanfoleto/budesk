@@ -58,9 +58,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useEmployees } from "@/hooks/use-employees"
 import { apiRequest } from "@/lib/api-client"
 import { cn, formatCentsToReal } from "@/lib/utils"
+import { isBeforeAdmission, isEmployeeActiveAtDate } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
 import { PlantingAdvance, PlantingAdvanceFormData } from "@/types/planting"
 
@@ -290,6 +297,46 @@ export function AdvanceTab({
                         >
                           {adv.employee?.name}
                         </span>
+                        {(() => {
+                          const empObj = employees?.data.find(e => e.id === adv.employeeId)
+                          if (!empObj) return null
+                          
+                          const isTerminated = !isEmployeeActiveAtDate(date, empObj.terminationDate)
+                          const isPreAdmission = isBeforeAdmission(date, empObj.admissionDate)
+                          
+                          return (
+                            <div className="flex gap-1">
+                              {isTerminated && empObj.terminationDate && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="bg-muted text-muted-foreground text-[9px] font-black px-1 py-0.5 rounded border border-border shadow-sm whitespace-nowrap cursor-help uppercase">
+                                        ENCERRADO
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Contrato encerrado em {new Date(new Date(empObj.terminationDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                              {isPreAdmission && empObj.admissionDate && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="bg-pink-100 text-pink-700 text-[9px] font-black px-1 py-0.5 rounded border border-pink-200 shadow-sm whitespace-nowrap cursor-help uppercase">
+                                        PRÉ-ADMISSÃO
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Admissão em {new Date(new Date(empObj.admissionDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
+                          )
+                        })()}
                         <button
                           onClick={() => {
                             if (onEmployeeFilterChange) {

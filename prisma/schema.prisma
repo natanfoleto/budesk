@@ -340,7 +340,6 @@ model Employee {
   shoeSize  String?
   role          String?
   jobId         String?  @map("job_id")
-  salaryInCents Int      @map("salary_in_cents")
   active    Boolean  @default(true)
   plantingCategory String? @map("planting_category")
   createdAt DateTime @default(now())

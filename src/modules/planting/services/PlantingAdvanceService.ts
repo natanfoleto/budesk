@@ -27,7 +27,14 @@ export class PlantingAdvanceService {
       where,
       orderBy: { date: "desc" },
       include: {
-        employee: { select: { id: true, name: true } },
+        employee: { 
+          include: { 
+            employmentRecords: {
+              orderBy: { admissionDate: "desc" },
+              take: 1
+            }
+          } 
+        },
         front: { select: { id: true, name: true } },
         account: true
       }

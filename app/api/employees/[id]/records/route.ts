@@ -35,7 +35,7 @@ export async function POST(
   try {
     const body = await request.json()
     const { 
-      admissionDate, terminationDate, jobTitle, baseSalaryInCents,
+      admissionDate, terminationDate, jobTitle, baseSalary,
       contractType, weeklyWorkload, workRegime, isActive, notes,
       hasMedicalExam, hasSignedRegistration, hasSignedEpiReceipt
     } = body
@@ -46,7 +46,7 @@ export async function POST(
         admissionDate: new Date(admissionDate),
         terminationDate: terminationDate ? new Date(terminationDate) : null,
         jobTitle,
-        baseSalaryInCents,
+        baseSalaryInCents: Math.round(Number(baseSalary) * 100),
         contractType,
         weeklyWorkload: weeklyWorkload ? parseInt(weeklyWorkload) : null,
         workRegime,

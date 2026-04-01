@@ -48,7 +48,6 @@ interface EmploymentRecord {
 interface EmployeeWithReportData {
   id: string
   name: string
-  salaryInCents: number
   plantingProductions: ProductionRecord[]
   dailyWages: WageRecord[]
   driverAllocations: WageRecord[]
@@ -148,7 +147,7 @@ export class PlantingReportService {
       .sort()
 
     // Salary calculation helpers
-    const baseSalary = employee.employmentRecords?.[0]?.baseSalaryInCents || employee.salaryInCents || 0
+    const baseSalary = employee.employmentRecords?.[0]?.baseSalaryInCents || 0
     const daysInMonth = getDaysInMonth(startDate)
     const dailyRate = Math.floor(baseSalary / daysInMonth)
 
@@ -512,7 +511,7 @@ export class PlantingReportService {
     }).sort((a, b) => a.name.localeCompare(b.name))
 
     filteredEmployees.forEach(emp => {
-      const baseSalary = emp.employmentRecords?.[0]?.baseSalaryInCents || emp.salaryInCents || 0
+      const baseSalary = emp.employmentRecords?.[0]?.baseSalaryInCents || 0
       const daysInMonth = getDaysInMonth(startDate)
       const dailyRate = Math.floor(baseSalary / daysInMonth)
 

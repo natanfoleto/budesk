@@ -48,7 +48,7 @@ export async function PUT(
     const body = await request.json()
     const { 
       name, email, phone, document, rg, birthDate, gender, 
-      shirtSize, pantsSize, shoeSize, role, salaryInCents, active,
+      shirtSize, pantsSize, shoeSize, role, active,
       plantingCategory, jobId
     } = body
 
@@ -68,7 +68,7 @@ export async function PUT(
     if (shoeSize !== undefined) updateData.shoeSize = shoeSize
     if (role !== undefined) updateData.role = role
     if (jobId !== undefined) updateData.jobId = jobId || null
-    if (salaryInCents !== undefined) updateData.salaryInCents = salaryInCents
+    if (jobId !== undefined) updateData.jobId = jobId || null
     if (active !== undefined) updateData.active = active
     if (plantingCategory !== undefined) updateData.plantingCategory = plantingCategory || null
 

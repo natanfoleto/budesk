@@ -66,10 +66,20 @@ export const maskCEP = (value: string) => {
     .slice(0, 9)
 }
 
-export const formatAccountIdentifier = (value: string | undefined | null) => {
+export const formatAccountIdentifier = (value: string | undefined | null, type?: string) => {
   if (!value) return ""
   const cleanValue = value.replace(/\D/g, "")
 
+  // Prioritize account type if provided
+  if (type) {
+    if (type === "PIX_CPF") return maskCPF(cleanValue)
+    if (type === "PIX_TELEFONE") return maskPhone(cleanValue)
+    if (type === "PIX_CNPJ") return maskCNPJ(cleanValue)
+    if (type === "PIX_EMAIL") return value // Emails don't have a numeric mask
+    if (type === "PIX_CHAVE_ALEATORIA") return value
+  }
+
+  // Fallback to length-based logic
   // CPF
   if (cleanValue.length === 11) {
     return maskCPF(cleanValue)
@@ -77,11 +87,7 @@ export const formatAccountIdentifier = (value: string | undefined | null) => {
 
   // CNPJ
   if (cleanValue.length === 14) {
-    return cleanValue
-      .replace(/(\d{2})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1.$2")
-      .replace(/(\d{3})(\d)/, "$1/$2")
-      .replace(/(\d{4})(\d)/, "$1-$2")
+    return maskCNPJ(cleanValue)
   }
 
   // Phone (Landline or Cell)

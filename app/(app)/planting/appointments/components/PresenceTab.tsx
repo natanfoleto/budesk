@@ -37,7 +37,7 @@ import {
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDailyWageBulk, useDailyWages, useDriverAllocations, usePlantingProductions } from "@/hooks/use-planting"
 import { cn } from "@/lib/utils"
-import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
+import { isBeforeAdmission, isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
 import { EmployeeWithDetails } from "@/types/employee"
 import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
@@ -61,7 +61,9 @@ interface PresenceRecord {
   isClosed: boolean
   plantingCategory: string
   isTerminated: boolean
+  isPreAdmission: boolean
   terminationDate?: string | Date | null
+  admissionDate?: string | Date | null
   valueInCents: number
   driverValueInCents: number  // valor de diária de motorista (DriverAllocation)
 }
@@ -146,7 +148,9 @@ export function PresenceTab({
           isClosed: isPeriodClosed,
           plantingCategory: emp.plantingCategory || "",
           isTerminated: !isEmployeeActiveAtDate(date, emp.terminationDate),
+          isPreAdmission: isBeforeAdmission(date, emp.admissionDate),
           terminationDate: emp.terminationDate,
+          admissionDate: emp.admissionDate,
           valueInCents: existing?.valueInCents || 0,
           driverValueInCents: driverAlloc?.valueInCents || 0,
         }
@@ -352,14 +356,16 @@ export function PresenceTab({
                 ) : (
                   sortedEmployees.map((record) => {
                     const isTerminated = record.isTerminated
+                    const isPreAdmission = record.isPreAdmission
+                    const isVisuallyBlocked = isTerminated || isPreAdmission
                     
                     return (
                       <TableRow 
                         key={record.employeeId} 
                         className={cn(
                           highlightedRow === record.employeeId ? "bg-accent/40" : "",
-                          (isTerminated || (record.presence && record.presence !== "PRESENCA")) && "opacity-60",
-                          isTerminated && "bg-muted/50",
+                          (isVisuallyBlocked || (record.presence && record.presence !== "PRESENCA")) && "opacity-60",
+                          isVisuallyBlocked && "bg-muted/50",
                           record.isClosed && "bg-muted/50",
                           record.presence && record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.bg
                         )}
@@ -421,6 +427,20 @@ export function PresenceTab({
                                 </Tooltip>
                               </TooltipProvider>
                             )}
+                            {isPreAdmission && record.admissionDate && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="bg-pink-100 text-pink-700 text-[9px] font-black px-1 py-0.5 rounded border border-pink-200 shadow-sm whitespace-nowrap cursor-help uppercase">
+                                      PRÉ-ADMISSÃO
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Funcionário admissão em {new Date(new Date(record.admissionDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                             {record.valueInCents > 0 && (
                               <div title={`Diária: ${(record.valueInCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}>
                                 <div className="bg-orange-100 text-orange-700 text-[9px] font-black px-1 py-0.5 rounded border border-orange-200 shadow-sm whitespace-nowrap">
@@ -475,7 +495,7 @@ export function PresenceTab({
                               <Select
                                 value={record.presence}
                                 onValueChange={(val: AttendanceType) => updateLocalPresence(record.employeeId, "presence", val)}
-                                disabled={isTerminated || record.isClosed || locked}
+                                disabled={isVisuallyBlocked || record.isClosed || locked}
                               >
                                 <SelectTrigger className={cn("h-8 w-[200px] ml-auto", record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.bg)}>
                                   <SelectValue placeholder="Status de Presença" />

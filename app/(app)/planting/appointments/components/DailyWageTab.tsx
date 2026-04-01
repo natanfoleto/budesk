@@ -27,7 +27,7 @@ import {
 import { useEmployees } from "@/hooks/use-employees"
 import { useCreateDailyWageBulk, useDailyWages, usePlantingProductions } from "@/hooks/use-planting"
 import { cn, formatCentsToReal } from "@/lib/utils"
-import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
+import { isBeforeAdmission, isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
 import { EmployeeWithDetails } from "@/types/employee"
 import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
@@ -49,7 +49,9 @@ interface WageRecord {
   presence: AttendanceType
   notes: string
   isTerminated: boolean
+  isPreAdmission: boolean
   terminationDate?: string | Date | null
+  admissionDate?: string | Date | null
   value: number // Value in real (e.g., 100.50)
   valueFormatted: string
   isClosed: boolean
@@ -119,7 +121,9 @@ export function DailyWageTab({
           presence: existing?.presence || "PRESENCA",
           notes: existing?.notes || "",
           isTerminated: !isEmployeeActiveAtDate(date, emp.terminationDate),
+          isPreAdmission: isBeforeAdmission(date, emp.admissionDate),
           terminationDate: emp.terminationDate,
+          admissionDate: emp.admissionDate,
           valueFormatted: existing?.valueInCents ? formatCentsToReal(existing.valueInCents) : "",
           isClosed: isPeriodClosed,
           plantingCategory: emp.plantingCategory || ""
@@ -333,8 +337,8 @@ export function DailyWageTab({
                       key={record.employeeId} 
                       className={cn(
                         highlightedRow === record.employeeId ? "bg-accent/40" : "",
-                        (isTerminated || (record.presence && record.presence !== "PRESENCA")) && "opacity-60",
-                        isTerminated && "bg-muted/50",
+                        (record.isTerminated || record.isPreAdmission || (record.presence && record.presence !== "PRESENCA")) && "opacity-60",
+                        (record.isTerminated || record.isPreAdmission) && "bg-muted/50",
                         record.isClosed && "bg-muted/50",
                         record.presence && record.presence !== "PRESENCA" && ABSENCE_CONFIG[record.presence]?.bg,
                       )}
@@ -384,12 +388,26 @@ export function DailyWageTab({
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="bg-muted text-muted-foreground text-[9px] font-black px-1 py-0.5 rounded border border-border shadow-sm whitespace-nowrap cursor-help">
+                                  <div className="bg-muted text-muted-foreground text-[9px] font-black px-1 py-0.5 rounded border border-border shadow-sm whitespace-nowrap cursor-help uppercase">
                                     ENCERRADO
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   Contrato encerrado em {new Date(new Date(record.terminationDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {record.isPreAdmission && record.admissionDate && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="bg-pink-100 text-pink-700 text-[9px] font-black px-1 py-0.5 rounded border border-pink-200 shadow-sm whitespace-nowrap cursor-help uppercase">
+                                    PRÉ-ADMISSÃO
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Funcionário admissão em {new Date(new Date(record.admissionDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -436,7 +454,7 @@ export function DailyWageTab({
                               }
                             }
                           }}
-                          disabled={isTerminated || record.isClosed || record.presence !== "PRESENCA"}
+                          disabled={record.isClosed || record.presence !== "PRESENCA"}
                           placeholder="R$ 0,00"
                         />
                       </TableCell>

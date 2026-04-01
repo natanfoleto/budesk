@@ -380,7 +380,7 @@ export function EmployeeDetailsModal({
                                     <div className="space-y-1">
                                       <p className="text-[10px] font-bold text-muted-foreground uppercase">{acc.type.replace("_", " ")}</p>
                                       <p className="text-sm font-mono font-bold break-all leading-tight">
-                                        {formatAccountIdentifier(acc.identifier)}
+                                        {formatAccountIdentifier(acc.identifier, acc.type)}
                                       </p>
                                       {acc.description && <p className="text-[10px] text-muted-foreground ">{acc.description}</p>}
                                     </div>
@@ -618,7 +618,7 @@ export function EmployeeDetailsModal({
                                     <td className="py-2.5">{format(parseLocalDate(a.date), "dd/MM/yyyy")}</td>
                                     <td className="py-2.5 text-xs">
                                       <div className="flex items-center gap-2">
-                                        <span>{a.account?.identifier ? formatAccountIdentifier(a.account.identifier) : "Conta não vinculada"}</span>
+                                        <span>{a.account?.identifier ? formatAccountIdentifier(a.account.identifier, a.account.type) : "Conta não vinculada"}</span>
                                         {a.account?.identifier && (
                                           <button 
                                             onClick={() => handleCopy(a.account!.identifier, "Chave PIX")}

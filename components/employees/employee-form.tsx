@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select"
 import { useJobs } from "@/hooks/use-jobs"
 import { Job } from "@/lib/services/jobs"
-import { formatCentsToReal, maskCPF, maskPhone } from "@/lib/utils"
+import { maskCPF, maskPhone } from "@/lib/utils"
 import { EmployeeWithDetails } from "@/types/employee"
 
 const formSchema = z.object({
@@ -38,9 +38,9 @@ const formSchema = z.object({
   document: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
+  birthDate: z.string().optional(),
   role: z.string().optional(),
   jobId: z.string().min(1, "Cargo obrigatório"),
-  salaryInCents: z.number().min(0, "Salário inválido"),
   shirtSize: z.string().optional(),
   pantsSize: z.string().optional(),
   shoeSize: z.string().optional(),
@@ -66,9 +66,9 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
       document: "",
       email: "",
       phone: "",
+      birthDate: "",
       role: "",
       jobId: "",
-      salaryInCents: 0,
       shirtSize: "",
       pantsSize: "",
       shoeSize: "",
@@ -82,9 +82,9 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
         document: initialData.document || "",
         email: initialData.email || "",
         phone: initialData.phone || "",
+        birthDate: initialData.birthDate ? new Date(initialData.birthDate).toISOString().split('T')[0] : "",
         role: initialData.role || "",
         jobId: initialData.jobId || "",
-        salaryInCents: Number(initialData.salaryInCents) || 0,
         shirtSize: initialData.shirtSize || "",
         pantsSize: initialData.pantsSize || "",
         shoeSize: initialData.shoeSize || "",
@@ -95,9 +95,9 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
         document: "",
         email: "",
         phone: "",
+        birthDate: "",
         role: "",
         jobId: "",
-        salaryInCents: 0,
         shirtSize: "",
         pantsSize: "",
         shoeSize: "",
@@ -183,20 +183,13 @@ export function EmployeeForm({ open, onOpenChange, onSubmit, initialData, isLoad
                 )}
               />
               <FormField
-                name="salaryInCents"
+                name="birthDate"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Salário Base (Atual)</FormLabel>
+                    <FormLabel>Data de Nascimento</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="R$ 0,00"
-                        value={formatCentsToReal(field.value)}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, "")
-                          field.onChange(Number(value))
-                        }}
-                      />
+                      <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
