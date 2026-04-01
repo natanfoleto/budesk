@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     const seasonId = searchParams.get("seasonId")
     const startDateStr = searchParams.get("startDate")
     const endDateStr = searchParams.get("endDate")
+    const shouldCompensate = searchParams.get("shouldCompensate") !== "false"
 
     if (!seasonId || !startDateStr || !endDateStr) {
       return NextResponse.json({ error: "seasonId, startDate and endDate are required" }, { status: 400 })
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
 
     if (type === "individual") {
       if (!employeeId) return NextResponse.json({ error: "employeeId is required for individual report" }, { status: 400 })
-      const pdf = await PlantingReportService.generateIndividualReport(employeeId, seasonId, startDate, endDate)
+      const pdf = await PlantingReportService.generateIndividualReport(employeeId, seasonId, startDate, endDate, { shouldCompensate })
       
       return new NextResponse(pdf, {
         headers: {
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
       
       const promises = employees.map(async (emp) => {
         try {
-          const pdf = await PlantingReportService.generateIndividualReport(emp.id, seasonId, startDate, endDate)
+          const pdf = await PlantingReportService.generateIndividualReport(emp.id, seasonId, startDate, endDate, { shouldCompensate })
           zip.file(`${emp.name.replace(/\s+/g, "_")}.pdf`, pdf)
         } catch (e) {
           console.error(`Error generating PDF for employee ${emp.id}:`, e)

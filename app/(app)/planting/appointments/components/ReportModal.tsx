@@ -34,11 +34,18 @@ interface ReportModalProps {
 export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isMonthClosed, monthStr }: ReportModalProps) {
   const [isGenerating, setIsGenerating] = useState<string | null>(null)
   const [isGeneratingMonthly, setIsGeneratingMonthly] = useState(false)
-  const isAnyGenerating = !!isGenerating || isGeneratingMonthly
+  const [isGeneratingNoComp, setIsGeneratingNoComp] = useState(false)
+  const isAnyGenerating = !!isGenerating || isGeneratingMonthly || isGeneratingNoComp
 
-  const handleDownload = async (type: "individual" | "consolidated" | "all-zip", employeeId?: string, isMonthly?: boolean) => {
+  const handleDownload = async (
+    type: "individual" | "consolidated" | "all-zip", 
+    employeeId?: string, 
+    isMonthly?: boolean, 
+    shouldCompensate: boolean = true
+  ) => {
     setIsGenerating(type)
     if (isMonthly) setIsGeneratingMonthly(true)
+    if (!shouldCompensate) setIsGeneratingNoComp(true)
     
     try {
       const params = new URLSearchParams({
@@ -49,6 +56,7 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
       })
       if (employeeId) params.set("employeeId", employeeId)
       if (isMonthly) params.set("isMonthly", "true")
+      if (!shouldCompensate) params.set("shouldCompensate", "false")
 
       const response = await fetch(`/api/planting/reports?${params.toString()}`)
       
@@ -78,10 +86,10 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
       const dateRangeSuffix = `${finalStartDate}_${finalEndDate}`
 
       const filename = type === "all-zip" 
-        ? `relatorios_individuais_plantio_${periodType}_${dateRangeSuffix}.zip`
+        ? `relatorios_individuais_plantio_${periodType}${shouldCompensate ? "" : "_sc"}_${dateRangeSuffix}.zip`
         : type === "consolidated"
           ? `relatorio_geral_plantio_${periodType}_${dateRangeSuffix}.pdf`
-          : `relatorio_individual_plantio_${periodType}_${dateRangeSuffix}.pdf`
+          : `relatorio_individual_plantio_${periodType}${shouldCompensate ? "" : "_sc"}_${dateRangeSuffix}.pdf`
       
       const a = document.createElement("a")
       a.href = url
@@ -98,6 +106,7 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
     } finally {
       setIsGenerating(null)
       setIsGeneratingMonthly(false)
+      setIsGeneratingNoComp(false)
     }
   }
 
@@ -132,7 +141,7 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
                     <h4 className="font-semibold text-sm">Quinzenal Consolidado</h4>
                     <p className="text-[10px] text-muted-foreground text-pretty line-clamp-1">Todos os funcionários agrupados.</p>
                   </div>
-                  {isGenerating === "consolidated" ? (
+                  {isGenerating === "consolidated" && !isGeneratingMonthly ? (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   ) : (
                     <Download className="h-4 w-4 text-muted-foreground" />
@@ -140,28 +149,53 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
                 </CardContent>
               </Card>
 
-              <Card 
-                className={cn(
-                  "cursor-pointer hover:bg-muted/50 transition-colors border-2 hover:border-primary/50",
-                  isAnyGenerating && "opacity-50 pointer-events-none"
-                )}
-                onClick={() => !isAnyGenerating && handleDownload("all-zip")}
-              >
-                <CardContent className="flex items-center gap-4 p-3">
-                  <div className="bg-amber-100 p-2 rounded-full text-amber-600">
-                    <FileArchive className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-sm">Quinzenal Individuais (ZIP)</h4>
-                    <p className="text-[10px] text-muted-foreground">PDFs separados por funcionário.</p>
-                  </div>
-                  {isGenerating === "all-zip" ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : (
-                    <Download className="h-4 w-4 text-muted-foreground" />
+              <div className="grid grid-cols-2 gap-3">
+                <Card 
+                  className={cn(
+                    "cursor-pointer hover:bg-muted/50 transition-colors border-2 hover:border-amber-500/50",
+                    isAnyGenerating && "opacity-50 pointer-events-none"
                   )}
-                </CardContent>
-              </Card>
+                  onClick={() => !isAnyGenerating && handleDownload("all-zip")}
+                >
+                  <CardContent className="flex flex-col items-center text-center gap-2 p-3">
+                    <div className="bg-amber-100 p-2 rounded-full text-amber-600">
+                      <FileArchive className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-[13px]">Individuais (ZIP)</h4>
+                      <p className="text-[9px] text-muted-foreground">Padrão</p>
+                    </div>
+                    {isGenerating === "all-zip" && !isGeneratingMonthly && !isGeneratingNoComp ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Download className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card 
+                  className={cn(
+                    "cursor-pointer hover:bg-muted/50 transition-colors border-2 hover:border-orange-500/50",
+                    isAnyGenerating && "opacity-50 pointer-events-none"
+                  )}
+                  onClick={() => !isAnyGenerating && handleDownload("all-zip", undefined, false, false)}
+                >
+                  <CardContent className="flex flex-col items-center text-center gap-2 p-3">
+                    <div className="bg-slate-100 p-2 rounded-full text-slate-600">
+                      <FileArchive className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-[13px]">Individuais <span className="text-orange-600">sem compensação</span></h4>
+                      <p className="text-[9px] text-muted-foreground">Simplificado</p>
+                    </div>
+                    {isGenerating === "all-zip" && !isGeneratingMonthly && isGeneratingNoComp ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Download className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
 
@@ -199,28 +233,53 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
                 </CardContent>
               </Card>
 
-              <Card 
-                className={cn(
-                  "cursor-pointer hover:bg-muted/50 transition-colors border-2",
-                  (isMonthClosed && !isAnyGenerating) ? "hover:border-emerald-500/50" : "cursor-not-allowed opacity-50 pointer-events-none"
-                )}
-                onClick={() => isMonthClosed && !isAnyGenerating && handleDownload("all-zip", undefined, true)}
-              >
-                <CardContent className="flex items-center gap-4 p-3">
-                  <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
-                    <FileArchive className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-sm">Mensal Individuais (ZIP)</h4>
-                    <p className="text-[10px] text-muted-foreground">PDFs do mês separados por funcionário.</p>
-                  </div>
-                  {isGeneratingMonthly && isGenerating === "all-zip" ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : (
-                    <Download className="h-4 w-4 text-muted-foreground" />
+              <div className="grid grid-cols-2 gap-3">
+                <Card 
+                  className={cn(
+                    "cursor-pointer hover:bg-muted/50 transition-colors border-2",
+                    (isMonthClosed && !isAnyGenerating) ? "hover:border-emerald-500/50" : "cursor-not-allowed opacity-50 pointer-events-none"
                   )}
-                </CardContent>
-              </Card>
+                  onClick={() => isMonthClosed && !isAnyGenerating && handleDownload("all-zip", undefined, true)}
+                >
+                  <CardContent className="flex flex-col items-center text-center gap-2 p-3">
+                    <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
+                      <FileArchive className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-[13px]">Individuais (ZIP)</h4>
+                      <p className="text-[9px] text-muted-foreground">Padrão Mensal</p>
+                    </div>
+                    {isGeneratingMonthly && isGenerating === "all-zip" && !isGeneratingNoComp ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Download className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card 
+                  className={cn(
+                    "cursor-pointer hover:bg-muted/50 transition-colors border-2",
+                    (isMonthClosed && !isAnyGenerating) ? "hover:border-orange-500/50" : "cursor-not-allowed opacity-50 pointer-events-none"
+                  )}
+                  onClick={() => isMonthClosed && !isAnyGenerating && handleDownload("all-zip", undefined, true, false)}
+                >
+                  <CardContent className="flex flex-col items-center text-center gap-2 p-3">
+                    <div className="bg-slate-100 p-2 rounded-full text-slate-600">
+                      <FileArchive className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-[13px]">Individuais <span className="text-orange-600">sem compensação</span></h4>
+                      <p className="text-[9px] text-muted-foreground">Simplificado Mensal</p>
+                    </div>
+                    {isGeneratingMonthly && isGenerating === "all-zip" && isGeneratingNoComp ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Download className="h-3 w-3 text-muted-foreground" />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {!isMonthClosed && (

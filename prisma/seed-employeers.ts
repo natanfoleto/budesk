@@ -19,6 +19,9 @@ const rolesData = [
   { name: "Tratorista", salary: 1950.00 },
   { name: "Fiscal de Campo", salary: 1950.00 },
   { name: "Operador de Pa Carregadeira", salary: 1950.00 },
+  { name: "Gerente", salary: 0.00 },
+  { name: "Líder de tecnologia", salary: 0.00 },
+  { name: "Diretor", salary: 0.00 },
 ]
 
 const rawEmployees = [

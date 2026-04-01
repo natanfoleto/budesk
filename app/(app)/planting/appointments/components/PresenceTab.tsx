@@ -5,18 +5,15 @@ import { CircleSlash, CloudOff, Save, Scissors, Search, Sprout } from "lucide-re
 import React, { useEffect, useState } from "react"
 import { toast } from "sonner"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -100,7 +97,7 @@ export function PresenceTab({
   const [highlightedRow, setHighlightedRow] = useState<string | null>(null)
   const [selectedEmployeeForModal, setSelectedEmployeeForModal] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [showConfirmBulk, setShowConfirmBulk] = useState(false)
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
 
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees({ tagIds: selectedTagIds })
   const { data: attendanceRecords, isLoading: isLoadingAttendance } = useDailyWages({
@@ -234,11 +231,30 @@ export function PresenceTab({
     })
     .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
 
-  const handleMarkAllNotWorked = () => {
+  const handleMarkBulk = (type: "ALL" | "PLANTIO" | "CORTE" | "NONE" | "EMPTY") => {
     setIsEditing(true)
     const newState = { ...presence }
     sortedEmployees.forEach(emp => {
-      if (!emp.isTerminated && !emp.isClosed) {
+      if (emp.isTerminated || emp.isClosed) return
+
+      let shouldMark = false
+      if (type === "ALL") {
+        shouldMark = true
+      } else if (type === "PLANTIO") {
+        shouldMark = emp.plantingCategory === "PLANTIO"
+      } else if (type === "CORTE") {
+        shouldMark = emp.plantingCategory === "CORTE"
+      } else if (type === "NONE") {
+        shouldMark = !emp.plantingCategory
+      } else if (type === "EMPTY") {
+        const hasMeterage = (productions as PlantingProduction[])?.some(
+          (p) => p.employeeId === emp.employeeId && (p.meters || 0) > 0
+        )
+        const lockedByDiary = emp.valueInCents > 0 || emp.driverValueInCents > 0
+        shouldMark = !hasMeterage && !lockedByDiary && emp.presence === "PRESENCA"
+      }
+
+      if (shouldMark) {
         newState[emp.employeeId] = {
           ...newState[emp.employeeId],
           presence: "FOLGA" as AttendanceType
@@ -246,7 +262,7 @@ export function PresenceTab({
       }
     })
     setPresence(newState)
-    setShowConfirmBulk(false)
+    setIsBulkModalOpen(false)
   }
 
   if (seasonId === "all" || frontId === "all" || !date) {
@@ -271,12 +287,13 @@ export function PresenceTab({
           </div>
           <div className="flex gap-2">
             <Button 
-              onClick={() => setShowConfirmBulk(true)}
+              onClick={() => setIsBulkModalOpen(true)}
               disabled={isPeriodClosed}
               variant="outline"
+              className="gap-2"
             >
+              Marcar como Folga
               <CloudOff className="h-4 w-4" />
-              Marcar todos como Folga
             </Button>
             <Button 
               onClick={handleSave} 
@@ -537,21 +554,59 @@ export function PresenceTab({
         </CardContent>
       </Card>
 
-      <AlertDialog open={showConfirmBulk} onOpenChange={setShowConfirmBulk}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Ação em Massa</AlertDialogTitle>
-            <AlertDialogDescription>
-              Isso alterará o status de todos os funcionários visíveis na tabela para <strong>Folga</strong>. 
-              Você poderá ajustar individualmente após confirmar. Deseja continuar?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleMarkAllNotWorked}>Confirmar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Dialog open={isBulkModalOpen} onOpenChange={setIsBulkModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Marcar como Folga em Massa</DialogTitle>
+            <DialogDescription>
+              Escolha quais funcionários deseja marcar como <strong>Folga</strong>. 
+              Apenas funcionários ativos e em períodos abertos serão afetados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-4">
+            <Button 
+              variant="outline" 
+              className="justify-between gap-2 hover:bg-slate-100 transition-colors" 
+              onClick={() => handleMarkBulk("ALL")}
+            >
+              Marcar TODOS os visíveis
+              <div className="size-2 rounded-full bg-slate-400" />
+            </Button>
+            <Button 
+              variant="outline" 
+              className="justify-between gap-2 hover:bg-emerald-50 hover:text-emerald-700 transition-colors" 
+              onClick={() => handleMarkBulk("PLANTIO")}
+            >
+              Marcar apenas PLANTADORES
+              <Sprout className="size-4 text-emerald-600" />
+            </Button>
+            <Button 
+              variant="outline" 
+              className="justify-between gap-2 hover:bg-amber-50 hover:text-amber-700 transition-colors" 
+              onClick={() => handleMarkBulk("CORTE")}
+            >
+              Marcar apenas CORTADORES
+              <Scissors className="size-4 text-amber-600" />
+            </Button>
+            <Button 
+              variant="outline" 
+              className="justify-between gap-2 hover:bg-slate-50 transition-colors" 
+              onClick={() => handleMarkBulk("NONE")}
+            >
+              Marcar apenas SEM TIPO
+              <CircleSlash className="size-4 text-slate-500" />
+            </Button>
+            <Button 
+              variant="secondary" 
+              className="justify-between gap-2 border-dashed border-2 hover:bg-blue-50 hover:text-blue-700 transition-colors" 
+              onClick={() => handleMarkBulk("EMPTY")}
+            >
+              Marcar apenas SEM REGISTROS (Segurança)
+              <CloudOff className="size-4 text-blue-600" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <EmployeeDetailsModal
         employeeId={selectedEmployeeForModal}
         seasonId={seasonId}

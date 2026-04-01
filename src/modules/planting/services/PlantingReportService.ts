@@ -1,9 +1,10 @@
 import { format, getDay, getDaysInMonth } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import { jsPDF } from "jspdf"
 import autoTable, { RowInput } from "jspdf-autotable"
 
 import prisma from "@/lib/prisma"
-import { isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
+import { isBeforeAdmission, isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
 
 import { PlantingDashboardService } from "./PlantingDashboardService"
 
@@ -84,7 +85,13 @@ export class PlantingReportService {
     return date.toISOString().split("T")[0]
   }
 
-  static async generateIndividualReport(employeeId: string, seasonId: string, startDate: Date, endDate: Date) {
+  static async generateIndividualReport(
+    employeeId: string, 
+    seasonId: string, 
+    startDate: Date, 
+    endDate: Date,
+    options: { shouldCompensate?: boolean } = { shouldCompensate: true }
+  ) {
     const employee = (await prisma.employee.findUnique({
       where: { id: employeeId },
       include: {
@@ -125,13 +132,24 @@ export class PlantingReportService {
 
     // Employee Data
     doc.setFontSize(12)
+    const admissionDate = employee.employmentRecords?.[0]?.admissionDate
     const terminationDate = employee.employmentRecords?.[0]?.terminationDate
     doc.text(`Funcionário: ${employee.name}`, 14, 45)
     
+    let infoY = 50
+    if (admissionDate) {
+      doc.setFontSize(9)
+      doc.setTextColor(0, 100, 0) // Verde para admissão
+      doc.text(`Contrato iniciado em ${this.formatDateUTC(new Date(admissionDate))}`, 14, infoY)
+      infoY += 5
+      doc.setTextColor(0)
+    }
+
     if (terminationDate) {
       doc.setFontSize(9)
-      doc.setTextColor(150, 0, 0)
-      doc.text(`Contrato encerrado em ${this.formatDateUTC(new Date(terminationDate))}`, 14, 50)
+      doc.setTextColor(150, 0, 0) // Vermelho para encerramento
+      doc.text(`Contrato encerrado em ${this.formatDateUTC(new Date(terminationDate))}`, 14, infoY)
+      infoY += 5
       doc.setTextColor(0)
     }
     
@@ -143,7 +161,7 @@ export class PlantingReportService {
     employee.driverAllocations.forEach((a) => dates.add(this.getISODate(a.date)))
 
     const sortedDates = Array.from(dates)
-      .filter(dateStr => isEmployeeActiveAtDate(dateStr, terminationDate))
+      .filter(dateStr => isEmployeeActiveAtDate(dateStr, terminationDate) && !isBeforeAdmission(dateStr, admissionDate))
       .sort()
 
     // Salary calculation helpers
@@ -170,12 +188,21 @@ export class PlantingReportService {
     }).sort()
 
     const compensations: { falta: string, folga: string }[] = []
-    const maxCompensations = Math.min(allFaltas.length, allFolga.length)
-    for (let i = 0; i < maxCompensations; i++) {
-      compensations.push({
-        falta: allFaltas[i],
-        folga: allFolga[i]
+    
+    if (options.shouldCompensate !== false) {
+      // Regra: Apenas folgas que não sejam domingo compensam faltas.
+      const validFolgasForCompensations = allFolga.filter(dateStr => {
+        const date = new Date(dateStr + "T12:00:00")
+        return getDay(date) !== 0
       })
+
+      const maxCompensations = Math.min(allFaltas.length, validFolgasForCompensations.length)
+      for (let i = 0; i < maxCompensations; i++) {
+        compensations.push({
+          falta: allFaltas[i],
+          folga: validFolgasForCompensations[i]
+        })
+      }
     }
 
     // Daily production table
@@ -185,6 +212,8 @@ export class PlantingReportService {
     let totalCuttingMeters = 0
     let totalDailyWage = 0
     let totalAdvances = 0
+    let totalFolgaChuvaInCents = 0
+    let totalFolgaDomingoInCents = 0
     let totalBruto = 0
 
     sortedDates.forEach(dateStr => {
@@ -225,10 +254,22 @@ export class PlantingReportService {
             let label = isPresence ? "Diária" : "Folga"
             let valueToApply = w.valueInCents
 
-            if (w.presence === "FOLGA" && !isSunday) {
-              label = "Folga (Chuva)"
-              if (!isUsedFolga && valueToApply === 0) {
-                valueToApply = dailyRate
+            if (w.presence === "FOLGA") {
+              if (!isSunday) {
+                label = "Folga (Chuva)"
+                if (!isUsedFolga && valueToApply === 0) {
+                  // Se shouldCompensate for falso, não paga a folga de chuva (R$ 0,00)
+                  valueToApply = options.shouldCompensate !== false ? dailyRate : 0
+                }
+                totalFolgaChuvaInCents += valueToApply
+              } else {
+                label = "Folga (Domingo)"
+                if (valueToApply === 0) {
+                  // Domingos nunca são compensados (regra nova), logo isUsedFolga não se aplica aqui.
+                  // Se shouldCompensate for falso, não paga o domingo (R$ 0,00)
+                  valueToApply = options.shouldCompensate !== false ? dailyRate : 0
+                }
+                totalFolgaDomingoInCents += valueToApply
               }
             }
 
@@ -244,7 +285,9 @@ export class PlantingReportService {
           if (w.presence === "FALTA") {
             label = "Falta"
             if (!isCompensatedFalta) {
-              valueToApply = -dailyRate
+              // Se não for compensada e a compensação estiver ativa, desconta.
+              // Se a compensação estiver DESATIVADA (options.shouldCompensate === false), a falta não desconta (user request: "mostrar produção, diárias de chuva, domingos")
+              valueToApply = options.shouldCompensate !== false ? -dailyRate : 0
             }
           }
           else if (w.presence === "FALTA_JUSTIFICADA") label = "Falta Justificada"
@@ -285,15 +328,14 @@ export class PlantingReportService {
         }
       }
 
-      const isCalculatedExtra = services.includes("Folga (Chuva)") && dailyWageValue === dailyRate
       const isCalculatedDiscount = services.includes("Falta") && dailyWageValue === -dailyRate
 
       tableData.push([
-        format(date, "dd/MM/yyyy"),
+        `${format(date, "dd/MM/yyyy")} (${format(date, "EEEE", { locale: ptBR }).slice(0, 3).toLowerCase()})`,
         serviceCell,
         dailyPlanting > 0 ? `${dailyPlanting}m` : "-",
         dailyCutting > 0 ? `${dailyCutting}m` : "-",
-        (dailyWageValue !== 0 && !isCalculatedExtra && !isCalculatedDiscount) ? this.formatCurrency(dailyWageValue) : "-",
+        (dailyWageValue !== 0 && !isCalculatedDiscount) ? this.formatCurrency(dailyWageValue) : "-",
         dailyAdvanceValue > 0 ? this.formatCurrency(dailyAdvanceValue) : "-",
         this.formatCurrency(dailyTotal)
       ])
@@ -313,8 +355,12 @@ export class PlantingReportService {
       { content: this.formatCurrency(totalBruto), styles: { fontStyle: "bold", fillColor: [240, 240, 240] } }
     ])
 
+    let tableStartY = 55
+    if (admissionDate) tableStartY += 5
+    if (terminationDate) tableStartY += 5
+
     autoTable(doc, {
-      startY: terminationDate ? 60 : 55,
+      startY: tableStartY,
       head: [["Data", "Serviço", "Plantio", "Corte", "Diária", "Adiant.", "Total Dia"]],
       body: tableData as RowInput[],
       theme: "striped",
@@ -364,7 +410,7 @@ export class PlantingReportService {
       currentY = doc.lastAutoTable.finalY + 15
     }
 
-    // Summary Section (Labor Statistics)
+    // Resumo da Produção (RESTRINGIR AO PERÍODO ATUAL: sortedDates)
     const summaryNeeded = 40
     checkPageSpace(summaryNeeded)
 
@@ -374,10 +420,6 @@ export class PlantingReportService {
     doc.setFont("helvetica", "normal")
     doc.setFontSize(10)
 
-    const dailyPresenceCount = employee.dailyWages.filter(w => w.presence === "PRESENCA").length + 
-                             employee.driverAllocations.length +
-                             employee.plantingProductions.filter(p => p.presence === "PRESENCA" && p.totalValueInCents > 0).length
-    
     // Non-Sunday folgas
     const nonSundayFolgas = allFolga.filter(f => getDay(new Date(f + "T12:00:00")) !== 0)
     // Sunday / Regular rest days
@@ -410,7 +452,6 @@ export class PlantingReportService {
     // totalBruto already includes extraFolgaValue and faltaDiscountValue from the loop
 
     const summaryData = [
-      ["Quantidade de diárias", dailyPresenceCount],
       ["Folgas regulares / Domingos", regularFolgasCount],
       ["Dias de chuva", nonSundayFolgas.length],
       ["Faltas", allFaltas.length],
@@ -451,6 +492,12 @@ export class PlantingReportService {
     currentY += 8
     doc.setTextColor(0, 100, 0)
     doc.text(`Total Líquido: ${this.formatCurrency(totalBruto - totalAdvances)}`, 14, currentY)
+
+    // Detalhamento de Folgas (Fonte menor)
+    doc.setFontSize(8)
+    doc.setTextColor(100)
+    currentY += 6
+    doc.text(`Incluído no Bruto: ${this.formatCurrency(totalFolgaDomingoInCents)} de Domingos e ${this.formatCurrency(totalFolgaChuvaInCents)} de Dias de chuva.`, 14, currentY)
 
     // Reset color for other operations
     doc.setTextColor(0)
