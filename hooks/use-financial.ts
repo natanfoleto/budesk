@@ -13,6 +13,7 @@ import {
   getTransactions,
   updateAccountInstallment,
   updateAccountPayable,
+  updateInstallmentAttachment,
   updateTransaction,
 } from "@/lib/services/financial"
 import { AccountPayableInput, Transaction } from "@/types/financial"
@@ -153,5 +154,18 @@ export const useDeleteInstallmentAttachment = () => {
       toast.success("Anexo removido!")
     },
     onError: () => toast.error("Erro ao remover anexo"),
+  })
+}
+
+export const useUpdateInstallmentAttachment = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ installmentId, attachmentId, type }: { installmentId: string; attachmentId: string; type: string }) => 
+      updateInstallmentAttachment(installmentId, attachmentId, type),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payables"] })
+      toast.success("Anexo atualizado!")
+    },
+    onError: () => toast.error("Erro ao atualizar anexo"),
   })
 }

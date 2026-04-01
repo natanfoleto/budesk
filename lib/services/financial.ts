@@ -96,3 +96,10 @@ export const deleteInstallmentAttachment = async (installmentId: string, attachm
     method: "DELETE",
   })
 }
+
+export const updateInstallmentAttachment = async (installmentId: string, attachmentId: string, type: string) => {
+  return apiRequest(`${BASE_URL}/accounts-payable/installments/${installmentId}/attachments/${attachmentId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ type }),
+  })
+}

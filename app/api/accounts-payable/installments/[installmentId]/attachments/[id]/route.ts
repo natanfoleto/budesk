@@ -47,3 +47,41 @@ export async function DELETE(
     return NextResponse.json({ error: "Erro ao excluir anexo" }, { status: 500 })
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ installmentId: string; id: string }> }
+) {
+  const { id } = await params
+  const { type } = await request.json()
+  const userId = request.headers.get("x-user-id")
+
+  try {
+    const oldAttachment = await prisma.accountInstallmentAttachment.findUnique({
+      where: { id },
+    })
+
+    if (!oldAttachment) {
+      return NextResponse.json({ error: "Anexo não encontrado" }, { status: 404 })
+    }
+
+    const attachment = await prisma.accountInstallmentAttachment.update({
+      where: { id },
+      data: { type },
+    })
+
+    await AuditService.logAction(
+      prisma, 
+      "UPDATE", 
+      "AccountInstallmentAttachment", 
+      id, 
+      { from: oldAttachment.type, to: type }, 
+      userId || null
+    )
+
+    return NextResponse.json(attachment)
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json({ error: "Erro ao atualizar anexo" }, { status: 500 })
+  }
+}

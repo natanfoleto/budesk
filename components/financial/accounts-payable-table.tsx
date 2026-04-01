@@ -1,5 +1,5 @@
 import { AttachmentType, ExpenseCategory, PaymentMethod } from "@prisma/client"
-import { ChevronDown, ChevronUp, MoreHorizontal, Plus } from "lucide-react"
+import { ChevronDown, ChevronUp, FileText, MoreHorizontal, Plus } from "lucide-react"
 import React, { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { 
   Dialog, 
   DialogContent, 
+  DialogDescription,
   DialogHeader, 
   DialogTitle, 
   DialogTrigger 
@@ -18,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { FileUploader } from "@/components/ui/file-uploader"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -36,7 +38,8 @@ import {
 import { 
   useAddInstallmentAttachment, 
   useDeleteInstallmentAttachment, 
-  useUpdateAccountInstallment 
+  useUpdateAccountInstallment,
+  useUpdateInstallmentAttachment
 } from "@/hooks/use-financial"
 import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from "@/lib/constants"
 import { formatCentsToReal, formatDate } from "@/lib/utils"
@@ -56,6 +59,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
   const updateInstallment = useUpdateAccountInstallment()
   const addAttachment = useAddInstallmentAttachment()
   const deleteAttachment = useDeleteInstallmentAttachment()
+  const updateAttachment = useUpdateInstallmentAttachment()
 
   const toggleRow = (id: string) => {
     setExpandedRows(prev => 
@@ -204,27 +208,70 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                                 {att.type === "BOLETO" ? "Boleto" : att.type === "FATURA" ? "Fatura" : att.type === "COMPROVANTE" ? "Comprovante" : att.type}
                                               </Badge>
                                             </DialogTrigger>
-                                            <DialogContent className="sm:max-w-[300px]">
-                                              <DialogHeader>
-                                                <DialogTitle>Anexo: {att.type}</DialogTitle>
-                                              </DialogHeader>
-                                              <div className="flex flex-col gap-2 mt-4">
-                                                <Button variant="outline" asChild className="w-full">
-                                                  <a href={att.fileUrl} target="_blank" rel="noopener noreferrer">
-                                                    Visualizar
-                                                  </a>
-                                                </Button>
-                                                <Button 
-                                                  variant="destructive" 
-                                                  className="w-full"
-                                                  onClick={() => {
-                                                    if (confirm("Remover este anexo?")) {
-                                                      deleteAttachment.mutate({ installmentId: inst.id, attachmentId: att.id })
-                                                    }
-                                                  }}
-                                                >
-                                                  Excluir
-                                                </Button>
+                                            <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden border-none shadow-2xl">
+                                              <div className="bg-primary/5 p-6 pb-4 border-b border-primary/10">
+                                                <div className="flex items-center gap-3">
+                                                  <div className="p-3 bg-primary/10 rounded-xl text-primary">
+                                                    <FileText className="size-6" />
+                                                  </div>
+                                                  <div>
+                                                    <DialogTitle className="font-semibold text-lg leading-none">Visualizar Anexo</DialogTitle>
+                                                    <DialogDescription className="text-sm text-muted-foreground mt-1">Gerencie os detalhes do seu documento</DialogDescription>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              
+                                              <div className="p-6 space-y-6">
+                                                <div className="space-y-2">
+                                                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipo do Documento</Label>
+                                                  <Select 
+                                                    value={att.type} 
+                                                    onValueChange={(val) => {
+                                                      updateAttachment.mutate({ 
+                                                        installmentId: inst.id, 
+                                                        attachmentId: att.id, 
+                                                        type: val 
+                                                      })
+                                                    }}
+                                                  >
+                                                    <SelectTrigger className="w-full bg-background border-muted-foreground/20">
+                                                      <SelectValue placeholder="Selecione o tipo" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      <SelectItem value="BOLETO">Boleto</SelectItem>
+                                                      <SelectItem value="FATURA">Fatura</SelectItem>
+                                                      <SelectItem value="COMPROVANTE">Comprovante de Pagamento</SelectItem>
+                                                      <SelectItem value="NOTA_FISCAL">Nota Fiscal</SelectItem>
+                                                      <SelectItem value="CONTRATO">Contrato</SelectItem>
+                                                      <SelectItem value="OUTROS">Outros</SelectItem>
+                                                    </SelectContent>
+                                                  </Select>
+                                                </div>
+
+                                                <div className="flex flex-col gap-3 pt-2">
+                                                  <Button variant="default" asChild className="w-full h-11 justify-between group">
+                                                    <a href={att.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                      <span className="flex items-center gap-2">
+                                                        Ver Documento Completo
+                                                      </span>
+                                                      <ChevronDown className="size-4 -rotate-90 opacity-75 group-hover:opacity-100 transition-opacity" />
+                                                    </a>
+                                                  </Button>
+                                                  <Button 
+                                                    variant="destructive" 
+                                                    className="w-full flex justify-between h-11 gap-2"
+                                                    onClick={() => {
+                                                      if (confirm("Remover este anexo?")) {
+                                                        deleteAttachment.mutate({ installmentId: inst.id, attachmentId: att.id })
+                                                      }
+                                                    }}
+                                                  >
+                                                    <span className="flex items-center gap-2">
+                                                      Excluir Anexo Permanente
+                                                    </span>
+                                                    <ChevronDown className="size-4 -rotate-90 opacity-75 group-hover:opacity-100 transition-opacity" />
+                                                  </Button>
+                                                </div>
                                               </div>
                                             </DialogContent>
                                           </Dialog>
@@ -238,10 +285,10 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                             <Button 
                                               variant="outline" 
                                               size="icon" 
-                                              className="h-7 w-7 rounded-full border-dashed"
+                                              className="size-6 rounded-full border-dashed"
                                               onClick={() => setUploadingForInstallment(inst.id)}
                                             >
-                                              <Plus className="h-3.5 w-3.5" />
+                                              <Plus className="size-3.5" />
                                             </Button>
                                           </DialogTrigger>
                                           <DialogContent className="sm:max-w-md">
