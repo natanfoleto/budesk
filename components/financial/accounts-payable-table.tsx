@@ -201,7 +201,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                                 variant="outline" 
                                                 className="cursor-pointer hover:bg-accent uppercase text-[10px] h-6"
                                               >
-                                                {att.type === "BOLETO" ? "Boleto" : att.type === "COMPROVANTE" ? "Comprovante" : att.type}
+                                                {att.type === "BOLETO" ? "Boleto" : att.type === "FATURA" ? "Fatura" : att.type === "COMPROVANTE" ? "Comprovante" : att.type}
                                               </Badge>
                                             </DialogTrigger>
                                             <DialogContent className="sm:max-w-[300px]">
@@ -259,7 +259,8 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                                     <SelectValue placeholder="Selecione o tipo" />
                                                   </SelectTrigger>
                                                   <SelectContent>
-                                                    <SelectItem value="BOLETO">Boleto / Nota</SelectItem>
+                                                    <SelectItem value="BOLETO">Boleto</SelectItem>
+                                                    <SelectItem value="FATURA">Fatura</SelectItem>
                                                     <SelectItem value="COMPROVANTE">Comprovante de Pagamento</SelectItem>
                                                     <SelectItem value="NOTA_FISCAL">Nota Fiscal</SelectItem>
                                                     <SelectItem value="CONTRATO">Contrato</SelectItem>

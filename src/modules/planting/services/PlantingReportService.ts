@@ -408,16 +408,14 @@ export class PlantingReportService {
       }
     })
 
-    // Final unjustified absences after pairing
-    const extraFolgasCount = Math.max(0, nonSundayFolgas.length - compensations.length)
-
     // totalBruto already includes extraFolgaValue and faltaDiscountValue from the loop
 
     const summaryData = [
       ["Quantidade de diárias", dailyPresenceCount],
-      ["Domingos / Folgas Regulares", regularFolgasCount],
-      ["Dias de chuva", `${nonSundayFolgas.length} (${extraFolgasCount} pagos)`],
-      ["Quantidade de faltas", `${allFaltas.length} (${compensations.length} compensadas)`],
+      ["Folgas regulares / Domingos", regularFolgasCount],
+      ["Dias de chuva", nonSundayFolgas.length],
+      ["Faltas", allFaltas.length],
+      ["Faltas compensadas", compensations.length],
       ["Faltas justificadas", justifiedAbsenceCount],
       ["Atestados médicos", atestadoCount],
       ["Total de dias trabalhados", workedDaysCount],
@@ -460,7 +458,7 @@ export class PlantingReportService {
 
     // CLT Disclaimer
     const disclaimerHeight = 20
-    checkPageSpace(disclaimerHeight + 10)
+    checkPageSpace(disclaimerHeight + 25)
     currentY += 15
 
     doc.setFontSize(8)
@@ -468,6 +466,14 @@ export class PlantingReportService {
     doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, currentY)
     doc.text("Os dias de chuva não trabalhados são utilizados para compensar faltas não justificadas.", 14, currentY + 5)
     doc.text("Os dias de chuva não trabalhados que não foram compensados por faltas, serão pagos proporcionalmente ao salário registrado em carteira.", 14, currentY + 10)
+
+    // Company Footer
+    currentY += 20
+    doc.setFont("helvetica", "bold")
+    doc.text("BUDUCA EMPREITEIRA LTDA", 14, currentY)
+    doc.setFont("helvetica", "normal")
+    doc.text("CNPJ: 49.197.058/0001-66", 14, currentY + 4)
+    doc.text("R LIBERDADE, 704 - Centro - Jaborandi, SP", 14, currentY + 8)
 
     return doc.output("arraybuffer")
   }

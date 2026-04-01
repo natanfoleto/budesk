@@ -34,6 +34,7 @@ interface ReportModalProps {
 export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isMonthClosed, monthStr }: ReportModalProps) {
   const [isGenerating, setIsGenerating] = useState<string | null>(null)
   const [isGeneratingMonthly, setIsGeneratingMonthly] = useState(false)
+  const isAnyGenerating = !!isGenerating || isGeneratingMonthly
 
   const handleDownload = async (type: "individual" | "consolidated" | "all-zip", employeeId?: string, isMonthly?: boolean) => {
     setIsGenerating(type)
@@ -117,8 +118,11 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Relatório Quinzenal</h4>
             <div className="grid gap-3">
               <Card 
-                className="cursor-pointer hover:bg-muted/50 transition-colors border-2 hover:border-primary/50"
-                onClick={() => !isGenerating && handleDownload("consolidated")}
+                className={cn(
+                  "cursor-pointer hover:bg-muted/50 transition-colors border-2 hover:border-primary/50",
+                  isAnyGenerating && "opacity-50 pointer-events-none"
+                )}
+                onClick={() => !isAnyGenerating && handleDownload("consolidated")}
               >
                 <CardContent className="flex items-center gap-4 p-3">
                   <div className="bg-primary/10 p-2 rounded-full text-primary">
@@ -137,8 +141,11 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
               </Card>
 
               <Card 
-                className="cursor-pointer hover:bg-muted/50 transition-colors border-2 hover:border-primary/50"
-                onClick={() => !isGenerating && handleDownload("all-zip")}
+                className={cn(
+                  "cursor-pointer hover:bg-muted/50 transition-colors border-2 hover:border-primary/50",
+                  isAnyGenerating && "opacity-50 pointer-events-none"
+                )}
+                onClick={() => !isAnyGenerating && handleDownload("all-zip")}
               >
                 <CardContent className="flex items-center gap-4 p-3">
                   <div className="bg-amber-100 p-2 rounded-full text-amber-600">
@@ -172,9 +179,9 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
               <Card 
                 className={cn(
                   "cursor-pointer hover:bg-muted/50 transition-colors border-2",
-                  isMonthClosed ? "hover:border-emerald-500/50" : "cursor-not-allowed opacity-50"
+                  (isMonthClosed && !isAnyGenerating) ? "hover:border-emerald-500/50" : "cursor-not-allowed opacity-50 pointer-events-none"
                 )}
-                onClick={() => isMonthClosed && !isGeneratingMonthly && handleDownload("consolidated", undefined, true)}
+                onClick={() => isMonthClosed && !isAnyGenerating && handleDownload("consolidated", undefined, true)}
               >
                 <CardContent className="flex items-center gap-4 p-3">
                   <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
@@ -195,9 +202,9 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
               <Card 
                 className={cn(
                   "cursor-pointer hover:bg-muted/50 transition-colors border-2",
-                  isMonthClosed ? "hover:border-emerald-500/50" : "cursor-not-allowed opacity-50"
+                  (isMonthClosed && !isAnyGenerating) ? "hover:border-emerald-500/50" : "cursor-not-allowed opacity-50 pointer-events-none"
                 )}
-                onClick={() => isMonthClosed && !isGeneratingMonthly && handleDownload("all-zip", undefined, true)}
+                onClick={() => isMonthClosed && !isAnyGenerating && handleDownload("all-zip", undefined, true)}
               >
                 <CardContent className="flex items-center gap-4 p-3">
                   <div className="bg-emerald-100 p-2 rounded-full text-emerald-600">
@@ -229,7 +236,7 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isAnyGenerating}>
             Fechar
           </Button>
         </DialogFooter>

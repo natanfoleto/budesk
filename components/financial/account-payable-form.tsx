@@ -296,7 +296,7 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Boleto / Nota</FormLabel>
+                    <FormLabel>Boleto</FormLabel>
                     <FormControl>
                       <FileUploader 
                         value={field.value} 

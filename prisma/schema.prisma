@@ -173,6 +173,7 @@ enum SupplierAccountType {
 
 enum AttachmentType {
   BOLETO
+  FATURA
   COMPROVANTE
   NOTA_FISCAL
   CONTRATO
