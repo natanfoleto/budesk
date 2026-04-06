@@ -11,8 +11,10 @@ import {
   Clock,
   Copy,
   DollarSign, 
+  FileText,
   Info,
   Landmark,
+  Loader2,
   QrCode,
   TrendingUp, 
   XCircle
@@ -33,6 +35,7 @@ import {
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
   Dialog, 
@@ -79,6 +82,7 @@ export function EmployeeDetailsModal({
   const [filterType, setFilterType] = useState<FilterType>("GERAL")
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
 
   const calculateDateRange = useCallback((type: FilterType) => {
     const now = new Date()
@@ -170,6 +174,51 @@ export function EmployeeDetailsModal({
     })
   }
 
+  const handleDownloadReport = async () => {
+    if (!employeeId || !seasonId) return
+    
+    // Check if dates are selected
+    if (!startDate || !endDate) {
+      toast.error("Selecione um período (Quinzena, Mês ou Personalizado) para gerar o relatório.")
+      return
+    }
+
+    setIsGeneratingReport(true)
+    try {
+      const params = new URLSearchParams({
+        type: "individual",
+        employeeId,
+        seasonId,
+        startDate,
+        endDate
+      })
+
+      const response = await fetch(`/api/planting/reports?${params.toString()}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Erro ao gerar relatório")
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `relatorio_individual_${data?.employee.name.replace(/\s+/g, "_")}_${startDate}_${endDate}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
+      toast.success("Relatório gerado com sucesso!")
+    } catch (error: unknown) {
+      console.error(error)
+      const message = error instanceof Error ? error.message : "Erro ao baixar relatório"
+      toast.error(message)
+    } finally {
+      setIsGeneratingReport(false)
+    }
+  }
+
   if (!open) return null
 
   return (
@@ -205,6 +254,21 @@ export function EmployeeDetailsModal({
                     <SelectItem value="CUSTOM">Personalizado</SelectItem>
                   </SelectContent>
                 </Select>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3 gap-2 bg-background border-primary/20 hover:bg-primary/5 text-primary"
+                  onClick={handleDownloadReport}
+                  disabled={isGeneratingReport || loading || !data}
+                >
+                  {isGeneratingReport ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="size-3.5" />
+                  )}
+                  <span className="hidden sm:inline">Baixar PDF</span>
+                </Button>
               </div>
 
               {filterType === "CUSTOM" && (

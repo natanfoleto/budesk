@@ -90,7 +90,7 @@ export class PlantingReportService {
     seasonId: string, 
     startDate: Date, 
     endDate: Date,
-    options: { shouldCompensate?: boolean } = { shouldCompensate: true }
+    options: { shouldCompensate?: boolean } = { shouldCompensate: false }
   ) {
     const employee = (await prisma.employee.findUnique({
       where: { id: employeeId },
@@ -381,7 +381,7 @@ export class PlantingReportService {
     }
 
     // Traceability Section: Compensação de Faltas
-    if (compensations.length > 0) {
+    if (options.shouldCompensate !== false && compensations.length > 0) {
       const needed = 25 + (compensations.length * 7)
       checkPageSpace(needed)
 
@@ -455,11 +455,14 @@ export class PlantingReportService {
       ["Folgas regulares / Domingos", regularFolgasCount],
       ["Dias de chuva", nonSundayFolgas.length],
       ["Faltas", allFaltas.length],
-      ["Faltas compensadas", compensations.length],
       ["Faltas justificadas", justifiedAbsenceCount],
       ["Atestados médicos", atestadoCount],
       ["Total de dias trabalhados", workedDaysCount],
     ]
+
+    if (options.shouldCompensate !== false) {
+      summaryData.splice(3, 0, ["Faltas compensadas", compensations.length])
+    }
 
     autoTable(doc, {
       startY: currentY + 5,
@@ -494,10 +497,12 @@ export class PlantingReportService {
     doc.text(`Total Líquido: ${this.formatCurrency(totalBruto - totalAdvances)}`, 14, currentY)
 
     // Detalhamento de Folgas (Fonte menor)
-    doc.setFontSize(8)
-    doc.setTextColor(100)
-    currentY += 6
-    doc.text(`Incluído no Bruto: ${this.formatCurrency(totalFolgaDomingoInCents)} de Domingos e ${this.formatCurrency(totalFolgaChuvaInCents)} de Dias de chuva.`, 14, currentY)
+    if (totalFolgaDomingoInCents > 0 || totalFolgaChuvaInCents > 0) {
+      doc.setFontSize(8)
+      doc.setTextColor(100)
+      currentY += 6
+      doc.text(`Incluído no Bruto: ${this.formatCurrency(totalFolgaDomingoInCents)} de Domingos e ${this.formatCurrency(totalFolgaChuvaInCents)} de Dias de chuva.`, 14, currentY)
+    }
 
     // Reset color for other operations
     doc.setTextColor(0)
@@ -510,8 +515,11 @@ export class PlantingReportService {
     doc.setFontSize(8)
     doc.setTextColor(100)
     doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, currentY)
-    doc.text("Os dias de chuva não trabalhados são utilizados para compensar faltas não justificadas.", 14, currentY + 5)
-    doc.text("Os dias de chuva não trabalhados que não foram compensados por faltas, serão pagos proporcionalmente ao salário registrado em carteira.", 14, currentY + 10)
+    
+    if (options.shouldCompensate !== false) {
+      doc.text("Os dias de chuva não trabalhados são utilizados para compensar faltas não justificadas.", 14, currentY + 5)
+      doc.text("Os dias de chuva não trabalhados que não foram compensados por faltas, serão pagos proporcionalmente ao salário registrado em carteira.", 14, currentY + 10)
+    }
 
     // Company Footer
     currentY += 20
@@ -524,7 +532,7 @@ export class PlantingReportService {
     return doc.output("arraybuffer")
   }
 
-  static async generateConsolidatedReport(seasonId: string, startDate: Date, endDate: Date, isMonthly?: boolean) {
+  static async generateConsolidatedReport(seasonId: string, startDate: Date, endDate: Date, isMonthly?: boolean, shouldCompensate: boolean = false) {
     const employees = (await prisma.employee.findMany({
       include: {
         employmentRecords: {
@@ -624,16 +632,21 @@ export class PlantingReportService {
         const folgaCount = allFolgaDates.length
         const nonSundayFolgaCount = allFolgaDates.filter(f => getDay(new Date(f + "T12:00:00")) !== 0).length
         
-        const compensatedFaltas = Math.min(faltas, folgaCount)
-        const finalFaltas = faltas - compensatedFaltas
-        const extraFolgasCount = Math.max(0, nonSundayFolgaCount - compensatedFaltas)
+        let compensatedFaltas = 0
+        let finalFaltas = faltas
 
         // Apply financial adjustments
-        const extraFolgaValue = extraFolgasCount * dailyRate
-        const faltaDiscountValue = finalFaltas * dailyRate
-        
-        bruto += extraFolgaValue - faltaDiscountValue
-        diarias += extraFolgaValue - faltaDiscountValue
+        if (shouldCompensate) {
+          compensatedFaltas = Math.min(faltas, folgaCount)
+          finalFaltas = faltas - compensatedFaltas
+          const extraFolgasCount = Math.max(0, nonSundayFolgaCount - compensatedFaltas)
+
+          const extraFolgaValue = extraFolgasCount * dailyRate
+          const faltaDiscountValue = finalFaltas * dailyRate
+          
+          bruto += extraFolgaValue - faltaDiscountValue
+          diarias += extraFolgaValue - faltaDiscountValue
+        }
         const liquido = bruto - adiantado
 
         const sundaysCount = folgaCount - nonSundayFolgaCount
@@ -685,7 +698,9 @@ export class PlantingReportService {
     doc.setFontSize(8)
     doc.setTextColor(100)
     doc.text("O total líquido apresentado poderá sofrer descontos trabalhistas conforme a CLT.", 14, finalY + 15)
-    doc.text("Os dias de chuva não trabalhados são utilizados para compensar faltas não justificadas.", 14, finalY + 20)
+    if (shouldCompensate) {
+      doc.text("Os dias de chuva não trabalhados são utilizados para compensar faltas não justificadas.", 14, finalY + 20)
+    }
 
     return doc.output("arraybuffer")
   }

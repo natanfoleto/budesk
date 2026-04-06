@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const seasonId = searchParams.get("seasonId")
     const startDateStr = searchParams.get("startDate")
     const endDateStr = searchParams.get("endDate")
-    const shouldCompensate = searchParams.get("shouldCompensate") !== "false"
+    const shouldCompensate = searchParams.get("shouldCompensate") === "true"
 
     if (!seasonId || !startDateStr || !endDateStr) {
       return NextResponse.json({ error: "seasonId, startDate and endDate are required" }, { status: 400 })
