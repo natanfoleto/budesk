@@ -6,7 +6,813 @@ datasource db {
   provider = "postgresql"
 }
 
-// ENUMS
+model User {
+  id                    String                 @id @default(cuid())
+  name                  String                 @db.VarChar(255)
+  email                 String                 @unique
+  password              String
+  role                  UserRole
+  active                Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  accountsPayable       AccountPayable[]
+  auditLogs             AuditLog[]
+  financialTransactions FinancialTransaction[]
+  loginLogs             LoginLog[]
+  services              Service[]
+
+  @@map("users")
+}
+
+model CostCenter {
+  id                    String                 @id @default(cuid())
+  name                  String
+  description           String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  accountsPayable       AccountPayable[]
+  financialTransactions FinancialTransaction[]
+  maintenances          Maintenance[]
+  rhPayments            RHPayment[]
+  vehicleUsages         VehicleUsage[]
+
+  @@map("cost_centers")
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String?
+  action    AuditAction
+  entity    String
+  entityId  String?
+  oldData   Json?
+  newData   Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime    @default(now())
+  user      User?       @relation(fields: [userId], references: [id])
+
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String
+  success   Boolean
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([email])
+  @@index([createdAt])
+  @@map("login_logs")
+}
+
+model Client {
+  id        String     @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  createdAt DateTime   @default(now())
+  address   String?
+  document  String?
+  documents Document[]
+  services  Service[]
+
+  @@map("clients")
+}
+
+model Supplier {
+  id                    String                 @id @default(cuid())
+  name                  String
+  phone                 String?
+  email                 String?
+  createdAt             DateTime               @default(now())
+  category              String?
+  document              String?                @unique
+  account               String?
+  accountType           SupplierAccountType?
+  active                Boolean                @default(true)
+  bank                  String?
+  branch                String?
+  city                  String?
+  complement            String?
+  contactName           String?
+  mobile                String?
+  municipalRegistration String?
+  neighborhood          String?
+  notes                 String?
+  number                String?
+  personType            PersonType             @default(LEGAL)
+  pixKey                String?
+  state                 String?
+  stateRegistration     String?
+  street                String?
+  tradeName             String?
+  updatedAt             DateTime               @updatedAt
+  zipCode               String?
+  accounts              AccountPayable[]
+  transactions          FinancialTransaction[]
+  maintenances          Maintenance[]
+  plantingExpenses      PlantingExpense[]
+
+  @@map("suppliers")
+}
+
+model Employee {
+  id                  String                  @id @default(cuid())
+  name                String
+  role                String?
+  active              Boolean                 @default(true)
+  createdAt           DateTime                @default(now())
+  birthDate           DateTime?
+  document            String?                 @unique
+  email               String?
+  gender              String?
+  pantsSize           String?
+  phone               String?
+  rg                  String?
+  salaryInCents       Int?                    @map("salary_in_cents")
+  shirtSize           ShirtSize?
+  shoeSize            String?
+  updatedAt           DateTime                @updatedAt
+  plantingCategory    String?                 @map("planting_category")
+  jobId               String?                 @map("job_id")
+  attendanceRecords   AttendanceRecord[]
+  dailyWages          DailyWage[]
+  driverAllocations   DriverAllocation[]
+  accounts            EmployeeAccount[]
+  advances            EmployeeAdvance[]
+  contracts           EmployeeContract[]
+  tags                EmployeeTagOnEmployee[]
+  job                 Job?                    @relation(fields: [jobId], references: [id])
+  employmentRecords   EmploymentRecord[]
+  transactions        FinancialTransaction[]
+  plantingAdvances    PlantingAdvance[]
+  plantingProductions PlantingProduction[]
+  rhPayments          RHPayment[]
+  salaryHistories     SalaryHistory[]
+  thirteenthSalaries  ThirteenthSalary[]
+  timeBank            TimeBank?
+  vacations           Vacation[]
+
+  @@map("employees")
+}
+
+model Job {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  employees   Employee[]
+
+  @@map("jobs")
+}
+
+model EmployeeAdvance {
+  id               String                @id @default(cuid())
+  employeeId       String
+  amountInCents    Int                   @map("amount_in_cents")
+  date             DateTime
+  note             String?
+  payrollReference String?
+  transactionId    String?               @unique
+  employee         Employee              @relation(fields: [employeeId], references: [id])
+  transaction      FinancialTransaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([employeeId])
+  @@map("employee_advances")
+}
+
+model EmploymentRecord {
+  id                    String    @id @default(cuid())
+  employeeId            String
+  admissionDate         DateTime
+  terminationDate       DateTime?
+  jobTitle              String
+  baseSalaryInCents     Int       @map("base_salary_in_cents")
+  contractType          String
+  weeklyWorkload        Int?
+  workRegime            String?
+  isActive              Boolean   @default(true)
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  hasMedicalExam        Boolean   @default(false)
+  hasSignedEpiReceipt   Boolean   @default(false)
+  hasSignedRegistration Boolean   @default(false)
+  employee              Employee  @relation(fields: [employeeId], references: [id])
+
+  @@map("employment_records")
+}
+
+model EmployeeContract {
+  id           String         @id @default(cuid())
+  employeeId   String
+  type         String
+  startDate    DateTime
+  endDate      DateTime?
+  status       ContractStatus @default(ACTIVE)
+  description  String?
+  fileUrl      String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  valueInCents Int            @map("value_in_cents")
+  employee     Employee       @relation(fields: [employeeId], references: [id])
+
+  @@map("employee_contracts")
+}
+
+model Service {
+  id           String                 @id @default(cuid())
+  title        String
+  description  String?
+  status       ServiceStatus
+  startDate    DateTime
+  endDate      DateTime?
+  clientId     String?
+  createdById  String
+  createdAt    DateTime               @default(now())
+  documents    Document[]
+  transactions FinancialTransaction[]
+  allocations  ProjectAllocation[]
+  client       Client?                @relation(fields: [clientId], references: [id])
+  createdBy    User                   @relation(fields: [createdById], references: [id])
+  vehicleUsage VehicleUsage[]
+
+  @@index([status])
+  @@index([startDate])
+  @@map("services")
+}
+
+model FinancialTransaction {
+  id              String              @id @default(cuid())
+  description     String
+  type            TransactionType
+  category        ExpenseCategory
+  paymentMethod   PaymentMethod
+  date            DateTime
+  serviceId       String?
+  employeeId      String?
+  supplierId      String?
+  createdAt       DateTime            @default(now())
+  valueInCents    Int                 @map("value_in_cents")
+  maintenanceId   String?             @unique
+  rhPaymentId     String?             @unique
+  costCenterId    String?
+  attachmentUrl   String?             @map("attachment_url")
+  conciled        Boolean             @default(false)
+  userId          String?             @map("user_id")
+  installment     AccountInstallment?
+  advance         EmployeeAdvance?
+  costCenter      CostCenter?         @relation(fields: [costCenterId], references: [id])
+  employee        Employee?           @relation(fields: [employeeId], references: [id])
+  maintenance     Maintenance?        @relation(fields: [maintenanceId], references: [id])
+  rhPayment       RHPayment?          @relation(fields: [rhPaymentId], references: [id])
+  service         Service?            @relation(fields: [serviceId], references: [id])
+  supplier        Supplier?           @relation(fields: [supplierId], references: [id])
+  user            User?               @relation(fields: [userId], references: [id])
+  plantingExpense PlantingExpense?
+
+  @@index([type])
+  @@index([date])
+  @@index([category])
+  @@index([supplierId])
+  @@map("financial_transactions")
+}
+
+model AccountPayable {
+  id                String               @id @default(cuid())
+  description       String
+  supplierId        String?
+  createdAt         DateTime             @default(now())
+  costCenterId      String?
+  installmentsCount Int                  @default(1) @map("installments_count")
+  paymentMethod     PaymentMethod        @default(BOLETO) @map("payment_method")
+  totalValueInCents Int                  @map("total_value_in_cents")
+  updatedAt         DateTime             @updatedAt
+  attachmentUrl     String?              @map("attachment_url")
+  category          ExpenseCategory      @default(OUTROS)
+  userId            String?              @map("user_id")
+  invoiceUrl        String?              @map("invoice_url")
+  installments      AccountInstallment[]
+  costCenter        CostCenter?          @relation(fields: [costCenterId], references: [id])
+  supplier          Supplier?            @relation(fields: [supplierId], references: [id])
+  user              User?                @relation(fields: [userId], references: [id])
+
+  @@index([supplierId])
+  @@map("accounts_payable")
+}
+
+model AccountInstallment {
+  id                String                         @id @default(cuid())
+  accountPayableId  String                         @map("account_payable_id")
+  installmentNumber Int                            @map("installment_number")
+  valueInCents      Int                            @map("value_in_cents")
+  dueDate           DateTime                       @map("due_date")
+  status            AccountStatus                  @default(PENDENTE)
+  paymentDate       DateTime?                      @map("payment_date")
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
+  transactionId     String?                        @unique @map("transaction_id")
+  attachments       AccountInstallmentAttachment[]
+  account           AccountPayable                 @relation(fields: [accountPayableId], references: [id], onDelete: Cascade)
+  transaction       FinancialTransaction?          @relation(fields: [transactionId], references: [id])
+
+  @@index([accountPayableId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("account_installments")
+}
+
+model AccountInstallmentAttachment {
+  id            String             @id @default(cuid())
+  installmentId String             @map("installment_id")
+  type          AttachmentType
+  fileName      String             @map("file_name")
+  fileUrl       String             @map("file_url")
+  createdAt     DateTime           @default(now())
+  installment   AccountInstallment @relation(fields: [installmentId], references: [id], onDelete: Cascade)
+
+  @@map("account_installment_attachments")
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  name        String
+  category    String?
+  fileUrl     String
+  serviceId   String?
+  createdAt   DateTime @default(now())
+  clientId    String?
+  description String?
+  vehicleId   String?
+  client      Client?  @relation(fields: [clientId], references: [id])
+  service     Service? @relation(fields: [serviceId], references: [id])
+  vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
+
+  @@index([category])
+  @@map("documents")
+}
+
+model Vehicle {
+  id                String             @id @default(cuid())
+  plate             String             @unique
+  description       String?
+  type              VehicleType
+  active            Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  brand             String?
+  model             String?
+  year              Int?
+  documentUrl       String?            @map("document_url")
+  color             String?            @map("color")
+  nickname          String?
+  ownerName         String?
+  ownership         VehicleOwnership   @default(EMPRESA)
+  documents         Document[]
+  driverAllocations DriverAllocation[]
+  maintenances      Maintenance[]
+  plantingExpenses  PlantingExpense[]
+  usages            VehicleUsage[]
+
+  @@map("vehicles")
+}
+
+model VehicleUsage {
+  id           String      @id @default(cuid())
+  vehicleId    String
+  serviceId    String
+  costInCents  Int         @map("cost_in_cents")
+  note         String?
+  costCenterId String?
+  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id])
+  service      Service     @relation(fields: [serviceId], references: [id])
+  vehicle      Vehicle     @relation(fields: [vehicleId], references: [id])
+
+  @@index([vehicleId])
+  @@index([serviceId])
+  @@map("vehicle_usages")
+}
+
+model Maintenance {
+  id                  String                @id @default(cuid())
+  vehicleId           String
+  type                MaintenanceType
+  category            String
+  description         String
+  priority            MaintenancePriority
+  scheduledDate       DateTime
+  completedDate       DateTime?
+  currentKm           Int?
+  nextKm              Int?
+  nextDate            DateTime?
+  isRecurrent         Boolean               @default(false)
+  intervalKm          Int?
+  intervalDays        Int?
+  active              Boolean               @default(true)
+  estimatedCost       Int
+  finalCost           Int?
+  supplierId          String?
+  invoiceNumber       String?
+  status              MaintenanceStatus     @default(PENDENTE)
+  internalNotes       String?
+  attachments         Json?
+  approvalResponsible String?
+  downtimeDays        Int?
+  operationalImpact   String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  isPaid              Boolean               @default(false)
+  costCenterId        String?
+  transaction         FinancialTransaction?
+  costCenter          CostCenter?           @relation(fields: [costCenterId], references: [id])
+  supplier            Supplier?             @relation(fields: [supplierId], references: [id])
+  vehicle             Vehicle               @relation(fields: [vehicleId], references: [id])
+
+  @@map("maintenances")
+}
+
+model RHPayment {
+  id                   String                @id @default(cuid())
+  employeeId           String
+  competenceMonth      String
+  paymentType          RHPaymentType
+  baseSalaryInCents    Int
+  additionsInCents     Int                   @default(0)
+  overtimeHours        Decimal               @default(0) @db.Decimal(4, 2)
+  overtimeValueInCents Int                   @default(0)
+  discountsInCents     Int                   @default(0)
+  advancesValueInCents Int                   @default(0)
+  grossTotalInCents    Int
+  netTotalInCents      Int
+  status               RHPaymentStatus       @default(PENDENTE)
+  paymentDate          DateTime?
+  paymentMethod        PaymentMethod?
+  notes                String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  costCenterId         String?
+  taxes                EmployerContribution?
+  transaction          FinancialTransaction?
+  allocations          ProjectAllocation[]
+  costCenter           CostCenter?           @relation(fields: [costCenterId], references: [id])
+  employee             Employee              @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@index([competenceMonth])
+  @@index([status])
+  @@map("rh_payments")
+}
+
+model SalaryHistory {
+  id                    String   @id @default(cuid())
+  employeeId            String
+  previousSalaryInCents Int
+  newSalaryInCents      Int
+  increasePercentage    Decimal  @db.Decimal(5, 2)
+  reason                String?
+  effectiveDate         DateTime
+  createdAt             DateTime @default(now())
+  employee              Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@map("salary_histories")
+}
+
+model Vacation {
+  id                    String         @id @default(cuid())
+  employeeId            String
+  vestingPeriodStart    DateTime
+  vestingPeriodEnd      DateTime
+  entitledDays          Int            @default(30)
+  usedDays              Int            @default(0)
+  startDate             DateTime?
+  endDate               DateTime?
+  vacationAmountInCents Int?
+  oneThirdBonusInCents  Int?
+  status                VacationStatus @default(PREVISTA)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  employee              Employee       @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@map("vacations")
+}
+
+model ThirteenthSalary {
+  id                       String           @id @default(cuid())
+  employeeId               String
+  referenceYear            Int
+  workedMonths             Int
+  totalAmountInCents       Int
+  firstInstallmentInCents  Int?
+  secondInstallmentInCents Int?
+  firstInstallmentPaid     Boolean          @default(false)
+  secondInstallmentPaid    Boolean          @default(false)
+  status                   ThirteenthStatus @default(PENDENTE)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  employee                 Employee         @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, referenceYear])
+  @@index([employeeId])
+  @@map("thirteenth_salaries")
+}
+
+model TimeBank {
+  id           String   @id @default(cuid())
+  employeeId   String   @unique
+  balanceHours Decimal  @default(0) @db.Decimal(6, 2)
+  creditHours  Decimal  @default(0) @db.Decimal(6, 2)
+  debitHours   Decimal  @default(0) @db.Decimal(6, 2)
+  updatedAt    DateTime @updatedAt
+  employee     Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("time_bank")
+}
+
+model AttendanceRecord {
+  id             String         @id @default(cuid())
+  employeeId     String
+  date           DateTime       @db.Date
+  type           AttendanceType
+  workedHours    Decimal?       @db.Decimal(4, 2)
+  overtimeHours  Decimal?       @db.Decimal(4, 2)
+  notes          String?
+  createdAt      DateTime       @default(now())
+  timeBankImpact Decimal?       @db.Decimal(4, 2)
+  updatedAt      DateTime       @updatedAt
+  employee       Employee       @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+  @@map("attendance_records")
+}
+
+model EmployerContribution {
+  id                       String    @id @default(cuid())
+  paymentId                String    @unique
+  companyInssInCents       Int       @default(0)
+  fgtsInCents              Int       @default(0)
+  otherTaxesInCents        Int       @default(0)
+  totalCompanyTaxesInCents Int
+  transactionId            String?   @unique
+  createdAt                DateTime  @default(now())
+  payment                  RHPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("employer_contributions")
+}
+
+model ProjectAllocation {
+  id                     String    @id @default(cuid())
+  paymentId              String
+  serviceId              String
+  allocationPercentage   Decimal   @db.Decimal(5, 2)
+  allocatedAmountInCents Int
+  createdAt              DateTime  @default(now())
+  payment                RHPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  service                Service   @relation(fields: [serviceId], references: [id])
+
+  @@index([paymentId])
+  @@map("project_allocations")
+}
+
+model PlantingSeason {
+  id                  String               @id @default(cuid())
+  name                String
+  startDate           DateTime
+  endDate             DateTime?
+  totalArea           Decimal?             @db.Decimal(10, 2)
+  notes               String?
+  active              Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  dailyWages          DailyWage[]
+  driverAllocations   DriverAllocation[]
+  plantingAdvances    PlantingAdvance[]
+  plantingAreas       PlantingArea[]
+  plantingExpenses    PlantingExpense[]
+  plantingProductions PlantingProduction[]
+  workFronts          WorkFront[]
+
+  @@map("planting_seasons")
+}
+
+model WorkFront {
+  id                  String               @id @default(cuid())
+  seasonId            String
+  name                String
+  description         String?
+  active              Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  dailyWages          DailyWage[]
+  driverAllocations   DriverAllocation[]
+  plantingAdvances    PlantingAdvance[]
+  plantingAreas       PlantingArea[]
+  plantingExpenses    PlantingExpense[]
+  plantingProductions PlantingProduction[]
+  season              PlantingSeason       @relation(fields: [seasonId], references: [id])
+
+  @@map("work_fronts")
+}
+
+model PlantingProduction {
+  id                String                 @id @default(cuid())
+  date              DateTime               @db.Date
+  employeeId        String
+  frontId           String
+  seasonId          String
+  type              PlantingProductionType
+  meters            Decimal?               @db.Decimal(10, 2)
+  meterValueInCents Int
+  totalValueInCents Int
+  presence          AttendanceType         @default(PRESENCA)
+  notes             String?
+  isClosed          Boolean                @default(false)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  employee          Employee               @relation(fields: [employeeId], references: [id])
+  front             WorkFront              @relation(fields: [frontId], references: [id])
+  season            PlantingSeason         @relation(fields: [seasonId], references: [id])
+
+  @@index([date])
+  @@index([employeeId])
+  @@index([frontId])
+  @@map("planting_productions")
+}
+
+model DailyWage {
+  id           String         @id @default(cuid())
+  date         DateTime       @db.Date
+  employeeId   String
+  frontId      String
+  seasonId     String
+  valueInCents Int
+  presence     AttendanceType @default(PRESENCA)
+  notes        String?
+  isClosed     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  employee     Employee       @relation(fields: [employeeId], references: [id])
+  front        WorkFront      @relation(fields: [frontId], references: [id])
+  season       PlantingSeason @relation(fields: [seasonId], references: [id])
+
+  @@index([date])
+  @@index([employeeId])
+  @@index([frontId])
+  @@map("daily_wages")
+}
+
+model DriverAllocation {
+  id           String         @id @default(cuid())
+  date         DateTime       @db.Date
+  employeeId   String
+  frontId      String
+  seasonId     String
+  valueInCents Int
+  notes        String?
+  isClosed     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  vehicleId    String?
+  employee     Employee       @relation(fields: [employeeId], references: [id])
+  front        WorkFront      @relation(fields: [frontId], references: [id])
+  season       PlantingSeason @relation(fields: [seasonId], references: [id])
+  vehicle      Vehicle?       @relation(fields: [vehicleId], references: [id])
+
+  @@index([date])
+  @@index([employeeId])
+  @@index([vehicleId])
+  @@map("driver_allocations")
+}
+
+model PlantingArea {
+  id         String         @id @default(cuid())
+  date       DateTime       @db.Date
+  frontId    String
+  seasonId   String
+  workedArea Decimal        @db.Decimal(10, 2)
+  hectares   Decimal        @db.Decimal(10, 2)
+  notes      String?
+  isClosed   Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  front      WorkFront      @relation(fields: [frontId], references: [id])
+  season     PlantingSeason @relation(fields: [seasonId], references: [id])
+
+  @@index([date])
+  @@index([frontId])
+  @@map("planting_areas")
+}
+
+model PlantingExpense {
+  id                String                @id @default(cuid())
+  date              DateTime
+  frontId           String
+  seasonId          String
+  category          ExpenseCategory
+  description       String
+  quantity          Decimal?              @db.Decimal(10, 2)
+  unitValueInCents  Int?
+  totalValueInCents Int
+  vehicleId         String?
+  transactionId     String?               @unique
+  notes             String?
+  isClosed          Boolean               @default(false)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  supplierId        String?
+  front             WorkFront             @relation(fields: [frontId], references: [id])
+  season            PlantingSeason        @relation(fields: [seasonId], references: [id])
+  supplier          Supplier?             @relation(fields: [supplierId], references: [id])
+  transaction       FinancialTransaction? @relation(fields: [transactionId], references: [id])
+  vehicle           Vehicle?              @relation(fields: [vehicleId], references: [id])
+
+  @@index([date])
+  @@index([category])
+  @@map("planting_expenses")
+}
+
+model PlantingAdvance {
+  id                         String           @id @default(cuid())
+  date                       DateTime         @db.Date
+  employeeId                 String
+  frontId                    String
+  seasonId                   String
+  valueInCents               Int
+  notes                      String?
+  discountInCurrentFortnight Boolean          @default(true)
+  isClosed                   Boolean          @default(false)
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
+  accountId                  String?          @map("account_id")
+  account                    EmployeeAccount? @relation(fields: [accountId], references: [id])
+  employee                   Employee         @relation(fields: [employeeId], references: [id])
+  front                      WorkFront        @relation(fields: [frontId], references: [id])
+  season                     PlantingSeason   @relation(fields: [seasonId], references: [id])
+
+  @@index([date])
+  @@index([employeeId])
+  @@index([frontId])
+  @@map("planting_advances")
+}
+
+model EmployeeAccount {
+  id               String              @id @default(cuid())
+  employeeId       String              @map("employee_id")
+  type             EmployeeAccountType
+  identifier       String
+  description      String?
+  isDefault        Boolean             @default(false) @map("is_default")
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  employee         Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  plantingAdvances PlantingAdvance[]
+
+  @@map("employee_accounts")
+}
+
+model PlantingParameter {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("planting_parameters")
+}
+
+model EmployeeTag {
+  id        String                  @id @default(cuid())
+  name      String                  @unique
+  color     String
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  employees EmployeeTagOnEmployee[]
+
+  @@map("employee_tags")
+}
+
+model EmployeeTagOnEmployee {
+  id         String      @id @default(cuid())
+  employeeId String      @map("employee_id")
+  tagId      String      @map("tag_id")
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  tag        EmployeeTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, tagId])
+  @@map("employee_tag_on_employee")
+}
 
 enum UserRole {
   ROOT
@@ -42,22 +848,23 @@ enum ServiceStatus {
 }
 
 enum VehicleType {
+  CAMINHAO
+  ONIBUS
+  MAQUINA
+  OUTRO
   CARRO
   UTILITARIO
   CAMINHONETE
   VAN
   SUV
   MOTO
-  ONIBUS
   MICRO_ONIBUS
-  CAMINHAO
   CAMINHAO_3_4
   CAMINHAO_TOCO
   CAMINHAO_TRUCK
   CARRETA
   BITREM
   RODOTREM
-  MAQUINA
   TRATOR
   RETROESCAVADEIRA
   PA_CARREGADEIRA
@@ -71,10 +878,8 @@ enum VehicleType {
   COLHEITADEIRA
   PULVERIZADOR
   EMPILHADEIRA
-  OUTRO
 }
 
-// Enums maintained for data integrity and backwards compatibility
 enum AuditAction {
   CREATE
   UPDATE
@@ -173,474 +978,17 @@ enum SupplierAccountType {
 
 enum AttachmentType {
   BOLETO
-  FATURA
   COMPROVANTE
   NOTA_FISCAL
   CONTRATO
   OUTROS
+  FATURA
 }
-
-// USUÁRIOS
-
-model User {
-  id        String   @id @default(cuid())
-  name      String   @db.VarChar(255)
-  email     String   @unique
-  password  String
-  role      UserRole
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  services  Service[]
-  auditLogs AuditLog[]
-  loginLogs LoginLog[]
-  financialTransactions FinancialTransaction[]
-  accountsPayable       AccountPayable[]
-
-  @@map("users")
-}
-
-// COST CENTER (NEW)
-
-model CostCenter {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  maintenances          Maintenance[]
-  rhPayments            RHPayment[]
-  financialTransactions FinancialTransaction[]
-  vehicleUsages         VehicleUsage[]
-  accountsPayable       AccountPayable[]
-
-  @@map("cost_centers")
-}
-
-// AUDITORIA GLOBAL
-
-model AuditLog {
-  id        String      @id @default(cuid())
-  userId    String?
-  action    AuditAction
-  entity    String
-  entityId  String?
-  oldData   Json?
-  newData   Json?
-  ip        String?
-  userAgent String?
-  createdAt DateTime    @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([entity])
-  @@index([action])
-  @@index([createdAt])
-  @@map("audit_logs")
-}
-
-// LOGIN LOG
-
-model LoginLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  email     String
-  success   Boolean
-  ip        String?
-  userAgent String?
-  createdAt DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([email])
-  @@index([createdAt])
-  @@map("login_logs")
-}
-
-// CLIENTES
-
-model Client {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  email     String?
-  document  String? // CPF/CNPJ
-  address   String?
-  createdAt DateTime @default(now())
-
-  services Service[]
-  documents Document[]
-
-  @@map("clients")
-}
-
-// FORNECEDORES
-
-model Supplier {
-  id                    String              @id @default(cuid())
-  name                  String
-  tradeName             String?
-  personType            PersonType          @default(LEGAL)
-  document              String?             @unique // CNPJ/CPF
-  stateRegistration     String?
-  municipalRegistration String?
-
-  // Contact
-  email                 String?
-  phone                 String?
-  mobile                String?
-  contactName           String?
-
-  // Address
-  zipCode               String?
-  street                String?
-  number                String?
-  complement            String?
-  neighborhood          String?
-  city                  String?
-  state                 String?
-
-  // Finance
-  bank                  String?
-  branch                String?
-  account               String?
-  accountType           SupplierAccountType?
-  pixKey                String?
-
-  // Control
-  active                Boolean             @default(true)
-  notes                 String?             @db.Text
-  category              String?             // Keep for compatibility
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-
-  transactions FinancialTransaction[]
-  accounts     AccountPayable[]
-  maintenances Maintenance[]
-  plantingExpenses PlantingExpense[]
-
-  @@map("suppliers")
-}
-
-// FUNCIONÁRIOS
-
-model Employee {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  document  String?  @unique // CPF
-  rg        String?
-  birthDate DateTime?
-  gender    String?
-  shirtSize ShirtSize?
-  pantsSize String?
-  shoeSize  String?
-  role          String?
-  jobId         String?  @map("job_id")
-  salaryInCents Int?     @map("salary_in_cents")
-  active    Boolean  @default(true)
-  plantingCategory String? @map("planting_category")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-
-  job               Job?     @relation(fields: [jobId], references: [id])
-  advances          EmployeeAdvance[]
-  transactions      FinancialTransaction[]
-  employmentRecords EmploymentRecord[]
-  contracts         EmployeeContract[]
-
-  // RH Relations
-  rhPayments        RHPayment[]
-  salaryHistories   SalaryHistory[]
-  vacations         Vacation[]
-  thirteenthSalaries ThirteenthSalary[]
-  timeBank          TimeBank?
-  attendanceRecords AttendanceRecord[]
-
-  plantingProductions PlantingProduction[]
-  dailyWages          DailyWage[]
-  driverAllocations   DriverAllocation[]
-  plantingAdvances    PlantingAdvance[]
-  tags                EmployeeTagOnEmployee[]
-  accounts            EmployeeAccount[]
-
-  @@map("employees")
-}
-
-model Job {
-  id          String     @id @default(cuid())
-  name        String
-  description String?
-  active      Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  
-  employees   Employee[]
-
-  @@map("jobs")
-}
-
-model EmployeeAdvance {
-  id               String   @id @default(cuid())
-  employeeId       String
-  amountInCents    Int      @map("amount_in_cents")
-  date             DateTime
-  note             String?
-  payrollReference String?
-  transactionId    String? @unique
-
-  transaction FinancialTransaction? @relation(fields: [transactionId], references: [id])
-  employee    Employee              @relation(fields: [employeeId], references: [id])
-
-  @@index([employeeId])
-  @@map("employee_advances")
-}
-
-model EmploymentRecord {
-  id                    String    @id @default(cuid())
-  employeeId            String
-  admissionDate         DateTime
-  terminationDate       DateTime?
-  jobTitle              String
-  baseSalaryInCents     Int       @map("base_salary_in_cents")
-  contractType          String
-  weeklyWorkload        Int?
-  workRegime            String?
-  isActive              Boolean   @default(true)
-  hasMedicalExam        Boolean   @default(false)
-  hasSignedRegistration Boolean   @default(false)
-  hasSignedEpiReceipt   Boolean   @default(false)
-  notes                 String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  employee              Employee  @relation(fields: [employeeId], references: [id])
-
-  @@map("employment_records")
-}
-
-model EmployeeContract {
-  id            String         @id @default(cuid())
-  employeeId    String
-  type          String
-  startDate     DateTime
-  endDate       DateTime?
-  valueInCents  Int            @map("value_in_cents")
-  status        ContractStatus @default(ACTIVE)
-  description   String?
-  fileUrl       String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  employee      Employee       @relation(fields: [employeeId], references: [id])
-
-  @@map("employee_contracts")
-}
-
-
-// SERVIÇOS
-
-model Service {
-  id          String        @id @default(cuid())
-  title       String
-  description String?
-  status      ServiceStatus
-  startDate   DateTime
-  endDate     DateTime?
-  clientId    String?
-  createdById String
-  createdAt   DateTime      @default(now())
-
-  client       Client?                @relation(fields: [clientId], references: [id])
-  createdBy    User                   @relation(fields: [createdById], references: [id])
-  transactions FinancialTransaction[]
-  documents    Document[]
-  vehicleUsage VehicleUsage[]
-  allocations  ProjectAllocation[]
-
-  @@index([status])
-  @@index([startDate])
-  @@map("services")
-}
-
-// FINANCEIRO / CAIXA
-
-model FinancialTransaction {
-  id            String          @id @default(cuid())
-  description   String
-  type          TransactionType
-  valueInCents  Int             @map("value_in_cents")
-  category      ExpenseCategory
-  paymentMethod PaymentMethod
-  date          DateTime
-  serviceId     String?
-  employeeId    String?
-  supplierId    String?
-  costCenterId  String?
-  attachmentUrl String?         @map("attachment_url")
-  conciled      Boolean         @default(false)
-  userId        String?         @map("user_id")
-  createdAt     DateTime        @default(now())
-
-  service    Service?  @relation(fields: [serviceId], references: [id])
-  employee   Employee? @relation(fields: [employeeId], references: [id])
-  supplier   Supplier? @relation(fields: [supplierId], references: [id])
-  costCenter CostCenter? @relation(fields: [costCenterId], references: [id])
-  user       User?       @relation(fields: [userId], references: [id])
-
-  advance  EmployeeAdvance?
-  maintenanceId String? @unique
-  maintenance   Maintenance? @relation(fields: [maintenanceId], references: [id])
-  rhPaymentId   String?  @unique
-  rhPayment     RHPayment? @relation(fields: [rhPaymentId], references: [id])
-  
-  plantingExpense PlantingExpense?
-  installment     AccountInstallment?
-
-  @@index([type])
-  @@index([date])
-  @@index([category])
-  @@index([supplierId])
-  @@map("financial_transactions")
-}
-
-// CONTAS A PAGAR
-
-model AccountPayable {
-  id                String        @id @default(cuid())
-  description       String
-  paymentMethod     PaymentMethod @default(BOLETO) @map("payment_method")
-  totalValueInCents Int           @map("total_value_in_cents")
-  installmentsCount Int           @default(1) @map("installments_count")
-  supplierId        String?
-  costCenterId      String?
-  category          ExpenseCategory @default(OUTROS)
-  attachmentUrl     String?         @map("attachment_url")
-  invoiceUrl        String?         @map("invoice_url")
-  userId            String?         @map("user_id")
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-
-  supplier          Supplier?     @relation(fields: [supplierId], references: [id])
-  costCenter        CostCenter?   @relation(fields: [costCenterId], references: [id])
-  user              User?         @relation(fields: [userId], references: [id])
-  installments      AccountInstallment[]
-
-  @@index([supplierId])
-  @@map("accounts_payable")
-}
-
-model AccountInstallment {
-  id               String        @id @default(cuid())
-  accountPayableId String        @map("account_payable_id")
-  installmentNumber Int           @map("installment_number")
-  valueInCents     Int           @map("value_in_cents")
-  dueDate          DateTime      @map("due_date")
-  status           AccountStatus @default(PENDENTE)
-  paymentDate      DateTime?     @map("payment_date")
-  transactionId    String?       @unique @map("transaction_id")
-  transaction      FinancialTransaction? @relation(fields: [transactionId], references: [id])
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  account          AccountPayable @relation(fields: [accountPayableId], references: [id], onDelete: Cascade)
-  attachments      AccountInstallmentAttachment[]
-
-  @@index([accountPayableId])
-  @@index([dueDate])
-  @@index([status])
-  @@map("account_installments")
-}
-
-model AccountInstallmentAttachment {
-  id               String         @id @default(cuid())
-  installmentId    String         @map("installment_id")
-  type             AttachmentType
-  fileName         String         @map("file_name")
-  fileUrl          String         @map("file_url")
-  createdAt        DateTime       @default(now())
-
-  installment      AccountInstallment @relation(fields: [installmentId], references: [id], onDelete: Cascade)
-
-  @@map("account_installment_attachments")
-}
-
-// DOCUMENTOS
-
-model Document {
-  id          String   @id @default(cuid())
-  name        String
-  category    String?
-  fileUrl     String
-  description String?
-  serviceId   String?
-  clientId    String?
-  vehicleId   String?
-  createdAt   DateTime @default(now())
-
-  service Service? @relation(fields: [serviceId], references: [id])
-  client  Client?  @relation(fields: [clientId], references: [id]) 
-  vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
-
-  @@index([category])
-  @@map("documents")
-}
-
-// FROTA
 
 enum VehicleOwnership {
   EMPRESA
   TERCEIRO
 }
-
-model Vehicle {
-  id          String      @id @default(cuid())
-  plate       String
-  nickname    String?
-  model       String?
-  brand       String?
-  year        Int?
-  description String?
-  type        VehicleType
-  ownership   VehicleOwnership @default(EMPRESA)
-  ownerName   String?
-  color       String?     @map("color")
-  documentUrl String?     @map("document_url")
-  active      Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-
-  usages VehicleUsage[]
-  documents Document[]
-  maintenances Maintenance[]
-  plantingExpenses PlantingExpense[]
-  driverAllocations DriverAllocation[]
-
-  @@unique([plate])
-  @@map("vehicles")
-}
-
-model VehicleUsage {
-  id           String  @id @default(cuid())
-  vehicleId    String
-  serviceId    String
-  costCenterId String?
-  costInCents  Int     @map("cost_in_cents")
-  note         String?
-
-  vehicle    Vehicle @relation(fields: [vehicleId], references: [id])
-  service    Service @relation(fields: [serviceId], references: [id])
-  costCenter CostCenter? @relation(fields: [costCenterId], references: [id])
-
-  @@index([vehicleId])
-  @@index([serviceId])
-  @@map("vehicle_usages")
-}
-
-// MANUTENÇÃO
 
 enum MaintenanceType {
   PREVENTIVA
@@ -659,451 +1007,4 @@ enum MaintenancePriority {
   BAIXA
   MEDIA
   ALTA
-}
-
-model Maintenance {
-  id          String   @id @default(cuid())
-  vehicleId   String
-  type        MaintenanceType
-  category    String   // e.g. "Troca de óleo"
-  description String
-  priority    MaintenancePriority
-  
-  // Dates & KM
-  scheduledDate      DateTime
-  completedDate      DateTime?
-  currentKm          Int?
-  nextKm             Int?
-  nextDate           DateTime?
-  isRecurrent        Boolean @default(false)
-  intervalKm         Int?
-  intervalDays       Int?
-  
-  // Helper
-  active             Boolean @default(true) // For soft delete/archiving
-
-  // Financial
-  estimatedCost      Int     // in cents
-  finalCost          Int?    // in cents
-  costCenterId       String?
-  supplierId         String?
-  invoiceNumber      String?
-
-  // Status
-  status             MaintenanceStatus @default(PENDENTE)
-  isPaid             Boolean @default(false)
-
-  // Extras
-  internalNotes      String?
-  attachments        Json?
-  approvalResponsible String?
-  downtimeDays       Int?
-  operationalImpact  String? // Could be enum or string "BAIXO", "MEDIO", "ALTO"
-
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  vehicle            Vehicle @relation(fields: [vehicleId], references: [id])
-  supplier           Supplier? @relation(fields: [supplierId], references: [id])
-  costCenter         CostCenter? @relation(fields: [costCenterId], references: [id])
-  transaction        FinancialTransaction? // 1:1 reverse relation ideally, or 1:N
-
-  @@map("maintenances")
-}
-
-// RH — RECURSOS HUMANOS
-
-model RHPayment {
-  id                    String          @id @default(cuid())
-  employeeId            String
-  competenceMonth       String          // "YYYY-MM" format
-  paymentType           RHPaymentType   
-  baseSalaryInCents     Int             
-  additionsInCents      Int             @default(0) 
-  overtimeHours         Decimal         @default(0) @db.Decimal(4, 2) 
-  overtimeValueInCents  Int             @default(0) 
-  discountsInCents      Int             @default(0) 
-  advancesValueInCents  Int             @default(0) 
-  grossTotalInCents     Int             
-  netTotalInCents       Int             
-  status                RHPaymentStatus @default(PENDENTE)
-  paymentDate           DateTime?       
-  paymentMethod         PaymentMethod?  
-  costCenterId          String?
-  notes                 String?         
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-
-  employee              Employee        @relation(fields: [employeeId], references: [id])
-  transaction           FinancialTransaction?
-  taxes                 EmployerContribution?
-  allocations           ProjectAllocation[]
-  costCenter            CostCenter?     @relation(fields: [costCenterId], references: [id])
-
-  @@index([employeeId])
-  @@index([competenceMonth])
-  @@index([status])
-  @@map("rh_payments")
-}
-
-model SalaryHistory {
-  id                    String   @id @default(cuid())
-  employeeId            String
-  previousSalaryInCents Int  
-  newSalaryInCents      Int  
-  increasePercentage    Decimal  @db.Decimal(5, 2) 
-  reason                String?  
-  effectiveDate         DateTime 
-  createdAt             DateTime @default(now())
-
-  employee              Employee @relation(fields: [employeeId], references: [id])
-
-  @@index([employeeId])
-  @@map("salary_histories")
-}
-
-model Vacation {
-  id                     String        @id @default(cuid())
-  employeeId             String
-  vestingPeriodStart     DateTime      
-  vestingPeriodEnd       DateTime      
-  entitledDays           Int           @default(30) 
-  usedDays               Int           @default(0) 
-  startDate              DateTime?     
-  endDate                DateTime?     
-  vacationAmountInCents  Int?          
-  oneThirdBonusInCents   Int?          
-  status                 VacationStatus @default(PREVISTA)
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
-
-  employee               Employee      @relation(fields: [employeeId], references: [id])
-
-  @@index([employeeId])
-  @@map("vacations")
-}
-
-model ThirteenthSalary {
-  id                       String           @id @default(cuid())
-  employeeId               String
-  referenceYear            Int              
-  workedMonths             Int              
-  totalAmountInCents       Int              
-  firstInstallmentInCents  Int?             
-  secondInstallmentInCents Int?             
-  firstInstallmentPaid     Boolean          @default(false) 
-  secondInstallmentPaid    Boolean          @default(false) 
-  status                   ThirteenthStatus @default(PENDENTE)
-  createdAt                DateTime         @default(now())
-  updatedAt                DateTime         @updatedAt
-
-  employee                 Employee         @relation(fields: [employeeId], references: [id])
-
-  @@unique([employeeId, referenceYear])
-  @@index([employeeId])
-  @@map("thirteenth_salaries")
-}
-
-model TimeBank {
-  id           String   @id @default(cuid())
-  employeeId   String   @unique
-  balanceHours Decimal  @default(0) @db.Decimal(6, 2) 
-  creditHours  Decimal  @default(0) @db.Decimal(6, 2) 
-  debitHours   Decimal  @default(0) @db.Decimal(6, 2) 
-  updatedAt    DateTime @updatedAt
-
-  employee     Employee @relation(fields: [employeeId], references: [id])
-
-  @@map("time_bank")
-}
-
-model AttendanceRecord {
-  id              String         @id @default(cuid())
-  employeeId      String
-  date            DateTime       @db.Date 
-  type            AttendanceType 
-  workedHours     Decimal?       @db.Decimal(4, 2) 
-  overtimeHours   Decimal?       @db.Decimal(4, 2) 
-  timeBankImpact  Decimal?       @db.Decimal(4, 2) 
-  notes           String?        
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
-  employee        Employee       @relation(fields: [employeeId], references: [id])
-
-  @@unique([employeeId, date])
-  @@index([employeeId])
-  @@index([date])
-  @@map("attendance_records")
-}
-
-model EmployerContribution {
-  id                       String    @id @default(cuid())
-  paymentId                String    @unique 
-  companyInssInCents       Int       @default(0) 
-  fgtsInCents              Int       @default(0) 
-  otherTaxesInCents        Int       @default(0) 
-  totalCompanyTaxesInCents Int       
-  transactionId            String?   @unique
-  createdAt                DateTime  @default(now())
-
-  payment                  RHPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-
-  @@map("employer_contributions")
-}
-
-model ProjectAllocation {
-  id                     String    @id @default(cuid())
-  paymentId              String    
-  serviceId              String    
-  allocationPercentage   Decimal   @db.Decimal(5, 2) 
-  allocatedAmountInCents Int     
-  createdAt              DateTime  @default(now())
-
-  payment                RHPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  service                Service   @relation(fields: [serviceId], references: [id])
-
-  @@index([paymentId])
-  @@map("project_allocations")
-}
-
-// MÓDULO PLANTIO MANUAL
-
-model PlantingSeason {
-  id          String   @id @default(cuid())
-  name        String
-  startDate   DateTime
-  endDate     DateTime?
-  totalArea   Decimal?  @db.Decimal(10, 2)
-  notes       String?
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  workFronts  WorkFront[]
-  plantingProductions PlantingProduction[]
-  dailyWages DailyWage[]
-  driverAllocations DriverAllocation[]
-  plantingAreas PlantingArea[]
-  plantingExpenses PlantingExpense[]
-  plantingAdvances PlantingAdvance[]
-
-  @@map("planting_seasons")
-}
-
-model WorkFront {
-  id          String   @id @default(cuid())
-  seasonId    String
-  name        String
-  description String?
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  season      PlantingSeason @relation(fields: [seasonId], references: [id])
-  plantingProductions PlantingProduction[]
-  dailyWages DailyWage[]
-  driverAllocations DriverAllocation[]
-  plantingAreas PlantingArea[]
-  plantingExpenses PlantingExpense[]
-  plantingAdvances PlantingAdvance[]
-
-  @@map("work_fronts")
-}
-
-model PlantingProduction {
-  id          String   @id @default(cuid())
-  date        DateTime @db.Date
-  employeeId  String
-  frontId     String
-  seasonId    String
-  type        PlantingProductionType
-  meters      Decimal?  @db.Decimal(10, 2)
-  meterValueInCents Int
-  totalValueInCents Int
-  presence    AttendanceType @default(PRESENCA)
-  notes       String?
-  isClosed    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  employee    Employee @relation(fields: [employeeId], references: [id])
-  front       WorkFront @relation(fields: [frontId], references: [id])
-  season      PlantingSeason @relation(fields: [seasonId], references: [id])
-
-  @@index([date])
-  @@index([employeeId])
-  @@index([frontId])
-  @@map("planting_productions")
-}
-
-model DailyWage {
-  id          String   @id @default(cuid())
-  date        DateTime @db.Date
-  employeeId  String
-  frontId     String
-  seasonId    String
-  valueInCents Int
-  presence    AttendanceType @default(PRESENCA)
-  notes       String?
-  isClosed    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  employee    Employee @relation(fields: [employeeId], references: [id])
-  front       WorkFront @relation(fields: [frontId], references: [id])
-  season      PlantingSeason @relation(fields: [seasonId], references: [id])
-
-  @@index([date])
-  @@index([employeeId])
-  @@index([frontId])
-  @@map("daily_wages")
-}
-
-model DriverAllocation {
-  id          String   @id @default(cuid())
-  date        DateTime @db.Date
-  employeeId  String
-  vehicleId   String?
-  frontId     String
-  seasonId    String
-  valueInCents Int      // Copied from category at creation time
-  notes       String?
-  isClosed    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  employee    Employee @relation(fields: [employeeId], references: [id])
-  vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
-  front       WorkFront @relation(fields: [frontId], references: [id])
-  season      PlantingSeason @relation(fields: [seasonId], references: [id])
-
-  @@index([date])
-  @@index([employeeId])
-  @@index([vehicleId])
-  @@map("driver_allocations")
-}
-
-model PlantingArea {
-  id          String   @id @default(cuid())
-  date        DateTime @db.Date
-  frontId     String
-  seasonId    String
-  workedArea  Decimal  @db.Decimal(10, 2)
-  hectares    Decimal  @db.Decimal(10, 2)
-  notes       String?
-  isClosed    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  front       WorkFront @relation(fields: [frontId], references: [id])
-  season      PlantingSeason @relation(fields: [seasonId], references: [id])
-
-  @@index([date])
-  @@index([frontId])
-  @@map("planting_areas")
-}
-
-model PlantingExpense {
-  id          String   @id @default(cuid())
-  date        DateTime
-  frontId     String
-  seasonId    String
-  category    ExpenseCategory
-  description String
-  quantity    Decimal?  @db.Decimal(10, 2)
-  unitValueInCents Int?
-  totalValueInCents Int
-  vehicleId   String?
-  supplierId  String?
-  transactionId String? @unique
-  notes       String?
-  isClosed    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  front       WorkFront @relation(fields: [frontId], references: [id])
-  season      PlantingSeason @relation(fields: [seasonId], references: [id])
-  vehicle     Vehicle? @relation(fields: [vehicleId], references: [id])
-  supplier    Supplier? @relation(fields: [supplierId], references: [id])
-  transaction FinancialTransaction? @relation(fields: [transactionId], references: [id])
-
-  @@index([date])
-  @@index([category])
-  @@map("planting_expenses")
-}
-
-model PlantingAdvance {
-  id              String   @id @default(cuid())
-  date            DateTime @db.Date
-  employeeId      String
-  frontId         String
-  seasonId        String
-  valueInCents    Int
-  notes           String?
-  discountInCurrentFortnight Boolean @default(true)
-  isClosed        Boolean  @default(false)
-  accountId       String?  @map("account_id")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  employee Employee         @relation(fields: [employeeId], references: [id])
-  front    WorkFront        @relation(fields: [frontId], references: [id])
-  season   PlantingSeason   @relation(fields: [seasonId], references: [id])
-  account  EmployeeAccount? @relation(fields: [accountId], references: [id])
-
-  @@index([date])
-  @@index([employeeId])
-  @@index([frontId])
-  @@map("planting_advances")
-}
-
-model EmployeeAccount {
-  id           String              @id @default(cuid())
-  employeeId   String              @map("employee_id")
-  type         EmployeeAccountType
-  identifier   String              // CPF, Phone, Email, Key or Bank Details
-  description  String?
-  isDefault    Boolean             @default(false) @map("is_default")
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-
-  employee     Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  plantingAdvances PlantingAdvance[]
-
-  @@map("employee_accounts")
-}
-
-model PlantingParameter {
-  id          String   @id @default(cuid())
-  key         String   @unique // e.g. "valor_metro_plantio", "preco_diesel", "valor_metro_corte"
-  value       String   // String to handle decimal or simple values
-  description String?
-  updatedAt   DateTime @updatedAt
-
-  @@map("planting_parameters")
-}
-
-model EmployeeTag {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  color     String   // hex (#RRGGBB)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  employees EmployeeTagOnEmployee[]
-
-  @@map("employee_tags")
-}
-
-model EmployeeTagOnEmployee {
-  id          String @id @default(cuid())
-  employeeId  String @map("employee_id")
-  tagId       String @map("tag_id")
-
-  employee Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  tag      EmployeeTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([employeeId, tagId])
-  @@map("employee_tag_on_employee")
 }
