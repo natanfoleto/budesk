@@ -90,7 +90,7 @@ export class PlantingReportService {
     seasonId: string, 
     startDate: Date, 
     endDate: Date,
-    options: { shouldCompensate?: boolean } = { shouldCompensate: false }
+    options: { shouldCompensate?: boolean } = { shouldCompensate: true }
   ) {
     const employee = (await prisma.employee.findUnique({
       where: { id: employeeId },
@@ -210,7 +210,7 @@ export class PlantingReportService {
     
     let totalPlantingMeters = 0
     let totalCuttingMeters = 0
-    let totalDailyWage = 0
+    let totalManualDailyWage = 0 
     let totalAdvances = 0
     let totalFolgaChuvaInCents = 0
     let totalFolgaDomingoInCents = 0
@@ -225,7 +225,8 @@ export class PlantingReportService {
 
       let dailyPlanting = 0
       let dailyCutting = 0
-      let dailyWageValue = 0
+      let manualDailyWageValue = 0
+      let automaticAdjustmentValue = 0
       let dailyAdvanceValue = 0
       const services: string[] = []
 
@@ -273,7 +274,12 @@ export class PlantingReportService {
               }
             }
 
-            dailyWageValue += valueToApply
+            if (w.presence === "FOLGA") {
+              automaticAdjustmentValue += valueToApply
+            } else {
+              manualDailyWageValue += valueToApply
+            }
+
             services.push(label)
             totalBruto += valueToApply
           }
@@ -293,14 +299,14 @@ export class PlantingReportService {
           else if (w.presence === "FALTA_JUSTIFICADA") label = "Falta Justificada"
           else if (w.presence === "ATESTADO") label = "Atestado"
           
-          dailyWageValue += valueToApply
+          automaticAdjustmentValue += valueToApply
           totalBruto += valueToApply
           services.push(label)
         }
       })
 
       drivers.forEach((d) => {
-        dailyWageValue += d.valueInCents
+        manualDailyWageValue += d.valueInCents
         services.push("Motorista")
         totalBruto += d.valueInCents
       })
@@ -310,7 +316,7 @@ export class PlantingReportService {
         totalAdvances += adv.valueInCents
       })
 
-      const dailyTotal = productions.filter(p => p.presence === "PRESENCA").reduce((acc: number, p) => acc + p.totalValueInCents, 0) + dailyWageValue
+      const dailyTotal = productions.filter(p => p.presence === "PRESENCA").reduce((acc: number, p) => acc + p.totalValueInCents, 0) + manualDailyWageValue + automaticAdjustmentValue
 
       const isCompensatedFalta = compensations.some(c => c.falta === dateStr)
       const isUsedFolga = compensations.some(c => c.folga === dateStr)
@@ -328,21 +334,20 @@ export class PlantingReportService {
         }
       }
 
-      const isCalculatedDiscount = services.includes("Falta") && dailyWageValue === -dailyRate
 
       tableData.push([
         `${format(date, "dd/MM/yyyy")} (${format(date, "EEEE", { locale: ptBR }).slice(0, 3).toLowerCase()})`,
         serviceCell,
         dailyPlanting > 0 ? `${dailyPlanting}m` : "-",
         dailyCutting > 0 ? `${dailyCutting}m` : "-",
-        (dailyWageValue !== 0 && !isCalculatedDiscount) ? this.formatCurrency(dailyWageValue) : "-",
+        manualDailyWageValue > 0 ? this.formatCurrency(manualDailyWageValue) : "-",
         dailyAdvanceValue > 0 ? this.formatCurrency(dailyAdvanceValue) : "-",
         this.formatCurrency(dailyTotal)
       ])
 
       totalPlantingMeters += dailyPlanting
       totalCuttingMeters += dailyCutting
-      totalDailyWage += dailyWageValue
+      totalManualDailyWage += manualDailyWageValue
     })
 
     // Add Totals row to table data
@@ -350,7 +355,7 @@ export class PlantingReportService {
       { content: "Total", colSpan: 2, styles: { fontStyle: "bold", fillColor: [240, 240, 240] } },
       { content: totalPlantingMeters > 0 ? `${totalPlantingMeters}m` : "-", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } },
       { content: totalCuttingMeters > 0 ? `${totalCuttingMeters}m` : "-", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } },
-      { content: totalDailyWage > 0 ? this.formatCurrency(totalDailyWage) : "-", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } },
+      { content: totalManualDailyWage > 0 ? this.formatCurrency(totalManualDailyWage) : "-", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } },
       { content: totalAdvances > 0 ? this.formatCurrency(totalAdvances) : "-", styles: { fontStyle: "bold", fillColor: [240, 240, 240] } },
       { content: this.formatCurrency(totalBruto), styles: { fontStyle: "bold", fillColor: [240, 240, 240] } }
     ])
@@ -532,7 +537,7 @@ export class PlantingReportService {
     return doc.output("arraybuffer")
   }
 
-  static async generateConsolidatedReport(seasonId: string, startDate: Date, endDate: Date, isMonthly?: boolean, shouldCompensate: boolean = false) {
+  static async generateConsolidatedReport(seasonId: string, startDate: Date, endDate: Date, isMonthly?: boolean, shouldCompensate: boolean = true) {
     const employees = (await prisma.employee.findMany({
       include: {
         employmentRecords: {

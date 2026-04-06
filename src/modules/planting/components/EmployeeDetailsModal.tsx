@@ -14,7 +14,6 @@ import {
   FileText,
   Info,
   Landmark,
-  Loader2,
   QrCode,
   TrendingUp, 
   XCircle
@@ -60,6 +59,7 @@ import { apiRequest } from "@/lib/api-client"
 import { formatAccountIdentifier, parseLocalDate } from "@/lib/utils"
 
 import { EmployeeSummary } from "../services/PlantingEmployeeService"
+import { ReportSelectionModal } from "./ReportSelectionModal"
 
 interface EmployeeDetailsModalProps {
   employeeId: string | null
@@ -82,7 +82,7 @@ export function EmployeeDetailsModal({
   const [filterType, setFilterType] = useState<FilterType>("GERAL")
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
 
   const calculateDateRange = useCallback((type: FilterType) => {
     const now = new Date()
@@ -174,51 +174,6 @@ export function EmployeeDetailsModal({
     })
   }
 
-  const handleDownloadReport = async () => {
-    if (!employeeId || !seasonId) return
-    
-    // Check if dates are selected
-    if (!startDate || !endDate) {
-      toast.error("Selecione um período (Quinzena, Mês ou Personalizado) para gerar o relatório.")
-      return
-    }
-
-    setIsGeneratingReport(true)
-    try {
-      const params = new URLSearchParams({
-        type: "individual",
-        employeeId,
-        seasonId,
-        startDate,
-        endDate
-      })
-
-      const response = await fetch(`/api/planting/reports?${params.toString()}`)
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || "Erro ao gerar relatório")
-      }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `relatorio_individual_${data?.employee.name.replace(/\s+/g, "_")}_${startDate}_${endDate}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-      
-      toast.success("Relatório gerado com sucesso!")
-    } catch (error: unknown) {
-      console.error(error)
-      const message = error instanceof Error ? error.message : "Erro ao baixar relatório"
-      toast.error(message)
-    } finally {
-      setIsGeneratingReport(false)
-    }
-  }
-
   if (!open) return null
 
   return (
@@ -228,7 +183,7 @@ export function EmployeeDetailsModal({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
               <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                {loading && !data ? <Skeleton className="h-8 w-64" /> : data?.employee.name || "Carregando..."}
+                {loading && !data ? <Skeleton className="h-8 w-64" /> : data?.employee.name}
               </DialogTitle>
               <DialogDescription>
                 Detalhamento de performance e pagamentos no Plantio Manual
@@ -257,17 +212,13 @@ export function EmployeeDetailsModal({
 
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="h-9 px-3 gap-2 bg-background border-primary/20 hover:bg-primary/5 text-primary"
-                  onClick={handleDownloadReport}
-                  disabled={isGeneratingReport || loading || !data}
+                  size="icon"
+                  className="h-9 w-9 bg-background border-primary/20 hover:bg-primary/5 text-primary"
+                  onClick={() => setReportModalOpen(true)}
+                  disabled={loading || !data}
+                  title="Opções de Relatório"
                 >
-                  {isGeneratingReport ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <FileText className="size-3.5" />
-                  )}
-                  <span className="hidden sm:inline">Baixar PDF</span>
+                  <FileText className="size-4" />
                 </Button>
               </div>
 
@@ -767,6 +718,15 @@ export function EmployeeDetailsModal({
           </Tabs>
         </div>
 
+        <ReportSelectionModal 
+          open={reportModalOpen}
+          onOpenChange={setReportModalOpen}
+          employeeId={employeeId}
+          employeeName={data?.employee.name || ""}
+          seasonId={seasonId}
+          initialStartDate={startDate}
+          initialEndDate={endDate}
+        />
       </DialogContent>
     </Dialog>
   )
