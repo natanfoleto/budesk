@@ -1,5 +1,6 @@
 "use client"
 
+import { AttendanceType,PlantingPayment } from "@prisma/client"
 import { 
   endOfMonth,
   format,
@@ -78,8 +79,10 @@ import {
   TooltipProvider, 
   TooltipTrigger 
 } from "@/components/ui/tooltip"
+import { useCreateDailyWageBulk } from "@/hooks/use-planting"
 import { apiRequest } from "@/lib/api-client"
 import { cn, formatAccountIdentifier, formatCentsToReal, parseLocalDate } from "@/lib/utils"
+import { DailyWageFormData } from "@/types/planting"
 
 import { EmployeeSummary } from "../services/PlantingEmployeeService"
 import { ReportSelectionModal } from "./ReportSelectionModal"
@@ -107,6 +110,7 @@ export function EmployeeDetailsModal({
   const [endDate, setEndDate] = useState<string>("")
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const [availableMonths, setAvailableMonths] = useState<{ year: number; month: number }[]>([])
+  const [applyCompensationRules, setApplyCompensationRules] = useState(true)
 
   // Payment form state
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
@@ -114,6 +118,8 @@ export function EmployeeDetailsModal({
   const [holeriteValue, setHoleriteValue] = useState<number>(0)
   const [paymentNotes, setPaymentNotes] = useState("")
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+  const bulkCreateDailyWageMutation = useCreateDailyWageBulk()
+  const [pendingPresenceChanges, setPendingPresenceChanges] = useState<Record<string, AttendanceType>>({})
   const [isPaidNow, setIsPaidNow] = useState(false)
 
   const fetchMonths = useCallback(async () => {
@@ -248,7 +254,7 @@ export function EmployeeDetailsModal({
     })
   }
 
-  const handleEditPayment = (payment: any) => {
+  const handleEditPayment = (payment: PlantingPayment) => {
     setEditingPaymentId(payment.id)
     setPaymentDate(format(parseLocalDate(payment.date), "yyyy-MM-dd"))
     setHoleriteValue(payment.holeriteNetInCents)
@@ -294,8 +300,8 @@ export function EmployeeDetailsModal({
             seasonId,
             month: parts[1],
             year: parts[0],
-            systemBrutoInCents: data.totals.earnedInCents + (data.compensation?.paidLeavesValueInCents || 0),
-            systemNetInCents: data.totals.earnedInCents + (data.compensation?.netCompensationInCents || 0) - data.totals.advancesInCents,
+            systemBrutoInCents: data.totals.earnedInCents + (applyCompensationRules ? (data.compensation?.paidLeavesValueInCents || 0) : 0),
+            systemNetInCents: data.totals.earnedInCents + (applyCompensationRules ? (data.compensation?.netCompensationInCents || 0) : 0) - data.totals.advancesInCents,
             holeriteNetInCents: holeriteValue,
             isPaid: isPaidNow,
             notes: paymentNotes
@@ -341,6 +347,44 @@ export function EmployeeDetailsModal({
     } catch (error) {
       console.error(error)
       toast.error("Erro ao remover pagamento")
+    }
+  }
+
+  const handleSavePresenceChanges = async () => {
+    if (!data || !employeeId) return
+
+    const toSave = Object.entries(pendingPresenceChanges).map(([dateStr, newPresence]) => {
+      // Find a frontId for this date
+      const existingWage = data.details.wages.find(w => format(parseLocalDate(w.date), "yyyy-MM-dd") === dateStr)
+      const existingProd = data.details.productions.find(pr => format(parseLocalDate(pr.date), "yyyy-MM-dd") === dateStr)
+      const existingDriver = data.details.drivers.find(d => format(parseLocalDate(d.date), "yyyy-MM-dd") === dateStr)
+      const existingAdvance = data.details.advances.find(a => format(parseLocalDate(a.date), "yyyy-MM-dd") === dateStr)
+
+      const frontId = existingWage?.frontId || existingProd?.frontId || existingDriver?.frontId || existingAdvance?.frontId || ""
+
+      return {
+        id: existingWage?.id,
+        employeeId,
+        frontId, // we need at least some front ID.
+        seasonId,
+        date: new Date(dateStr + "T12:00:00Z").toISOString(),
+        presence: newPresence,
+        valueInCents: existingWage?.valueInCents || 0
+      }
+    })
+
+    if (toSave.some(item => !item.frontId)) {
+      toast.error("Não foi possível identificar a Frente de Trabalho para um ou mais dias.")
+      return
+    }
+
+    try {
+      await bulkCreateDailyWageMutation.mutateAsync(toSave as DailyWageFormData[])
+      setPendingPresenceChanges({})
+    } catch (error) {
+      console.error(error)
+    } finally {
+      fetchData()
     }
   }
 
@@ -672,60 +716,88 @@ export function EmployeeDetailsModal({
               <ScrollArea className="h-full px-6">
                 {loading && !data ? (
                   <div className="py-6 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                      {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
                     </div>
                     <Skeleton className="h-[400px] w-full" />
                   </div>
                 ) : data ? (
                   <div className="py-6 space-y-8 pb-12">
                     {/* Seção de Totais do Sistema */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="flex items-center justify-end mb-4">
+                      <div className="flex items-center gap-2 bg-muted/40 p-2 px-3 rounded-lg border border-primary/20 shadow-sm">
+                        <Label htmlFor="apply-compensation" className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer select-none">
+                          Aplicar compensação (Faltas/Chuvas)
+                        </Label>
+                        <Switch
+                          id="apply-compensation"
+                          checked={applyCompensationRules}
+                          onCheckedChange={setApplyCompensationRules}
+                          className="h-4 w-7 [&_span]:size-3 [&_span]:data-[state=checked]:translate-x-3"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                       <Card className="border-emerald-200 bg-emerald-50/30">
                         <CardHeader className="p-4 pb-1">
-                          <Label className="text-[10px] font-bold text-emerald-700 uppercase">Sistema: Bruto Total</Label>
+                          <Label className="text-[10px] font-bold text-emerald-700 uppercase">Produção / Diárias</Label>
                         </CardHeader>
                         <CardContent className="p-4 pt-0">
                           <div className="text-xl font-black text-emerald-900">
-                            {formatCurrency(data.totals.earnedInCents + (data.compensation?.paidLeavesValueInCents || 0))}
+                            {formatCurrency(data.totals.earnedInCents)}
                           </div>
-                          <p className="text-[9px] text-emerald-600 font-medium">Prod + Diárias + Folgas/Chuvas</p>
+                          <p className="text-[9px] text-emerald-600 font-medium">Dias trabalhados</p>
                         </CardContent>
                       </Card>
 
-                      <Card className="border-orange-200 bg-orange-50/30">
+                      <Card className={cn("border-blue-200 transition-all", applyCompensationRules ? "bg-blue-50/30" : "bg-muted/10 opacity-60")}>
                         <CardHeader className="p-4 pb-1">
-                          <Label className="text-[10px] font-bold text-orange-700 uppercase">Compensação Proporcional</Label>
+                          <Label className="text-[10px] font-bold text-blue-700 uppercase">Folgas / Chuva (+)</Label>
                         </CardHeader>
                         <CardContent className="p-4 pt-0">
-                          <div className={cn("text-xl font-black", (data.compensation?.netCompensationInCents || 0) < 0 ? "text-destructive" : "text-orange-900")}>
-                            {formatCurrency(data.compensation?.netCompensationInCents || 0)}
+                          <div className={cn("text-xl font-black transition-colors", applyCompensationRules ? "text-blue-900" : "text-muted-foreground line-through")}>
+                            {formatCurrency(data.compensation?.paidLeavesValueInCents || 0)}
+                          </div>
+                          <p className="text-[9px] text-blue-600 font-medium">
+                            {data.compensation?.paidLeavesCount || 0} dia(s) a pagar
+                          </p>
+                        </CardContent>
+                      </Card>
+
+                      <Card className={cn("border-orange-200 transition-all", applyCompensationRules ? "bg-orange-50/30" : "bg-muted/10 opacity-60")}>
+                        <CardHeader className="p-4 pb-1">
+                          <Label className="text-[10px] font-bold text-orange-700 uppercase">Faltas (-)</Label>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                          <div className={cn("text-xl font-black transition-colors", applyCompensationRules ? "text-destructive" : "text-muted-foreground line-through")}>
+                            -{formatCurrency(data.compensation?.absencesValueInCents || 0)}
                           </div>
                           <p className="text-[9px] text-orange-600 font-medium">
-                            {data.compensation?.paidLeavesCount} Folgas (+) | {data.compensation?.absencesCount} Faltas (-)
+                            {data.compensation?.absencesCount || 0} dia(s) descontado(s)
                           </p>
                         </CardContent>
                       </Card>
 
                       <Card className="border-red-200 bg-red-50/30">
                         <CardHeader className="p-4 pb-1">
-                          <Label className="text-[10px] font-bold text-red-700 uppercase">Adiantamentos (Débito)</Label>
+                          <Label className="text-[10px] font-bold text-red-700 uppercase">Adiantamentos (-)</Label>
                         </CardHeader>
                         <CardContent className="p-4 pt-0">
                           <div className="text-xl font-black text-red-900">
                             -{formatCurrency(data.totals.advancesInCents)}
                           </div>
-                          <p className="text-[9px] text-red-600 font-medium">Total de vales no período</p>
+                          <p className="text-[9px] text-red-600 font-medium">Vales no período</p>
                         </CardContent>
                       </Card>
 
                       <Card className="border-primary bg-primary/5">
                         <CardHeader className="p-4 pb-1">
-                          <Label className="text-[10px] font-bold text-primary uppercase">Sistema: Líquido Estimado</Label>
+                          <Label className="text-[10px] font-bold text-primary uppercase">Sistema: Líquido</Label>
                         </CardHeader>
                         <CardContent className="p-4 pt-0">
                           <div className="text-2xl font-black text-primary">
-                            {formatCurrency(data.totals.earnedInCents + (data.compensation?.netCompensationInCents || 0) - data.totals.advancesInCents)}
+                            {formatCurrency(data.totals.earnedInCents + (applyCompensationRules ? (data.compensation?.netCompensationInCents || 0) : 0) - data.totals.advancesInCents)}
                           </div>
                           <p className="text-[9px] text-primary/70 font-bold uppercase tracking-tighter">Base para conferência</p>
                         </CardContent>
@@ -818,12 +890,12 @@ export function EmployeeDetailsModal({
                         <Card className="border-muted shadow-sm overflow-hidden">
                           <CardHeader className="bg-muted/30 py-3 shrink-0">
                             <CardTitle className="text-sm font-bold flex items-center gap-2">
-                              <Landmark className="size-4 text-primary" /> Dados Bancários Selecionados
+                              Dados Bancários Selecionados
                             </CardTitle>
                           </CardHeader>
                           <CardContent className="p-4">
                             {data.employee.accounts.length === 0 ? (
-                              <div className="text-sm text-muted-foreground italic py-4">Nenhuma conta cadastrada.</div>
+                              <div className="text-sm text-muted-foreground py-4">Nenhuma conta cadastrada.</div>
                             ) : (
                               <div className="space-y-3">
                                 {data.employee.accounts.map(acc => (
@@ -877,7 +949,7 @@ export function EmployeeDetailsModal({
                           <Card className="border-muted shadow-sm overflow-hidden">
                             <CardHeader className="bg-muted/30 py-3 shrink-0 flex flex-row items-center justify-between space-y-0">
                               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                                <CheckCircle2 className="size-4 text-primary" /> Último Registro de Pagamento
+                                Último Registro de Pagamento
                               </CardTitle>
                               <Badge 
                                 variant={data.details.payments[0].isPaid ? "default" : "outline"}
@@ -926,7 +998,7 @@ export function EmployeeDetailsModal({
                     <Card className="shadow-md border-muted overflow-hidden">
                       <CardHeader className="bg-muted/30 py-3 border-b">
                         <CardTitle className="text-sm font-bold flex items-center gap-2">
-                          <DollarSign className="size-4 text-primary" /> Histórico de Pagamentos (Holerite)
+                          Histórico de Pagamentos (Holerite)
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
@@ -1168,14 +1240,14 @@ export function EmployeeDetailsModal({
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="frequencia" className="mt-0 flex-1 min-h-0 overflow-hidden">
+            <TabsContent value="frequencia" className="mt-0 flex-1 min-h-0 overflow-hidden relative">
               <ScrollArea className="h-full px-6">
                 {loading && !data ? (
                   <div className="py-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
                   </div>
                 ) : data ? (
-                  <div className="py-6 pt-6 pb-12">
+                  <div className="py-6 pt-6 pb-24">
                     {data.details.presence.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
                         <Calendar className="size-12 opacity-20" />
@@ -1184,6 +1256,21 @@ export function EmployeeDetailsModal({
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {data.details.presence.map((p) => {
+                          const dateStr = format(parseLocalDate(p.date), "yyyy-MM-dd")
+                          
+                          // Locking logic
+                          const hasMeterage = data.details.productions.some(pr => format(parseLocalDate(pr.date), "yyyy-MM-dd") === dateStr && (Number(pr.meters) || 0) > 0)
+                          const hasWageValue = data.details.wages.some(w => format(parseLocalDate(w.date), "yyyy-MM-dd") === dateStr && w.valueInCents > 0)
+                          const hasDriver = data.details.drivers.some(d => format(parseLocalDate(d.date), "yyyy-MM-dd") === dateStr)
+                          
+                          const locked = hasMeterage || hasWageValue || hasDriver
+                          let lockReason = null
+                          if (hasDriver) lockReason = "Possui diária de motorista — somente Presença permitida."
+                          else if (hasWageValue) lockReason = "Possui diária registrada — somente Presença permitida."
+                          else if (hasMeterage) lockReason = "Possui metragem de plantio/corte — somente Presença permitida."
+
+                          const currentStatus = pendingPresenceChanges[dateStr] || p.status as AttendanceType
+
                           const getStatusInfo = (status: string) => {
                             switch (status) {
                             case "PRESENCA":
@@ -1204,25 +1291,101 @@ export function EmployeeDetailsModal({
                               return { icon: <Calendar className="size-4" />, color: "bg-muted/50 text-muted-foreground border-muted", label: status }
                             }
                           }
-                          const info = getStatusInfo(p.status)
-                          return (
-                            <div key={p.date} className={`p-3 rounded-lg border flex items-center justify-between ${info.color}`}>
-                              <div className="flex flex-col">
-                                <span className="text-xs font-bold uppercase tracking-wider">{format(parseLocalDate(p.date), "EEEE", { locale: ptBR })}</span>
-                                <span className="text-lg font-bold">{format(parseLocalDate(p.date), "dd/MM/yyyy")}</span>
+                          const info = getStatusInfo(currentStatus)
+                          const isModified = pendingPresenceChanges[dateStr] && pendingPresenceChanges[dateStr] !== p.status
+
+                          const content = (
+                            <div key={p.date} className={cn(
+                              "p-3 rounded-lg border flex flex-col gap-2 transition-all", 
+                              info.color,
+                              isModified ? "ring-2 ring-primary ring-offset-1" : ""
+                            )}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-bold uppercase tracking-wider">{format(parseLocalDate(p.date), "EEEE", { locale: ptBR })}</span>
+                                  <span className="text-lg font-bold">{format(parseLocalDate(p.date), "dd/MM/yyyy")}</span>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  {info.icon}
+                                  <span className="text-[10px] font-bold uppercase">{info.label}</span>
+                                </div>
                               </div>
-                              <div className="flex flex-col items-end gap-1">
-                                {info.icon}
-                                <span className="text-[10px] font-bold uppercase">{info.label}</span>
-                              </div>
+                              <Select
+                                value={currentStatus}
+                                onValueChange={(val: AttendanceType) => {
+                                  if (val === p.status) {
+                                    const newPending = { ...pendingPresenceChanges }
+                                    delete newPending[dateStr]
+                                    setPendingPresenceChanges(newPending)
+                                  } else {
+                                    setPendingPresenceChanges(prev => ({ ...prev, [dateStr]: val }))
+                                  }
+                                }}
+                                disabled={locked}
+                              >
+                                <SelectTrigger className="h-8 w-full bg-background/50 border-white/20 hover:bg-background/80 transition-colors shadow-sm">
+                                  <SelectValue placeholder="Status de Presença" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="PRESENCA">Presente</SelectItem>
+                                  <SelectItem value="FALTA" disabled={locked}>Falta</SelectItem>
+                                  <SelectItem value="FALTA_JUSTIFICADA" disabled={locked}>Falta Justificada</SelectItem>
+                                  <SelectItem value="ATESTADO" disabled={locked}>Atestado</SelectItem>
+                                  <SelectItem value="FOLGA" disabled={locked}>Folga</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                           )
+
+                          if (locked && lockReason) {
+                            return (
+                              <TooltipProvider key={p.date}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div>{content}</div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{lockReason}</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )
+                          }
+
+                          return content
                         })}
                       </div>
                     )}
                   </div>
                 ) : null}
               </ScrollArea>
+              
+              {/* Floating Save Button Bar */}
+              {Object.keys(pendingPresenceChanges).length > 0 && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-background border shadow-xl rounded-full px-6 py-3 flex items-center gap-4 animate-in slide-in-from-bottom-5 fade-in duration-300">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold">{Object.keys(pendingPresenceChanges).length} alterações pendentes</span>
+                    <span className="text-[10px] text-muted-foreground uppercase">Deseja aplicá-las?</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="rounded-full"
+                      onClick={() => setPendingPresenceChanges({})}
+                      disabled={bulkCreateDailyWageMutation.isPending}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="rounded-full gap-2"
+                      onClick={handleSavePresenceChanges}
+                      disabled={bulkCreateDailyWageMutation.isPending}
+                    >
+                      {bulkCreateDailyWageMutation.isPending ? "Salvando..." : "Salvar Mudanças"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

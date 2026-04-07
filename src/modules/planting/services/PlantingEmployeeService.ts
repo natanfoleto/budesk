@@ -79,7 +79,8 @@ export class PlantingEmployeeService {
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
       include: {
-        accounts: { orderBy: { isDefault: "desc" } }
+        accounts: { orderBy: { isDefault: "desc" } },
+        employmentRecords: { orderBy: { admissionDate: "desc" }, take: 1 }
       }
     })
 
@@ -254,10 +255,11 @@ export class PlantingEmployeeService {
         mostProductiveDay: mostProductiveDay ? { date: mostProductiveDay.date, meters: mostProductiveDay.planting + mostProductiveDay.cutting } : undefined
       },
       compensation: (() => {
-        if (!employee.salaryInCents || !startDate) return undefined
+        const baseSalary = employee.salaryInCents || employee.employmentRecords?.[0]?.baseSalaryInCents || 0
+        if (!baseSalary) return undefined
         
-        const daysInMonth = getDaysInMonth(startDate)
-        const dailyRateInCents = Math.round(employee.salaryInCents / daysInMonth)
+        const daysInMonth = startDate ? getDaysInMonth(startDate) : 30
+        const dailyRateInCents = Math.round(baseSalary / daysInMonth)
         
         // Count absences (FALTA, AFASTAMENTO)
         const absenceStatuses = [
