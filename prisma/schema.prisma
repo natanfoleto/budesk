@@ -155,6 +155,7 @@ model Employee {
   transactions        FinancialTransaction[]
   plantingAdvances    PlantingAdvance[]
   plantingProductions PlantingProduction[]
+  plantingPayments    PlantingPayment[]
   rhPayments          RHPayment[]
   salaryHistories     SalaryHistory[]
   thirteenthSalaries  ThirteenthSalary[]
@@ -602,6 +603,7 @@ model PlantingSeason {
   plantingAreas       PlantingArea[]
   plantingExpenses    PlantingExpense[]
   plantingProductions PlantingProduction[]
+  plantingPayments    PlantingPayment[]
   workFronts          WorkFront[]
 
   @@map("planting_seasons")
@@ -801,6 +803,29 @@ model EmployeeTag {
   employees EmployeeTagOnEmployee[]
 
   @@map("employee_tags")
+}
+
+model PlantingPayment {
+  id                 String         @id @default(cuid())
+  date               DateTime       @db.Date
+  employeeId         String         @map("employee_id")
+  seasonId           String         @map("season_id")
+  month              Int
+  year               Int
+  fortnight          Int?
+  systemBrutoInCents Int            @map("system_bruto_in_cents")
+  systemNetInCents   Int            @map("system_net_in_cents")
+  holeriteNetInCents Int            @map("holerite_net_in_cents")
+  isPaid             Boolean        @default(false) @map("is_paid")
+  notes              String?
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  employee           Employee       @relation(fields: [employeeId], references: [id])
+  season             PlantingSeason @relation(fields: [seasonId], references: [id])
+
+  @@index([employeeId])
+  @@index([seasonId])
+  @@map("planting_payments")
 }
 
 model EmployeeTagOnEmployee {

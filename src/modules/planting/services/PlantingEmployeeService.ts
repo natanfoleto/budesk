@@ -4,8 +4,10 @@ import {
   DriverAllocation,
   EmployeeAccount,
   PlantingAdvance,
+  PlantingPayment,
   PlantingProduction,
   PlantingProductionType} from "@prisma/client"
+import { getDaysInMonth } from "date-fns"
 
 import prisma from "@/lib/prisma"
  
@@ -20,6 +22,8 @@ export interface EmployeeSummary {
   employee: {
     id: string
     name: string
+    document: string | null
+    salaryInCents: number | null
     accounts: EmployeeAccount[]
   }
   seasonName: string
@@ -36,11 +40,20 @@ export interface EmployeeSummary {
     dailyPlantingMeters: number
     dailyCuttingMeters: number
   }
+  compensation?: {
+    dailyRateInCents: number
+    absencesCount: number
+    absencesValueInCents: number
+    paidLeavesCount: number
+    paidLeavesValueInCents: number
+    netCompensationInCents: number
+  }
   details: {
     productions: PlantingProduction[]
     wages: DailyWage[]
     drivers: DriverAllocation[]
     advances: (PlantingAdvance & { account: EmployeeAccount | null })[]
+    payments: PlantingPayment[]
     presence: { date: string; status: string }[]
   }
   insights: {
@@ -77,7 +90,7 @@ export class PlantingEmployeeService {
       select: { name: true }
     })
 
-    const [productions, dailyWages, drivers, advances] = await Promise.all([
+    const [productions, dailyWages, drivers, advances, payments] = await Promise.all([
       prisma.plantingProduction.findMany({
         where: { employeeId, seasonId, date: dateFilter },
         orderBy: { date: "asc" }
@@ -93,6 +106,10 @@ export class PlantingEmployeeService {
       prisma.plantingAdvance.findMany({
         where: { employeeId, seasonId, date: dateFilter },
         include: { account: true },
+        orderBy: { date: "asc" }
+      }),
+      prisma.plantingPayment.findMany({
+        where: { employeeId, seasonId, date: dateFilter },
         orderBy: { date: "asc" }
       })
     ])
@@ -205,6 +222,8 @@ export class PlantingEmployeeService {
       employee: {
         id: employee.id,
         name: employee.name,
+        document: employee.document,
+        salaryInCents: employee.salaryInCents,
         accounts: employee.accounts
       },
       seasonName: season?.name || seasonId,
@@ -226,13 +245,45 @@ export class PlantingEmployeeService {
         wages: dailyWages,
         drivers,
         advances,
+        payments,
         presence: presenceDetails
       },
       insights: {
         gainEvolution,
         productivityEvolution,
         mostProductiveDay: mostProductiveDay ? { date: mostProductiveDay.date, meters: mostProductiveDay.planting + mostProductiveDay.cutting } : undefined
-      }
+      },
+      compensation: (() => {
+        if (!employee.salaryInCents || !startDate) return undefined
+        
+        const daysInMonth = getDaysInMonth(startDate)
+        const dailyRateInCents = Math.round(employee.salaryInCents / daysInMonth)
+        
+        // Count absences (FALTA, AFASTAMENTO)
+        const absenceStatuses = [
+          AttendanceType.FALTA as string, 
+          "FALTA_JUSTIFICADA",
+          AttendanceType.AFASTAMENTO as string
+        ]
+        const h_absences = presenceDetails.filter(p => absenceStatuses.includes(p.status)).length
+        
+        // Count paid leaves (FOLGA, ATESTADO, DECLARACAO)
+        const paidLeaveStatuses = [
+          AttendanceType.FOLGA as string,
+          AttendanceType.ATESTADO as string,
+          "DECLARACAO"
+        ]
+        const h_paidLeaves = presenceDetails.filter(p => paidLeaveStatuses.includes(p.status)).length
+        
+        return {
+          dailyRateInCents,
+          absencesCount: h_absences,
+          absencesValueInCents: h_absences * dailyRateInCents,
+          paidLeavesCount: h_paidLeaves,
+          paidLeavesValueInCents: h_paidLeaves * dailyRateInCents,
+          netCompensationInCents: (h_paidLeaves * dailyRateInCents) - (h_absences * dailyRateInCents)
+        }
+      })()
     }
   }
 
