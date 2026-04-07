@@ -235,4 +235,44 @@ export class PlantingEmployeeService {
       }
     }
   }
+
+  static async getMonthsWithData(employeeId: string, seasonId: string): Promise<{ year: number; month: number }[]> {
+    const [p, w, d, a] = await Promise.all([
+      prisma.plantingProduction.findMany({
+        where: { employeeId, seasonId },
+        select: { date: true }
+      }),
+      prisma.dailyWage.findMany({
+        where: { employeeId, seasonId },
+        select: { date: true }
+      }),
+      prisma.driverAllocation.findMany({
+        where: { employeeId, seasonId },
+        select: { date: true }
+      }),
+      prisma.plantingAdvance.findMany({
+        where: { employeeId, seasonId },
+        select: { date: true }
+      })
+    ])
+
+    const allDates = [...p, ...w, ...d, ...a].map(item => item.date)
+    const monthsSet = new Set<string>()
+    
+    allDates.forEach(date => {
+      const y = date.getUTCFullYear()
+      const m = date.getUTCMonth() + 1
+      monthsSet.add(`${y}-${m}`)
+    })
+
+    return Array.from(monthsSet)
+      .map(s => {
+        const [year, month] = s.split("-").map(Number)
+        return { year, month }
+      })
+      .sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year
+        return b.month - a.month
+      })
+  }
 }

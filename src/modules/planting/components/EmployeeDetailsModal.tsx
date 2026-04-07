@@ -67,7 +67,7 @@ interface EmployeeDetailsModalProps {
   onOpenChange: (open: boolean) => void
 }
 
-type FilterType = "GERAL" | "HOJE" | "P_QUINZENAL" | "S_QUINZENAL" | "MES_ATUAL" | "CUSTOM"
+type FilterType = "GERAL" | "HOJE" | "P_QUINZENAL" | "S_QUINZENAL" | "MES_ATUAL" | "CUSTOM" | string
 
 export function EmployeeDetailsModal({ 
   employeeId, 
@@ -82,6 +82,17 @@ export function EmployeeDetailsModal({
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
   const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [availableMonths, setAvailableMonths] = useState<{ year: number; month: number }[]>([])
+
+  const fetchMonths = useCallback(async () => {
+    if (!employeeId || !seasonId) return
+    try {
+      const result = await apiRequest<{ year: number; month: number }[]>(`/api/planting/employees/${employeeId}/months?seasonId=${seasonId}`)
+      setAvailableMonths(result)
+    } catch (error) {
+      console.error("Erro ao buscar meses:", error)
+    }
+  }, [employeeId, seasonId])
 
   const calculateDateRange = useCallback((type: FilterType) => {
     const now = new Date()
@@ -115,6 +126,36 @@ export function EmployeeDetailsModal({
         end: format(endOfMonth(now), "yyyy-MM-dd") 
       }
     default:
+      if (type.startsWith("MONTH_")) {
+        // Format: MONTH_YYYY-MM_TYPE
+        const parts = type.split("_")
+        const [y, m] = parts[1].split("-").map(Number)
+        const subType = parts[2] // FULL, Q1, Q2
+
+        const monthDate = new Date(Date.UTC(y, m - 1, 1, 12, 0, 0))
+        if (subType === "FULL") {
+          return {
+            start: format(startOfMonth(monthDate), "yyyy-MM-dd"),
+            end: format(endOfMonth(monthDate), "yyyy-MM-dd")
+          }
+        } else if (subType === "Q1") {
+          const start = startOfMonth(monthDate)
+          const end = new Date(start)
+          end.setDate(15)
+          return {
+            start: format(start, "yyyy-MM-dd"),
+            end: format(end, "yyyy-MM-dd")
+          }
+        } else if (subType === "Q2") {
+          const start = startOfMonth(monthDate)
+          start.setDate(16)
+          const end = endOfMonth(monthDate)
+          return {
+            start: format(start, "yyyy-MM-dd"),
+            end: format(end, "yyyy-MM-dd")
+          }
+        }
+      }
       return { start: "", end: "" }
     }
   }, [])
@@ -143,10 +184,12 @@ export function EmployeeDetailsModal({
   useEffect(() => {
     if (open && employeeId) {
       fetchData()
+      fetchMonths()
     } else {
       setData(null)
+      setAvailableMonths([])
     }
-  }, [open, employeeId, fetchData])
+  }, [open, employeeId, fetchData, fetchMonths])
 
   useEffect(() => {
     if (filterType !== "CUSTOM" && filterType !== "GERAL") {
@@ -210,12 +253,48 @@ export function EmployeeDetailsModal({
                     <SelectValue placeholder="Selecione o período" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="GERAL">Geral</SelectItem>
-                    <SelectItem value="HOJE">Hoje</SelectItem>
-                    <SelectItem value="P_QUINZENAL">Primeira quinzena (01-15)</SelectItem>
-                    <SelectItem value="S_QUINZENAL">Segunda quinzena (16-31)</SelectItem>
-                    <SelectItem value="MES_ATUAL">Mês Atual</SelectItem>
+                    <SelectItem value="GERAL">Geral (Todo o histórico)</SelectItem>
+                    <SelectItem value="HOJE">Hoje ({format(new Date(), "dd/MM")})</SelectItem>
                     <SelectItem value="CUSTOM">Personalizado</SelectItem>
+                    
+                    <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase border-t mt-1">
+                      Mês Atual
+                    </div>
+                    <SelectItem value="MES_ATUAL">Todo o mês ({format(startOfMonth(new Date()), "MMMM", { locale: ptBR })})</SelectItem>
+                    <SelectItem value="P_QUINZENAL">1ª quinzena (01-15)</SelectItem>
+                    <SelectItem value="S_QUINZENAL">2ª quinzena (16-{format(endOfMonth(new Date()), "dd")})</SelectItem>
+
+                    {availableMonths.length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase border-t mt-1">
+                          Meses Anteriores
+                        </div>
+                        {availableMonths
+                          .filter(m => {
+                            const now = new Date()
+                            return !(m.year === now.getFullYear() && m.month === (now.getMonth() + 1))
+                          })
+                          .map(m => {
+                            const monthDate = new Date(m.year, m.month - 1, 1)
+                            const monthName = format(monthDate, "MMMM/yy", { locale: ptBR })
+                            const lastDay = format(endOfMonth(monthDate), "dd")
+                            return (
+                              <div key={`${m.year}-${m.month}`} className="space-y-0.5">
+                                <SelectItem value={`MONTH_${m.year}-${String(m.month).padStart(2, '0')}_FULL`}>
+                                  {monthName} (Geral)
+                                </SelectItem>
+                                <SelectItem value={`MONTH_${m.year}-${String(m.month).padStart(2, '0')}_Q1`} className="pl-6 text-xs text-muted-foreground">
+                                  {monthName} (01-15)
+                                </SelectItem>
+                                <SelectItem value={`MONTH_${m.year}-${String(m.month).padStart(2, '0')}_Q2`} className="pl-6 text-xs text-muted-foreground">
+                                  {monthName} (16-{lastDay})
+                                </SelectItem>
+                              </div>
+                            )
+                          })
+                        }
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
 
