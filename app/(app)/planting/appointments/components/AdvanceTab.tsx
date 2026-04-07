@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
-import { Loader2, MoreHorizontal, Plus, Search } from "lucide-react"
+import { Check, ChevronsUpDown, Loader2, MoreHorizontal, Plus, Search } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -20,6 +20,14 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import {
   Dialog,
   DialogContent,
@@ -44,12 +52,10 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Table,
   TableBody,
@@ -98,6 +104,7 @@ export function AdvanceTab({
   const [advanceToDelete, setAdvanceToDelete] = useState<string | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false)
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false)
 
   const { data: employees } = useEmployees({ tagIds: selectedTagIds })
   
@@ -422,20 +429,59 @@ export function AdvanceTab({
                 name="employeeId"
                 rules={{ required: "Selecione um funcionário" }}
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Funcionário</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!!editingAdvance}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Selecione o funcionário" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {employees?.data.map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={isComboboxOpen}
+                            className={cn(
+                              "w-full justify-between font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            disabled={!!editingAdvance}
+                          >
+                            {field.value
+                              ? employees?.data.find(
+                                (emp) => emp.id === field.value
+                              )?.name
+                              : "Selecione o funcionário"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[450px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Buscar funcionário..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhum funcionário encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {employees?.data.map((emp) => (
+                                <CommandItem
+                                  key={emp.id}
+                                  value={emp.name}
+                                  onSelect={() => {
+                                    form.setValue("employeeId", emp.id)
+                                    setIsComboboxOpen(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      emp.id === field.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {emp.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}

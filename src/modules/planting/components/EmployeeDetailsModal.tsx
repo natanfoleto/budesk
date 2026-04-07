@@ -7,11 +7,11 @@ import {
 import { ptBR } from "date-fns/locale"
 import { 
   Calendar, 
+  ChartNoAxesCombined, 
   CheckCircle2, 
   Clock,
   Copy,
-  DollarSign, 
-  FileText,
+  DollarSign,
   Info,
   Landmark,
   QrCode,
@@ -34,7 +34,6 @@ import {
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
   Dialog, 
@@ -183,7 +182,17 @@ export function EmployeeDetailsModal({
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
               <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                {loading && !data ? <Skeleton className="h-8 w-64" /> : data?.employee.name}
+                {loading && !data ? (
+                  <Skeleton className="h-8 w-64" />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {data?.employee.name}
+                    <ChartNoAxesCombined 
+                      className="size-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" 
+                      onClick={() => setReportModalOpen(true)}
+                    />
+                  </div>
+                )}
               </DialogTitle>
               <DialogDescription>
                 Detalhamento de performance e pagamentos no Plantio Manual
@@ -210,16 +219,6 @@ export function EmployeeDetailsModal({
                   </SelectContent>
                 </Select>
 
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 bg-background border-primary/20 hover:bg-primary/5 text-primary"
-                  onClick={() => setReportModalOpen(true)}
-                  disabled={loading || !data}
-                  title="Opções de Relatório"
-                >
-                  <FileText className="size-4" />
-                </Button>
               </div>
 
               {filterType === "CUSTOM" && (
