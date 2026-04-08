@@ -492,48 +492,7 @@ export function SupplierForm({
               </TabsContent>
 
               <TabsContent value="banking" className="space-y-4 pt-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    name="bank"
-                    control={form.control}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Banco</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    name="branch"
-                    control={form.control}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Agência</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    name="account"
-                    control={form.control}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Conta</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="w-full sm:w-1/2 lg:w-1/3">
                   <FormField
                     name="accountType"
                     control={form.control}
@@ -565,20 +524,69 @@ export function SupplierForm({
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    name="pixKey"
-                    control={form.control}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Chave PIX</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </div>
+
+                {form.watch("accountType") && form.watch("accountType") !== "PIX" && (
+                  <div className="grid grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2">
+                    <FormField
+                      name="bank"
+                      control={form.control}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Banco</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      name="branch"
+                      control={form.control}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Agência</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      name="account"
+                      control={form.control}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Conta</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {form.watch("accountType") === "PIX" && (
+                  <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                    <FormField
+                      name="pixKey"
+                      control={form.control}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Chave PIX</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
 

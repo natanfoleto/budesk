@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { Check, ChevronsUpDown, MoreHorizontal, Plus } from "lucide-react"
+import { Check, ChevronsUpDown, DollarSign, MoreHorizontal, Plus } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -44,6 +44,7 @@ import { apiRequest } from "@/lib/api-client"
 import { cn, formatCentsToReal, formatCurrency, parseCurrencyToCents } from "@/lib/utils"
 import { isBeforeAdmission, isEmployeeActiveAtDate } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
+import { PaymentAssistantModal } from "@/src/modules/planting/components/PaymentAssistantModal"
 
 interface DriverTabProps {
   seasonId: string
@@ -67,6 +68,7 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
   const [allocations, setAllocations] = useState<DriverRecord[]>([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false)
 
   // Add form state
   const [selectedDriverId, setSelectedDriverId] = useState<string>("")
@@ -385,15 +387,27 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
                         className={cn(alloc.isClosed ? "opacity-60" : "", "hover:bg-muted/50 transition-colors")}
                       >
                         <TableCell className="font-medium">
-                          <span
-                            className="cursor-pointer hover:underline underline-offset-4 decoration-primary/50 transition-all"
-                            onClick={() => {
-                              setSelectedEmployeeId(alloc.employeeId)
-                              setIsModalOpen(true)
-                            }}
-                          >
-                            {empObj?.name || "Desconhecido"}
-                          </span>
+                          <div className="flex items-center gap-2 group">
+                            <span
+                              className="cursor-pointer hover:underline underline-offset-4 decoration-primary/50 transition-all"
+                              onClick={() => {
+                                setSelectedEmployeeId(alloc.employeeId)
+                                setIsModalOpen(true)
+                              }}
+                            >
+                              {empObj?.name || "Desconhecido"}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setSelectedEmployeeId(alloc.employeeId)
+                                setIsAssistantOpen(true)
+                              }}
+                              className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                              title="Abrir Assistente de Pagamentos"
+                            >
+                              <DollarSign className="size-3" />
+                            </button>
+                          </div>
                           {empObj && (
                             <div className="flex gap-1 mt-0.5">
                               {(() => {
@@ -549,6 +563,24 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
         seasonId={seasonId}
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
+        onNavigate={(target) => {
+          if (target === "assistant") {
+            setIsModalOpen(false)
+            setIsAssistantOpen(true)
+          }
+        }}
+      />
+      <PaymentAssistantModal
+        employeeId={selectedEmployeeId}
+        seasonId={seasonId}
+        open={isAssistantOpen}
+        onOpenChange={setIsAssistantOpen}
+        onNavigate={(target) => {
+          if (target === "details") {
+            setIsAssistantOpen(false)
+            setIsModalOpen(true)
+          }
+        }}
       />
     </>
   )

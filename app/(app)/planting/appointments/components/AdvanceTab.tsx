@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
-import { Check, ChevronsUpDown, Loader2, MoreHorizontal, Plus, Search } from "lucide-react"
+import { Check, ChevronsUpDown, DollarSign, Loader2, MoreHorizontal, Plus, Search } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -75,6 +75,7 @@ import { apiRequest } from "@/lib/api-client"
 import { cn, formatCentsToReal } from "@/lib/utils"
 import { isBeforeAdmission, isEmployeeActiveAtDate } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
+import { PaymentAssistantModal } from "@/src/modules/planting/components/PaymentAssistantModal"
 import { PlantingAdvance, PlantingAdvanceFormData } from "@/types/planting"
 
 interface AdvanceTabProps {
@@ -105,6 +106,7 @@ export function AdvanceTab({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false)
   const [isComboboxOpen, setIsComboboxOpen] = useState(false)
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false)
 
   const { data: employees } = useEmployees({ tagIds: selectedTagIds })
   
@@ -360,6 +362,16 @@ export function AdvanceTab({
                         >
                           <Search className="size-3" />
                         </button>
+                        <button
+                          onClick={() => {
+                            setSelectedEmployeeId(adv.employeeId)
+                            setIsAssistantOpen(true)
+                          }}
+                          className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                          title="Abrir Assistente de Pagamentos"
+                        >
+                          <DollarSign className="size-3" />
+                        </button>
                       </div>
                     </TableCell>
                     <TableCell>{format(new Date(adv.date.split("T")[0] + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
@@ -609,6 +621,24 @@ export function AdvanceTab({
         seasonId={seasonId}
         open={isEmployeeModalOpen}
         onOpenChange={setIsEmployeeModalOpen}
+        onNavigate={(target) => {
+          if (target === "assistant") {
+            setIsEmployeeModalOpen(false)
+            setIsAssistantOpen(true)
+          }
+        }}
+      />
+      <PaymentAssistantModal
+        employeeId={selectedEmployeeId}
+        seasonId={seasonId}
+        open={isAssistantOpen}
+        onOpenChange={setIsAssistantOpen}
+        onNavigate={(target) => {
+          if (target === "details") {
+            setIsAssistantOpen(false)
+            setIsEmployeeModalOpen(true)
+          }
+        }}
       />
     </Card>
   )

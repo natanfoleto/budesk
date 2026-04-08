@@ -60,6 +60,7 @@ const menuItems = [
     children: [
       { title: "Dashboard", href: "/planting/dashboard" },
       { title: "Apontamentos", href: "/planting/appointments" },
+      { title: "Assistente de Pagamentos", href: "/planting/payments" },
       { title: "Gastos Operacionais", href: "/planting/expenses" },
       { title: "Safras e Frentes", href: "/planting/seasons" },
       { title: "Parâmetros Gerais", href: "/planting/parameters" },

@@ -317,10 +317,10 @@ function ExpensesContent() {
   const meta = response?.meta
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Gastos Operacionais</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Gastos Operacionais</h2>
           <p className="text-muted-foreground">
             Lançamento de despesas vinculadas ao plantio.
           </p>

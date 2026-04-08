@@ -1,7 +1,7 @@
 "use client"
 
 import { AttendanceType } from "@prisma/client"
-import { CircleSlash, Save, Scissors, Search, Sprout } from "lucide-react"
+import { CircleSlash, DollarSign, Save, Scissors, Search, Sprout } from "lucide-react"
 import React, { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -29,6 +29,7 @@ import { useCreateDailyWageBulk, useDailyWages, usePlantingProductions } from "@
 import { cn, formatCentsToReal } from "@/lib/utils"
 import { isBeforeAdmission, isEmployeeActiveAtDate, shouldShowEmployeeInMonth } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
+import { PaymentAssistantModal } from "@/src/modules/planting/components/PaymentAssistantModal"
 import { EmployeeWithDetails } from "@/types/employee"
 import { DailyWage, DailyWageFormData, PlantingProduction } from "@/types/planting"
 
@@ -80,6 +81,7 @@ export function DailyWageTab({
   const [highlightedRow, setHighlightedRow] = useState<string | null>(null)
   const [selectedEmployeeForModal, setSelectedEmployeeForModal] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false)
   const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch all active employees via shared hook
@@ -365,14 +367,25 @@ export function DailyWageTab({
                                   onEmployeeFilterChange(employeeNameFilter === record.employeeName ? "" : record.employeeName)
                                 }
                               }}
-                              className={`p-1 rounded-md transition-colors cursor-pointer ${
+                              className={cn(
+                                "p-1 rounded-md transition-colors cursor-pointer",
                                 employeeNameFilter === record.employeeName 
                                   ? "bg-primary text-primary-foreground" 
                                   : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
-                              }`}
+                              )}
                               title={employeeNameFilter === record.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
                             >
                               <Search className="size-3" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedEmployeeForModal(record.employeeId)
+                                setIsAssistantOpen(true)
+                              }}
+                              className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                              title="Abrir Assistente de Pagamentos"
+                            >
+                              <DollarSign className="size-3" />
                             </button>
                           </div>
                           {record.presence !== "PRESENCA" && (
@@ -472,6 +485,29 @@ export function DailyWageTab({
         seasonId={seasonId}
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
+        onNavigate={(target) => {
+          if (target === "assistant") {
+            setIsModalOpen(false)
+            setIsAssistantOpen(true)
+          }
+        }}
+      />
+      
+      <PaymentAssistantModal
+        employeeId={selectedEmployeeForModal}
+        seasonId={seasonId}
+        open={isAssistantOpen}
+        onOpenChange={setIsAssistantOpen}
+        onNavigate={(target) => {
+          if (target === "details") {
+            setIsAssistantOpen(false)
+            setIsModalOpen(true)
+          }
+        }}
+        onUpdate={() => {
+          // You might have a refetch func to call here to reload data
+          // in this component we have existingRecords, we rely on React Query cache invalidation elsewhere
+        }}
       />
     </Card>
   )

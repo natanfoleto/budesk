@@ -43,7 +43,9 @@ export function SupplierSelect({ value, onChange, disabled }: SupplierSelectProp
           className="w-full justify-between font-normal"
           disabled={disabled}
         >
-          {selectedSupplier ? selectedSupplier.name : "Selecionar fornecedor"}
+          {selectedSupplier 
+            ? (selectedSupplier.tradeName ? `${selectedSupplier.tradeName} (${selectedSupplier.name})` : selectedSupplier.name)
+            : "Selecionar fornecedor"}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -71,7 +73,7 @@ export function SupplierSelect({ value, onChange, disabled }: SupplierSelectProp
               {suppliers.map((supplier) => (
                 <CommandItem
                   key={supplier.id}
-                  value={supplier.name}
+                  value={`${supplier.name} ${supplier.tradeName || ""}`}
                   onSelect={() => {
                     onChange(supplier.id)
                     setOpen(false)
@@ -83,7 +85,7 @@ export function SupplierSelect({ value, onChange, disabled }: SupplierSelectProp
                       value === supplier.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {supplier.name}
+                  {supplier.tradeName ? `${supplier.tradeName} (${supplier.name})` : supplier.name}
                 </CommandItem>
               ))}
             </CommandGroup>

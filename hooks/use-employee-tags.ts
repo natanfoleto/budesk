@@ -40,6 +40,7 @@ export const useUpdateEmployeeTag = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-tags"] })
       queryClient.invalidateQueries({ queryKey: ["employee-tags-list"] }) // For employee list filtering
+      queryClient.invalidateQueries({ queryKey: ["employees"] })
       toast.success("Etiqueta atualizada com sucesso")
     },
     onError: (error: Error) => toast.error(error.message)
@@ -56,6 +57,8 @@ export const useDeleteEmployeeTag = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee-tags"] })
+      queryClient.invalidateQueries({ queryKey: ["employee-tags-list"] })
+      queryClient.invalidateQueries({ queryKey: ["employees"] })
       toast.success("Etiqueta excluída com sucesso")
     },
     onError: (error: Error) => toast.error(error.message)

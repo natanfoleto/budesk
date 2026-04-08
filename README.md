@@ -41,10 +41,3 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 # Backup current project
   docker exec -t budesk_db pg_dump -U budesk budesk > backup.sql
 ```
-
-## TO-DO
-
-- [ ] Em fornecedores, na aba Bancário, primeiro selecionar o tipo de conta depois mostrar os campos necessários para cada tipo de conta. Igual em funcionários.
-- [ ] Nos locais onde da pra selecionar o fornecedor, mostrar o nome do fornecedor e a razão social.
-- [ ] Fazer uma pergunta ao agente, se ao cadastrar uma conta a pagar, os anexos do form, vai ser vinculado a parcela 1?
-- [ ] Ao remover funcionários nas etiquetas, ele da sucesso mas não altera corretamente.

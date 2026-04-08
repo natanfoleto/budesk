@@ -1,13 +1,12 @@
 "use client"
 
-import { AttendanceType,PlantingPayment } from "@prisma/client"
+import { AttendanceType } from "@prisma/client"
 import { 
   endOfMonth,
   format,
   startOfMonth} from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { 
-  AlertCircle,
   Calendar, 
   ChartNoAxesCombined, 
   CheckCircle2, 
@@ -15,9 +14,6 @@ import {
   Copy,
   DollarSign,
   Info,
-  Landmark,
-  MoreHorizontal,
-  QrCode,
   TrendingUp, 
   XCircle} from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
@@ -45,12 +41,6 @@ import {
   DialogHeader, 
   DialogTitle
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -62,17 +52,7 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
 import { 
   Tooltip, 
   TooltipContent, 
@@ -81,7 +61,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useCreateDailyWageBulk } from "@/hooks/use-planting"
 import { apiRequest } from "@/lib/api-client"
-import { cn, formatAccountIdentifier, formatCentsToReal, parseLocalDate } from "@/lib/utils"
+import { cn, formatAccountIdentifier, parseLocalDate } from "@/lib/utils"
 import { DailyWageFormData } from "@/types/planting"
 
 import { EmployeeSummary } from "../services/PlantingEmployeeService"
@@ -92,6 +72,7 @@ interface EmployeeDetailsModalProps {
   seasonId: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  onNavigate?: (target: "details" | "assistant") => void
 }
 
 type FilterType = "GERAL" | "HOJE" | "P_QUINZENAL" | "S_QUINZENAL" | "MES_ATUAL" | "CUSTOM" | string
@@ -100,7 +81,8 @@ export function EmployeeDetailsModal({
   employeeId, 
   seasonId, 
   open, 
-  onOpenChange 
+  onOpenChange,
+  onNavigate
 }: EmployeeDetailsModalProps) {
   const [data, setData] = useState<EmployeeSummary | null>(null)
   const [loading, setLoading] = useState(false)
@@ -110,17 +92,9 @@ export function EmployeeDetailsModal({
   const [endDate, setEndDate] = useState<string>("")
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const [availableMonths, setAvailableMonths] = useState<{ year: number; month: number }[]>([])
-  const [applyCompensationRules, setApplyCompensationRules] = useState(true)
 
-  // Payment form state
-  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
-  const [paymentDate, setPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"))
-  const [holeriteValue, setHoleriteValue] = useState<number>(0)
-  const [paymentNotes, setPaymentNotes] = useState("")
-  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
   const bulkCreateDailyWageMutation = useCreateDailyWageBulk()
   const [pendingPresenceChanges, setPendingPresenceChanges] = useState<Record<string, AttendanceType>>({})
-  const [isPaidNow, setIsPaidNow] = useState(false)
 
   const fetchMonths = useCallback(async () => {
     if (!employeeId || !seasonId) return
@@ -254,101 +228,7 @@ export function EmployeeDetailsModal({
     })
   }
 
-  const handleEditPayment = (payment: PlantingPayment) => {
-    setEditingPaymentId(payment.id)
-    setPaymentDate(format(parseLocalDate(payment.date), "yyyy-MM-dd"))
-    setHoleriteValue(payment.holeriteNetInCents)
-    setPaymentNotes(payment.notes || "")
-    setIsPaidNow(payment.isPaid)
-  }
 
-  const handleCancelEdit = () => {
-    setEditingPaymentId(null)
-    setPaymentDate(format(new Date(), "yyyy-MM-dd"))
-    setHoleriteValue(0)
-    setPaymentNotes("")
-    setIsPaidNow(false)
-  }
-
-  const handleRegisterPayment = async () => {
-    if (!employeeId || !seasonId || !data) return
-    if (!holeriteValue || holeriteValue <= 0) {
-      toast.error("Informe um valor válido para o holerite")
-      return
-    }
-
-    setIsSubmittingPayment(true)
-    try {
-      const parts = paymentDate.split("-").map(Number)
-      
-      if (editingPaymentId) {
-        await apiRequest(`/api/planting/employees/${employeeId}/payments?id=${editingPaymentId}`, {
-          method: "PATCH",
-          body: JSON.stringify({
-            date: paymentDate,
-            holeriteNetInCents: holeriteValue,
-            isPaid: isPaidNow,
-            notes: paymentNotes
-          })
-        })
-        toast.success("Pagamento atualizado com sucesso!")
-      } else {
-        await apiRequest(`/api/planting/employees/${employeeId}/payments`, {
-          method: "POST",
-          body: JSON.stringify({
-            date: paymentDate,
-            seasonId,
-            month: parts[1],
-            year: parts[0],
-            systemBrutoInCents: data.totals.earnedInCents + (applyCompensationRules ? (data.compensation?.paidLeavesValueInCents || 0) : 0),
-            systemNetInCents: data.totals.earnedInCents + (applyCompensationRules ? (data.compensation?.netCompensationInCents || 0) : 0) - data.totals.advancesInCents,
-            holeriteNetInCents: holeriteValue,
-            isPaid: isPaidNow,
-            notes: paymentNotes
-          })
-        })
-        toast.success("Pagamento registrado com sucesso!")
-      }
-
-      setEditingPaymentId(null)
-      setHoleriteValue(0)
-      setPaymentNotes("")
-      setIsPaidNow(false)
-      fetchData()
-    } catch (error) {
-      console.error(error)
-      toast.error("Erro ao registrar pagamento")
-    } finally {
-      setIsSubmittingPayment(false)
-    }
-  }
-
-  const handleTogglePaymentPaid = async (paymentId: string, currentStatus: boolean) => {
-    try {
-      await apiRequest(`/api/planting/employees/${employeeId}/payments?id=${paymentId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ isPaid: !currentStatus })
-      })
-      toast.success(currentStatus ? "Pagamento marcado como pendente" : "Pagamento marcado como pago")
-      fetchData()
-    } catch (error) {
-      console.error(error)
-      toast.error("Erro ao atualizar status do pagamento")
-    }
-  }
-
-  const handleDeletePayment = async (id: string) => {
-    try {
-      await apiRequest(`/api/planting/employees/${employeeId}/payments?id=${id}`, {
-        method: "DELETE"
-      })
-      toast.success("Pagamento removido")
-      fetchData()
-    } catch (error) {
-      console.error(error)
-      toast.error("Erro ao remover pagamento")
-    }
-  }
 
   const handleSavePresenceChanges = async () => {
     if (!data || !employeeId) return
@@ -400,10 +280,34 @@ export function EmployeeDetailsModal({
                 ) : (
                   <div className="flex items-center gap-2">
                     {data?.employee.name}
-                    <ChartNoAxesCombined 
-                      className="size-4 text-muted-foreground hover:text-primary transition-colors cursor-pointer" 
-                      onClick={() => setReportModalOpen(true)}
-                    />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <ChartNoAxesCombined 
+                            className="size-5 text-muted-foreground hover:text-primary transition-colors cursor-pointer ml-1" 
+                            onClick={() => setReportModalOpen(true)}
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Relatórios</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    {onNavigate && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <DollarSign
+                              className="size-5 text-muted-foreground hover:text-emerald-600 transition-colors cursor-pointer"
+                              onClick={() => onNavigate("assistant")}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Ir para Assistente de Pagamentos</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </div>
                 )}
               </DialogTitle>
@@ -411,8 +315,8 @@ export function EmployeeDetailsModal({
                 Detalhamento de performance e pagamentos no Plantio Manual
               </DialogDescription>
             </div>
-            <div className="flex items-end gap-3">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-1 min-w-[200px] justify-end">
                 {data && (
                   <Label className="text-[10px] uppercase font-semibold px-0.5">
                     Safra: {data.seasonName}
@@ -430,9 +334,9 @@ export function EmployeeDetailsModal({
                     <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase border-t mt-1">
                       Mês Atual
                     </div>
-                    <SelectItem value="MES_ATUAL">Todo o mês ({format(startOfMonth(new Date()), "MMMM", { locale: ptBR })})</SelectItem>
-                    <SelectItem value="P_QUINZENAL">1ª quinzena (01-15)</SelectItem>
-                    <SelectItem value="S_QUINZENAL">2ª quinzena (16-{format(endOfMonth(new Date()), "dd")})</SelectItem>
+                    <SelectItem value="MES_ATUAL">{format(startOfMonth(new Date()), "MMMM/yy", { locale: ptBR })} (Geral)</SelectItem>
+                    <SelectItem value="P_QUINZENAL" className="pl-6 text-xs text-muted-foreground">1ª quinzena (01-15)</SelectItem>
+                    <SelectItem value="S_QUINZENAL" className="pl-6 text-xs text-muted-foreground">2ª quinzena (16-{format(endOfMonth(new Date()), "dd")})</SelectItem>
 
                     {availableMonths.length > 0 && (
                       <>
@@ -454,10 +358,10 @@ export function EmployeeDetailsModal({
                                   {monthName} (Geral)
                                 </SelectItem>
                                 <SelectItem value={`MONTH_${m.year}-${String(m.month).padStart(2, '0')}_Q1`} className="pl-6 text-xs text-muted-foreground">
-                                  {monthName} (01-15)
+                                  1ª quinzena (01-15)
                                 </SelectItem>
                                 <SelectItem value={`MONTH_${m.year}-${String(m.month).padStart(2, '0')}_Q2`} className="pl-6 text-xs text-muted-foreground">
-                                  {monthName} (16-{lastDay})
+                                  2ª quinzena (16-{lastDay})
                                 </SelectItem>
                               </div>
                             )
@@ -501,7 +405,6 @@ export function EmployeeDetailsModal({
               <TabsList className="h-10 w-full p-1 bg-muted/50 rounded-lg">
                 <TabsTrigger value="resumo" className="flex-1 px-4 py-2 text-xs font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Resumo Geral</TabsTrigger>
                 <TabsTrigger value="producao" className="flex-1 px-4 py-2 text-xs font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Plantio & Corte</TabsTrigger>
-                <TabsTrigger value="assistente" className="flex-1 px-4 py-2 text-xs font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Assistente de Pagamento</TabsTrigger>
                 <TabsTrigger value="pagamentos" className="flex-1 px-4 py-2 text-xs font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Extrato Financeiro</TabsTrigger>
                 <TabsTrigger value="frequencia" className="flex-1 px-4 py-2 text-xs font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Presença</TabsTrigger>
               </TabsList>
@@ -707,379 +610,6 @@ export function EmployeeDetailsModal({
                       </CardContent>
                     </Card>
 
-                  </div>
-                ) : null}
-              </ScrollArea>
-            </TabsContent>
-
-            <TabsContent value="assistente" className="mt-0 flex-1 min-h-0 overflow-hidden">
-              <ScrollArea className="h-full px-6">
-                {loading && !data ? (
-                  <div className="py-6 space-y-6">
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                      {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
-                    </div>
-                    <Skeleton className="h-[400px] w-full" />
-                  </div>
-                ) : data ? (
-                  <div className="py-6 space-y-8 pb-12">
-                    {/* Seção de Totais do Sistema */}
-                    <div className="flex items-center justify-end mb-4">
-                      <div className="flex items-center gap-2 bg-muted/40 p-2 px-3 rounded-lg border border-primary/20 shadow-sm">
-                        <Label htmlFor="apply-compensation" className="text-[10px] font-bold text-muted-foreground uppercase cursor-pointer select-none">
-                          Aplicar compensação (Faltas/Chuvas)
-                        </Label>
-                        <Switch
-                          id="apply-compensation"
-                          checked={applyCompensationRules}
-                          onCheckedChange={setApplyCompensationRules}
-                          className="h-4 w-7 [&_span]:size-3 [&_span]:data-[state=checked]:translate-x-3"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                      <Card className="border-emerald-200 bg-emerald-50/30">
-                        <CardHeader className="p-4 pb-1">
-                          <Label className="text-[10px] font-bold text-emerald-700 uppercase">Produção / Diárias</Label>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <div className="text-xl font-black text-emerald-900">
-                            {formatCurrency(data.totals.earnedInCents)}
-                          </div>
-                          <p className="text-[9px] text-emerald-600 font-medium">Dias trabalhados</p>
-                        </CardContent>
-                      </Card>
-
-                      <Card className={cn("border-blue-200 transition-all", applyCompensationRules ? "bg-blue-50/30" : "bg-muted/10 opacity-60")}>
-                        <CardHeader className="p-4 pb-1">
-                          <Label className="text-[10px] font-bold text-blue-700 uppercase">Folgas / Chuva (+)</Label>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <div className={cn("text-xl font-black transition-colors", applyCompensationRules ? "text-blue-900" : "text-muted-foreground line-through")}>
-                            {formatCurrency(data.compensation?.paidLeavesValueInCents || 0)}
-                          </div>
-                          <p className="text-[9px] text-blue-600 font-medium">
-                            {data.compensation?.paidLeavesCount || 0} dia(s) a pagar
-                          </p>
-                        </CardContent>
-                      </Card>
-
-                      <Card className={cn("border-orange-200 transition-all", applyCompensationRules ? "bg-orange-50/30" : "bg-muted/10 opacity-60")}>
-                        <CardHeader className="p-4 pb-1">
-                          <Label className="text-[10px] font-bold text-orange-700 uppercase">Faltas (-)</Label>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <div className={cn("text-xl font-black transition-colors", applyCompensationRules ? "text-destructive" : "text-muted-foreground line-through")}>
-                            -{formatCurrency(data.compensation?.absencesValueInCents || 0)}
-                          </div>
-                          <p className="text-[9px] text-orange-600 font-medium">
-                            {data.compensation?.absencesCount || 0} dia(s) descontado(s)
-                          </p>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border-red-200 bg-red-50/30">
-                        <CardHeader className="p-4 pb-1">
-                          <Label className="text-[10px] font-bold text-red-700 uppercase">Adiantamentos (-)</Label>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <div className="text-xl font-black text-red-900">
-                            -{formatCurrency(data.totals.advancesInCents)}
-                          </div>
-                          <p className="text-[9px] text-red-600 font-medium">Vales no período</p>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="border-primary bg-primary/5">
-                        <CardHeader className="p-4 pb-1">
-                          <Label className="text-[10px] font-bold text-primary uppercase">Sistema: Líquido</Label>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <div className="text-2xl font-black text-primary">
-                            {formatCurrency(data.totals.earnedInCents + (applyCompensationRules ? (data.compensation?.netCompensationInCents || 0) : 0) - data.totals.advancesInCents)}
-                          </div>
-                          <p className="text-[9px] text-primary/70 font-bold uppercase tracking-tighter">Base para conferência</p>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                      {/* Formulário de Registro */}
-                      <Card className="shadow-lg border-primary/20 flex-1 flex flex-col">
-                        <CardHeader className="bg-muted/30 py-3 shrink-0">
-                          <CardTitle className="text-sm font-bold flex items-center gap-2">
-                            {editingPaymentId ? "Editar Pagamento de Holerite" : "Registrar Pagamento de Holerite"}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 space-y-4 flex-1">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="paymentDate" className="text-[10px] font-bold uppercase text-muted-foreground">Data do Pagamento</Label>
-                              <Input 
-                                id="paymentDate"
-                                type="date"
-                                value={paymentDate}
-                                onChange={(e) => setPaymentDate(e.target.value)}
-                                className="h-9 focus:ring-primary/20"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="holeriteValue" className="text-[10px] font-bold uppercase text-muted-foreground">Valor Líquido (Holerite)</Label>
-                              <Input 
-                                id="holeriteValue"
-                                placeholder="R$ 0,00"
-                                value={formatCentsToReal(holeriteValue)}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(/\D/g, "")
-                                  setHoleriteValue(Number(value))
-                                }}
-                                className="h-9 bg-muted/30 focus:ring-1 focus:ring-primary/20 text-sm"
-                              />
-                            </div>
-
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="paymentNotes" className="text-[10px] font-bold uppercase text-muted-foreground">Observações</Label>
-                            <Textarea 
-                              id="paymentNotes"
-                              placeholder="Ex: Pagamento referente à quinzena X de Abril..."
-                              value={paymentNotes}
-                              onChange={(e) => setPaymentNotes(e.target.value)}
-                              className="min-h-[80px] text-sm focus:ring-primary/20"
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 border-dashed border-primary/20">
-                            <div className="space-y-0.5">
-                              <Label className="text-[10px] font-bold uppercase text-primary">Marcar como Pago</Label>
-                              <p className="text-[9px] text-muted-foreground">O pagamento já foi realizado?</p>
-                            </div>
-                            <Switch 
-                              checked={isPaidNow}
-                              onCheckedChange={setIsPaidNow}
-                              className="data-[state=checked]:bg-primary"
-                            />
-                          </div>
-
-                          <div className="flex gap-2 pt-2">
-                            {editingPaymentId && (
-                              <Button 
-                                variant="outline" 
-                                onClick={handleCancelEdit}
-                                className="h-10 font-bold"
-                                disabled={isSubmittingPayment}
-                              >
-                                Cancelar
-                              </Button>
-                            )}
-                            <Button 
-                              onClick={handleRegisterPayment} 
-                              className="flex-1 h-10 font-bold gap-2"
-                              disabled={isSubmittingPayment}
-                            >
-                              {isSubmittingPayment ? "Salvando..." : (editingPaymentId ? "Atualizar Pagamento" : "Salvar Pagamento")}
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Dados Bancários Assistidos e Último Registro */}
-                      <div className="space-y-6 flex-1 flex flex-col">
-                        <Card className="border-muted shadow-sm overflow-hidden">
-                          <CardHeader className="bg-muted/30 py-3 shrink-0">
-                            <CardTitle className="text-sm font-bold flex items-center gap-2">
-                              Dados Bancários Selecionados
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="p-4">
-                            {data.employee.accounts.length === 0 ? (
-                              <div className="text-sm text-muted-foreground py-4">Nenhuma conta cadastrada.</div>
-                            ) : (
-                              <div className="space-y-3">
-                                {data.employee.accounts.map(acc => (
-                                  <div key={acc.id} className={cn(
-                                    "p-3 rounded-lg border transition-all flex items-center justify-between",
-                                    acc.isDefault ? "bg-background border-primary/30 shadow-md" : "bg-background/20 hover:bg-background transition-colors"
-                                  )}>
-                                    <div className="flex gap-3 items-center min-w-0">
-                                      <div className="p-2 rounded-full bg-primary/5 text-primary shrink-0">
-                                        {acc.type === "BANCARIA" ? <Landmark className="size-4" /> : <QrCode className="size-4" />}
-                                      </div>
-                                      <div className="min-w-0">
-                                        <div className="flex items-center gap-2">
-                                          <p className="text-[9px] uppercase font-bold text-muted-foreground leading-none">
-                                            {acc.type.replace("PIX_", "").replace("_", " ")}
-                                            {acc.isDefault && <span className="text-primary ml-1">(PADRÃO)</span>}
-                                          </p>
-                                        </div>
-                                        <p className="text-sm font-mono font-bold tracking-tight truncate py-0.5">
-                                          {formatAccountIdentifier(acc.identifier, acc.type)}
-                                        </p>
-                                        
-                                        {/* Informações adicionais do funcionário */}
-                                        {((acc.type === "BANCARIA") || (acc.type === "PIX_TELEFONE")) && (
-                                          <div className="mt-1 space-y-0.5">
-                                            <p className="text-[9px] font-medium text-muted-foreground truncate uppercase">{data.employee.name}</p>
-                                            {data.employee.document && (
-                                              <p className="text-[9px] font-mono text-muted-foreground">CPF: {data.employee.document}</p>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      onClick={() => handleCopy(acc.identifier, "Chave")}
-                                      className="size-7 hover:bg-primary/10 hover:text-primary shrink-0"
-                                    >
-                                      <Copy className="size-3.5" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-
-                        {/* Último Registro de Pagamento */}
-                        {data.details.payments.length > 0 && (
-                          <Card className="border-muted shadow-sm overflow-hidden">
-                            <CardHeader className="bg-muted/30 py-3 shrink-0 flex flex-row items-center justify-between space-y-0">
-                              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                                Último Registro de Pagamento
-                              </CardTitle>
-                              <Badge 
-                                variant={data.details.payments[0].isPaid ? "default" : "outline"}
-                                className={cn(
-                                  "text-[10px] uppercase font-bold px-2 py-0.5",
-                                  data.details.payments[0].isPaid ? "bg-green-500 hover:bg-green-600" : "bg-orange-50 text-orange-600 border-orange-200"
-                                )}
-                              >
-                                {data.details.payments[0].isPaid ? "Pago" : "Pendente"}
-                              </Badge>
-                            </CardHeader>
-                            <CardContent className="p-4">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <div className="text-xl font-black text-primary">
-                                    {formatCurrency(data.details.payments[0].holeriteNetInCents)}
-                                  </div>
-                                  <div className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5 mt-1">
-                                    <Calendar className="size-3" /> {format(parseLocalDate(data.details.payments[0].date), "dd/MM/yyyy")}
-                                  </div>
-                                  {data.details.payments[0].notes && (
-                                    <p className="mt-2 text-xs text-muted-foreground italic line-clamp-2">"{data.details.payments[0].notes}"</p>
-                                  )}
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleTogglePaymentPaid(data.details.payments[0].id, data.details.payments[0].isPaid)}
-                                  className={cn(
-                                    "h-8 text-[10px] font-bold uppercase gap-2 transition-all",
-                                    data.details.payments[0].isPaid 
-                                      ? "text-orange-600 border-orange-200 hover:bg-orange-50" 
-                                      : "text-green-600 border-green-200 hover:bg-green-50"
-                                  )}
-                                >
-                                  {data.details.payments[0].isPaid ? "Marcar como Pendente" : "Marcar como Pago"}
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Histórico de Pagamentos de Holerite */}
-                    <Card className="shadow-md border-muted overflow-hidden">
-                      <CardHeader className="bg-muted/30 py-3 border-b">
-                        <CardTitle className="text-sm font-bold flex items-center gap-2">
-                          Histórico de Pagamentos (Holerite)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/30">
-                              <TableHead className="w-[120px]">Data</TableHead>
-                              <TableHead className="text-right">Sistema (Bruto)</TableHead>
-                              <TableHead className="text-right">Sistema (Líquido)</TableHead>
-                              <TableHead className="text-right font-black text-primary">Holerite (Líquido)</TableHead>
-                              <TableHead>Obs</TableHead>
-                              <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {data.details.payments.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Nenhum pagamento registrado ainda.</TableCell>
-                              </TableRow>
-                            ) : (
-                              data.details.payments.map((p) => {
-                                const diff = p.holeriteNetInCents - p.systemNetInCents
-                                const diffPerc = Math.abs(diff / (p.systemNetInCents || 1) * 100)
-
-                                return (
-                                  <TableRow key={p.id}>
-                                    <TableCell className="font-medium">{format(parseLocalDate(p.date), "dd/MM/yyyy")}</TableCell>
-                                    <TableCell className="text-right tabular-nums">{formatCurrency(p.systemBrutoInCents)}</TableCell>
-                                    <TableCell className="text-right tabular-nums">{formatCurrency(p.systemNetInCents)}</TableCell>
-                                    <TableCell className="text-right">
-                                      <div className="flex flex-col items-end">
-                                        <span className="font-black text-primary underline underline-offset-2">{formatCurrency(p.holeriteNetInCents)}</span>
-                                        {diffPerc > 5 && (
-                                          <TooltipProvider>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <Badge variant="outline" className="text-[8px] h-3.5 px-0.5 mt-0.5 border-orange-200 text-orange-600 animate-pulse">
-                                                  <AlertCircle className="size-2 mr-0.5" /> Divergência {diffPerc.toFixed(0)}%
-                                                </Badge>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                A diferença entre o holerite e o sistema é de {formatCurrency(Math.abs(diff))}.
-                                              </TooltipContent>
-                                            </Tooltip>
-                                          </TooltipProvider>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate" title={p.notes || ""}>{p.notes}</TableCell>
-                                    <TableCell>
-                                      <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <span className="sr-only">Abrir menu</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                          </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                          <DropdownMenuItem 
-                                            className="cursor-pointer" 
-                                            onClick={() => handleEditPayment(p)}
-                                          >
-                                            Editar
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem 
-                                            className="text-destructive cursor-pointer focus:text-destructive focus:bg-destructive/10"
-                                            onClick={() => handleDeletePayment(p.id)}
-                                          >
-                                            Excluir
-                                          </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
-                                    </TableCell>
-                                  </TableRow>
-                                )
-                              })
-                            )}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
                   </div>
                 ) : null}
               </ScrollArea>

@@ -75,10 +75,10 @@ export function SuppliersTable({
               suppliers.map((supplier) => (
                 <TableRow key={supplier.id}>
                   <TableCell className="font-medium">
-                    <div className="flex flex-col">
-                      <span>{supplier.name}</span>
+                    <div className="flex flex-col max-w-[200px] sm:max-w-[250px] md:max-w-[300px] lg:max-w-[400px]">
+                      <span className="truncate" title={supplier.name}>{supplier.name}</span>
                       {supplier.tradeName && (
-                        <span className="text-xs text-muted-foreground">{supplier.tradeName}</span>
+                        <span className="text-xs text-muted-foreground truncate" title={supplier.tradeName}>{supplier.tradeName}</span>
                       )}
                     </div>
                   </TableCell>
