@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useDebounce } from "@/hooks/use-debounce"
 import { 
   useCreateEmployeeTag, 
   useDeleteEmployeeTag, 
@@ -70,13 +71,26 @@ export const TagManagementModal = ({
 
   // Bulk Assignment State
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState("")
+  const debouncedSearchTerm = useDebounce(employeeSearchTerm, 300)
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([])
 
-  const employeesParams = useMemo(() => ({ limit: 1000, status: "ATIVO" as const }), [])
+  // Main list for current view (filtered by search if needed)
+  const employeesParams = useMemo(() => ({ 
+    limit: 50, 
+    name: debouncedSearchTerm || undefined,
+  }), [debouncedSearchTerm])
+  
+  const { data: employeesResponse, isLoading: isLoadingEmployees } = useEmployees(employeesParams)
+  const filteredEmployees = useMemo(() => employeesResponse?.data || EMPTY_ARRAY, [employeesResponse])
+
+  // Separate query to fetch ALREADY assigned employees when editing a tag
+  const { data: assignedEmployeesResponse } = useEmployees({
+    tagIds: editingId ? [editingId] : undefined,
+    limit: 1000,
+  }, { enabled: !!editingId && isOpen })
+
   const { data: tagsData, isLoading } = useEmployeeTags()
   const allTags = useMemo(() => tagsData || EMPTY_ARRAY, [tagsData])
-  const { data: employeesResponse, isLoading: isLoadingEmployees } = useEmployees(employeesParams)
-  const allEmployees = useMemo(() => employeesResponse?.data || EMPTY_ARRAY, [employeesResponse])
 
   const { mutate: createTag, isPending: isCreating } = useCreateEmployeeTag()
   const { mutate: updateTag, isPending: isUpdating } = useUpdateEmployeeTag()
@@ -91,16 +105,15 @@ export const TagManagementModal = ({
   }, [])
 
   // Initialize selected employees when editing
+  // Triggered only when the assigned employees for the specifically edited tag are loaded
   useEffect(() => {
-    if (editingId && allEmployees.length > 0) {
-      const assignedIds = allEmployees
-        .filter((emp: { id: string; tags?: { id: string }[] }) => emp.tags?.some((t: { id: string }) => t.id === editingId))
-        .map((emp: { id: string }) => emp.id)
+    if (editingId && assignedEmployeesResponse?.data) {
+      const assignedIds = assignedEmployeesResponse.data.map((emp: { id: string }) => emp.id)
       setSelectedEmployeeIds(assignedIds)
     } else if (!editingId) {
       setSelectedEmployeeIds([])
     }
-  }, [editingId, allEmployees])
+  }, [editingId, assignedEmployeesResponse])
 
   // Set editing tag from prop or reset if opened clean
   useEffect(() => {
@@ -122,11 +135,8 @@ export const TagManagementModal = ({
     }
   }, [isOpen, defaultTagId, allTags, resetForm])
 
-  const filteredEmployees = useMemo(() => {
-    if (!employeeSearchTerm.trim()) return allEmployees
-    const term = employeeSearchTerm.toLowerCase()
-    return allEmployees.filter((emp: { name: string }) => emp.name.toLowerCase().includes(term))
-  }, [allEmployees, employeeSearchTerm])
+  // Handled by API search now
+  // filteredEmployees is coming directly from employeesResponse
 
   const handleCreateOrUpdate = () => {
     if (!name.trim()) {
@@ -302,7 +312,7 @@ export const TagManagementModal = ({
                   onClick={handleCreateOrUpdate} 
                   disabled={isCreating || isUpdating}
                 >
-                  {isCreating || isUpdating && (
+                  {(isCreating || isUpdating) && (
                     <Loader2 className="animate-spin size-3.5" />
                   )}
 

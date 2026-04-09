@@ -5,7 +5,7 @@ import {
   EmploymentRecord,
   FinancialTransaction
 } from "@prisma/client"
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, UseQueryOptions } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
 import { apiRequest } from '@/lib/api-client'
@@ -21,6 +21,7 @@ import {
   getEmployees,
   GetEmployeesParams,
   getEmploymentRecords,
+  PaginatedResponse,
   updateEmployee,
 } from '@/lib/services/employees'
 import {
@@ -28,15 +29,20 @@ import {
   ContractFormData,
   EmployeeAccountFormData,
   EmployeeFormData,
+  EmployeeWithDetails,
   EmploymentRecordFormData,
 } from '@/types/employee'
 
 // Employees CRUD
 
-export const useEmployees = (params?: GetEmployeesParams) => {
-  return useQuery({
+export const useEmployees = (
+  params?: GetEmployeesParams,
+  options?: Omit<UseQueryOptions<PaginatedResponse<EmployeeWithDetails>>, 'queryKey' | 'queryFn'>
+) => {
+  return useQuery<PaginatedResponse<EmployeeWithDetails>>({
     queryKey: ['employees', params],
     queryFn: () => getEmployees(params),
+    ...options,
   })
 }
 

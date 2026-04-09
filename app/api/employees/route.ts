@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client"
+import { ContractStatus,Prisma } from "@prisma/client"
 import { NextRequest, NextResponse } from "next/server"
 
 import { createAuditLog } from "@/lib/audit"
@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
       where.document = { contains: document }
     }
 
-    if (status === "ATIVO") {
-      where.OR = [
+    const _ativoConditions = {
+      OR: [
         {
           employmentRecords: {
             some: {
@@ -56,26 +56,24 @@ export async function GET(request: NextRequest) {
         {
           contracts: {
             some: {
-              status: "ACTIVE"
+              status: ContractStatus.ACTIVE
             }
           }
-        }
-      ]
-    } else if (status === "ENCERRADO") {
-      where.AND = [
-        {
-          OR: [
-            { employmentRecords: { none: { terminationDate: null } } },
-            { employmentRecords: { none: {} } }
-          ]
         },
         {
-          OR: [
-            { contracts: { none: { status: "ACTIVE" } } },
-            { contracts: { none: {} } }
+          AND: [
+            { employmentRecords: { none: {} } },
+            { contracts: { none: {} } },
+            { active: true }
           ]
         }
       ]
+    }
+
+    if (status === "ATIVO") {
+      where.OR = _ativoConditions.OR
+    } else if (status === "ENCERRADO") {
+      where.NOT = _ativoConditions
     }
 
     const [total, employees] = await Promise.all([
