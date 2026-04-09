@@ -12,7 +12,7 @@ import {
   MoreHorizontal,
   QrCode,
 } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -95,6 +95,117 @@ export function PaymentAssistantModal({
   const [paymentNotes, setPaymentNotes] = useState("")
   const [isPaidNow, setIsPaidNow] = useState(false)
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
+
+  // Pix QR Code state
+  const [pixDialogOpen, setPixDialogOpen] = useState(false)
+  const [pixQrCode, setPixQrCode] = useState<string | null>(null)
+  const [pixPayload, setPixPayload] = useState<string | null>(null)
+  const [pixAmount, setPixAmount] = useState<number>(0)
+  const [pixPaymentId, setPixPaymentId] = useState<string>("")
+  const [pixKey, setPixKey] = useState<string>("")
+  const [pixEmployeeName, setPixEmployeeName] = useState<string>("")
+  const [isLoadingPix, setIsLoadingPix] = useState(false)
+  const [pixError, setPixError] = useState<string | null>(null)
+  const [pixKeyType, setPixKeyType] = useState<string>("")
+
+  const qrCodeRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to QR code when generated
+  useEffect(() => {
+    if (pixQrCode && !isLoadingPix) {
+      setTimeout(() => {
+        qrCodeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }, 100)
+    }
+  }, [pixQrCode, isLoadingPix])
+
+  const formatPixKey = (value: string, type?: string) => {
+    const clean = value.replace(/\D/g, "")
+    
+    // If type is known, be more strict
+    if (type === "PIX_CPF") {
+      return clean.slice(0, 11)
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
+    }
+
+    if (type === "PIX_CNPJ") {
+      return clean.slice(0, 14)
+        .replace(/(\d{2})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$3")
+        .replace(/(\d{3})(\d)/, "$1/$2")
+        .replace(/(\d{4})(\d{1,2})$/, "$1-$2")
+    }
+
+    if (type === "PIX_TELEFONE") {
+      return clean.slice(0, 11)
+        .replace(/(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{4,5})(\d{4})$/, "$1-$2")
+    }
+
+    // Fallback/Auto-detection if type unspecified or different
+    if (!type || type === "PIX_CHAVE_ALEATORIA" || type === "PIX_EMAIL") {
+      if (value.includes("@")) return value
+      if (clean.length === 11) return formatPixKey(clean, "PIX_CPF")
+      if (clean.length === 14) return formatPixKey(clean, "PIX_CNPJ")
+      if (clean.length === 10) return formatPixKey(clean, "PIX_TELEFONE")
+    }
+
+    return value 
+  }
+
+  const handleOpenPix = (paymentId: string, amountInCents: number) => {
+    // Pre-fill pix key from employee's default or first PIX account
+    const accounts = data?.employee?.accounts || []
+    const defaultAccount = accounts.find(a => a.isDefault) || accounts.find(a => a.type !== "BANCARIA") || null
+    const prefilledKey = defaultAccount?.identifier || ""
+
+    setPixAmount(amountInCents / 100)
+    setPixPaymentId(paymentId)
+    setPixKeyType(defaultAccount?.type || "")
+    setPixKey(formatPixKey(prefilledKey, defaultAccount?.type || ""))
+    setPixEmployeeName(data?.employee?.name || "")
+    setPixQrCode(null)
+    setPixPayload(null)
+    setPixError(null)
+    setPixDialogOpen(true)
+  }
+
+  const handleGeneratePix = async () => {
+    if (!pixKey.trim()) {
+      setPixError("Informe a chave Pix para continuar.")
+      return
+    }
+    setPixQrCode(null)
+    setPixPayload(null)
+    setPixError(null)
+    setIsLoadingPix(true)
+    try {
+      const result = await apiRequest<{ payload: string; qrCode: string }>("/api/planting/pix", {
+        method: "POST",
+        body: JSON.stringify({
+          amount: pixAmount,
+          txid: `pagamento${pixPaymentId}`,
+          key: pixKey.trim(),
+          name: pixEmployeeName,
+        }),
+      })
+      setPixQrCode(result.qrCode)
+      setPixPayload(result.payload)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao gerar QR Code Pix"
+      setPixError(msg)
+    } finally {
+      setIsLoadingPix(false)
+    }
+  }
+
+  const handleCopyPixCode = () => {
+    if (!pixPayload) return
+    navigator.clipboard.writeText(pixPayload)
+    toast.success("Código Pix copiado!")
+  }
 
   const fetchMonths = useCallback(async () => {
     if (!employeeId || !seasonId) return
@@ -561,7 +672,7 @@ export function PaymentAssistantModal({
                         <Label htmlFor="paymentNotes" className="text-[10px] font-bold uppercase text-muted-foreground">Observações</Label>
                         <Textarea 
                           id="paymentNotes"
-                          placeholder="Ex: Pagamento referente à quinzena X de Abril..."
+                          placeholder="Pagamento referente ao mês de Abril..."
                           value={paymentNotes}
                           onChange={(e) => setPaymentNotes(e.target.value)}
                           className="min-h-[80px] text-sm focus:ring-primary/20"
@@ -668,15 +779,41 @@ export function PaymentAssistantModal({
                           <CardTitle className="text-sm font-bold flex items-center gap-2">
                             Último Registro de Pagamento
                           </CardTitle>
-                          <Badge 
-                            variant={data.details.payments[0].isPaid ? "default" : "outline"}
-                            className={cn(
-                              "text-[10px] uppercase font-bold px-2 py-0.5",
-                              data.details.payments[0].isPaid ? "bg-green-500 hover:bg-green-600 text-white" : "bg-orange-50 text-orange-600 border-orange-200"
-                            )}
-                          >
-                            {data.details.payments[0].isPaid ? "Pago" : "Pendente"}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {(() => {
+                              const defaultAcc = data.employee.accounts.find(acc => acc.isDefault) || data.employee.accounts[0]
+                              const isPixCompatible = defaultAcc && defaultAcc.type !== "BANCARIA"
+                              
+                              if (!isPixCompatible) return null
+
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-7 hover:bg-primary/10 hover:text-primary"
+                                        onClick={() => handleOpenPix(data.details.payments[0].id, data.details.payments[0].holeriteNetInCents)}
+                                      >
+                                        <QrCode className="size-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Gerar QR Code Pix</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )
+                            })()}
+                            <Badge 
+                              variant={data.details.payments[0].isPaid ? "default" : "outline"}
+                              className={cn(
+                                "text-[10px] uppercase font-bold px-2 py-0.5",
+                                data.details.payments[0].isPaid ? "bg-green-500 hover:bg-green-600 text-white" : "bg-orange-50 text-orange-600 border-orange-200"
+                              )}
+                            >
+                              {data.details.payments[0].isPaid ? "Pago" : "Pendente"}
+                            </Badge>
+                          </div>
                         </CardHeader>
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start">
@@ -802,6 +939,116 @@ export function PaymentAssistantModal({
           </ScrollArea>
         </div>
       </DialogContent>
+
+      {/* Pix QR Code Dialog */}
+      <Dialog open={pixDialogOpen} onOpenChange={(open) => { setPixDialogOpen(open); if (!open) { setPixQrCode(null); setPixPayload(null); setPixError(null) } }}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          {/* Header */}
+          <div className="flex items-center gap-3 p-6 pb-4 border-b bg-muted/20">
+            <div className="p-2 rounded-full bg-primary/10 text-primary">
+              <QrCode className="size-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base font-bold">QR Code Pix</DialogTitle>
+              <DialogDescription className="text-xs mt-0.5">
+                Escaneie com qualquer app bancário
+              </DialogDescription>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto max-h-[70vh]">
+            <div className="flex flex-col gap-6 p-6">
+              {/* Employee + key info */}
+              <div className="space-y-4">
+                {/* Beneficiário */}
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Beneficiário</Label>
+                  <p className="text-sm font-semibold">{pixEmployeeName}</p>
+                </div>
+
+                {/* Chave Pix */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="pix-key-input" className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Chave Pix {pixKeyType && `(${pixKeyType.replace("PIX_", "").replace("_", " ")})`}
+                  </Label>
+                  <Input
+                    id="pix-key-input"
+                    placeholder="CPF, e-mail, telefone ou chave aleatória"
+                    value={pixKey}
+                    onChange={(e) => { 
+                      const val = e.target.value
+                      const formatted = formatPixKey(val, pixKeyType)
+                      setPixKey(formatted)
+                      setPixQrCode(null)
+                      setPixPayload(null)
+                      setPixError(null) 
+                    }}
+                    className="h-10 text-sm font-mono"
+                  />
+                </div>
+
+                {/* Valor + Botão */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-primary/5 border border-primary/15">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Valor</p>
+                      <p className="text-xl font-black text-primary tracking-tight">{formatCentsToReal(pixAmount * 100)}</p>
+                    </div>
+                    <div className="text-xs text-muted-foreground text-right">
+                      <p className="font-medium">Pix</p>
+                      <p>à vista</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleGeneratePix}
+                    disabled={isLoadingPix || !pixKey.trim()}
+                    className="w-full"
+                  >
+                    {isLoadingPix ? "Gerando..." : pixQrCode ? "Gerar novamente" : "Gerar QR Code"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Error */}
+              {pixError && !isLoadingPix && (
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive">
+                  <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                  <p className="text-sm leading-snug">{pixError}</p>
+                </div>
+              )}
+
+              {/* QR Code result */}
+              {pixQrCode && !isLoadingPix && (
+                <div ref={qrCodeRef} className="flex flex-col items-center gap-8">
+                  <div className="p-3 border-2 border-muted rounded-2xl bg-white shadow-md">
+                    <img
+                      src={pixQrCode}
+                      alt="QR Code Pix"
+                      className="size-52"
+                    />
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    onClick={handleCopyPixCode}
+                  >
+                    Copiar código PIX
+                  </Button>
+
+                  {pixPayload && (
+                    <div className="w-full">
+                      <p className="text-[9px] text-muted-foreground mb-1.5 font-bold uppercase text-center tracking-wider">Código copia e cola</p>
+                      <code className="text-[9px] font-mono bg-muted/60 rounded-lg p-3 block break-all w-full text-left leading-relaxed border">
+                        {pixPayload}
+                      </code>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }

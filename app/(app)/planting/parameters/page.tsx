@@ -1,6 +1,6 @@
 "use client"
 
-import { Save, Settings2 } from "lucide-react"
+import { QrCode,Save, Settings2 } from "lucide-react"
 import { useEffect,useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -20,8 +20,13 @@ const DEFAULT_PARAMETER_KEYS = [
   { key: "area_hectare_corte", label: "Área Hectare Corte", desc: "Metros lineares correspondentes a um hectare de corte", isCurrency: false, default: 1333 },
 ]
 
+const PIX_PARAMETER_KEYS = [
+  { key: "pix_city", label: "Cidade do Recebedor", desc: "Cidade cadastrada na chave Pix (máx. 15 caracteres). Padrão: Jaborandi" },
+]
+
 export default function PlantingParametersPage() {
   const [paramsForm, setParamsForm] = useState<Record<string, number>>({})
+  const [pixForm, setPixForm] = useState<Record<string, string>>({ pix_city: "Jaborandi" })
 
   const { data: parameters, isLoading } = usePlantingParameters()
   const saveParametersMutation = useSaveParameters()
@@ -37,16 +42,19 @@ export default function PlantingParametersPage() {
         initialForm[p.key] = Number(p.value) || initialForm[p.key] || 0
       })
       setParamsForm(initialForm)
+
+      // Init Pix text fields — only city, with fallback default
+      const initialPix: Record<string, string> = { pix_city: "Jaborandi" }
+      const found = parameters.find(p => p.key === "pix_city")
+      if (found) initialPix["pix_city"] = found.value
+      setPixForm(initialPix)
     }
   }, [parameters])
 
   const handleSave = () => {
-    const payload = {
-      parameters: Object.entries(paramsForm).map(([key, val]) => ({
-        key,
-        value: String(val),
-      })),
-    }
+    const numericPayload = Object.entries(paramsForm).map(([key, val]) => ({ key, value: String(val) }))
+    const pixPayload = Object.entries(pixForm).map(([key, val]) => ({ key, value: val }))
+    const payload = { parameters: [...numericPayload, ...pixPayload] }
     // @ts-expect-error Types might have diverged, but payload format matches handler
     saveParametersMutation.mutate(payload)
   }
@@ -111,6 +119,50 @@ export default function PlantingParametersPage() {
                       }}
                     />
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pix Configuration */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <QrCode className="h-5 w-5 text-muted-foreground" />
+            <CardTitle>Configuração Pix</CardTitle>
+          </div>
+          <CardDescription>
+            Dados do recebedor usados na geração de QR Codes no Assistente de Pagamentos. O valor é preenchido automaticamente a partir do holerite registrado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="grid gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="grid grid-cols-4 items-center gap-4">
+                  <Skeleton className="h-4 w-full col-span-2" />
+                  <Skeleton className="h-10 w-full col-span-2" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {PIX_PARAMETER_KEYS.map((item) => (
+                <div key={item.key} className="grid md:grid-cols-2 gap-4 items-center border-b pb-4 last:border-0 last:pb-0">
+                  <div>
+                    <Label htmlFor={item.key} className="text-base">{item.label}</Label>
+                    <p className="text-sm text-muted-foreground">{item.desc}</p>
+                    <p className="text-xs text-muted-foreground mt-1 font-mono">{item.key}</p>
+                  </div>
+                  <Input
+                    id={item.key}
+                    placeholder={item.label}
+                    value={pixForm[item.key] || ""}
+                    maxLength={item.key === "pix_name" ? 25 : item.key === "pix_city" ? 15 : undefined}
+                    onChange={(e) => setPixForm({ ...pixForm, [item.key]: e.target.value })}
+                  />
                 </div>
               ))}
             </div>
