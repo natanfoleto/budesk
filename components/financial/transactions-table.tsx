@@ -57,7 +57,9 @@ export function TransactionsTable({ transactions, onEdit, onDelete }: Transactio
             transactions.map((transaction: Transaction) => (
               <TableRow key={transaction.id}>
                 <TableCell>{formatDate(transaction.date)}</TableCell>
-                <TableCell>{transaction.description}</TableCell>
+                <TableCell className="max-w-[200px] truncate" title={transaction.description || ""}>
+                  {transaction.description}
+                </TableCell>
                 <TableCell>
                   <Badge variant="outline">
                     {transaction.category && (transaction.category in EXPENSE_CATEGORY_LABELS)

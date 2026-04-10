@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { Check, ChevronsUpDown, DollarSign, MoreHorizontal, Plus } from "lucide-react"
+import { Check, ChevronsUpDown, DollarSign, MoreHorizontal, Plus, Search } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -45,12 +45,15 @@ import { cn, formatCentsToReal, formatCurrency, parseCurrencyToCents } from "@/l
 import { isBeforeAdmission, isEmployeeActiveAtDate } from "@/lib/utils/planting-utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
 import { PaymentAssistantModal } from "@/src/modules/planting/components/PaymentAssistantModal"
+import { EmployeeWithDetails } from "@/types/employee"
 
 interface DriverTabProps {
   seasonId: string
   frontId: string
   date: string
   selectedTagIds?: string[]
+  employeeNameFilter?: string
+  onEmployeeFilterChange?: (name: string) => void
 }
 
 type DriverRecord = {
@@ -64,7 +67,14 @@ type DriverRecord = {
   isClosed: boolean
 }
 
-export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: DriverTabProps) {
+export function DriverTab({ 
+  seasonId, 
+  frontId, 
+  date, 
+  selectedTagIds = [],
+  employeeNameFilter = "",
+  onEmployeeFilterChange
+}: DriverTabProps) {
   const [allocations, setAllocations] = useState<DriverRecord[]>([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -94,7 +104,7 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
     queryFn: () => {
       const params = new URLSearchParams({ seasonId, frontId, date: `${date}T00:00:00Z` })
       if (selectedTagIds.length > 0) {
-        selectedTagIds.forEach(id => params.append("tagIds", id))
+        selectedTagIds.forEach((id: string) => params.append("tagIds", id))
       }
       return apiRequest<{
         id: string;
@@ -216,11 +226,11 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
   }
 
   const employeeList = employees?.data || []
-  const filteredEmployees = (employeeList || []).filter((emp: { id: string; name: string }) =>
+  const filteredEmployees = (employeeList || []).filter((emp: EmployeeWithDetails) =>
     emp.name.toLowerCase().includes(driverSearch.toLowerCase())
   )
 
-  const selectedEmployee = employees?.data?.find((e: { id: string; name: string }) => e.id === selectedDriverId)
+  const selectedEmployee = employees?.data?.find((e: EmployeeWithDetails) => e.id === selectedDriverId)
 
   if (seasonId === "all" || frontId === "all" || !date) {
     return (
@@ -370,16 +380,33 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
                   <TableRow>
                     <TableCell colSpan={4}><Skeleton className="h-6 w-full" /></TableCell>
                   </TableRow>
-                ) : allocations.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
-                      Nenhum motorista alocado nesta data.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  allocations.map((alloc) => {
-                    const empObj = employees?.data?.find((e: { id: string; name: string }) => e.id === alloc.employeeId)
+                ) : (() => {
+                  const filtered = (allocations || [])
+                    .map(alloc => {
+                      const empObj = employees?.data?.find((e: EmployeeWithDetails) => e.id === alloc.employeeId)
+                      return { ...alloc, employeeName: empObj?.name || "Desconhecido", employeeData: empObj }
+                    })
+                    .filter(alloc => 
+                      !employeeNameFilter || 
+                      alloc.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
+                    )
+                    .sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+
+                  if (filtered.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                          {employeeNameFilter 
+                            ? `Nenhum motorista encontrado com o filtro "${employeeNameFilter}".`
+                            : "Nenhum motorista alocado nesta data."}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  }
+
+                  return filtered.map((alloc) => {
                     const isEditing = editingId === alloc.id
+                    const empObj = alloc.employeeData
 
                     return (
                       <TableRow
@@ -387,68 +414,86 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
                         className={cn(alloc.isClosed ? "opacity-60" : "", "hover:bg-muted/50 transition-colors")}
                       >
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2 group">
-                            <span
-                              className="cursor-pointer hover:underline underline-offset-4 decoration-primary/50 transition-all"
-                              onClick={() => {
-                                setSelectedEmployeeId(alloc.employeeId)
-                                setIsModalOpen(true)
-                              }}
-                            >
-                              {empObj?.name || "Desconhecido"}
-                            </span>
-                            <button
-                              onClick={() => {
-                                setSelectedEmployeeId(alloc.employeeId)
-                                setIsAssistantOpen(true)
-                              }}
-                              className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                              title="Abrir Assistente de Pagamentos"
-                            >
-                              <DollarSign className="size-3" />
-                            </button>
-                          </div>
-                          {empObj && (
-                            <div className="flex gap-1 mt-0.5">
-                              {(() => {
-                                const isTerminated = !isEmployeeActiveAtDate(date, empObj.terminationDate)
-                                const isPreAdmission = isBeforeAdmission(date, empObj.admissionDate)
-                                
-                                return (
-                                  <>
-                                    {isTerminated && empObj.terminationDate && (
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <div className="bg-muted text-muted-foreground text-[9px] font-black px-1 py-0.5 rounded border border-border shadow-sm whitespace-nowrap cursor-help uppercase">
-                                              ENCERRADO
-                                            </div>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            Contrato encerrado em {new Date(new Date(empObj.terminationDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    )}
-                                    {isPreAdmission && empObj.admissionDate && (
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <div className="bg-pink-100 text-pink-700 text-[9px] font-black px-1 py-0.5 rounded border border-pink-200 shadow-sm whitespace-nowrap cursor-help uppercase">
-                                              PRÉ-ADMISSÃO
-                                            </div>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            Admissão em {new Date(new Date(empObj.admissionDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    )}
-                                  </>
-                                )
-                              })()}
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2 group">
+                              <span
+                                className="cursor-pointer hover:underline underline-offset-4 decoration-primary/50 transition-all"
+                                onClick={() => {
+                                  setSelectedEmployeeId(alloc.employeeId)
+                                  setIsModalOpen(true)
+                                }}
+                              >
+                                {alloc.employeeName}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  if (onEmployeeFilterChange) {
+                                    onEmployeeFilterChange(employeeNameFilter === alloc.employeeName ? "" : alloc.employeeName)
+                                  }
+                                }}
+                                className={cn(
+                                  "p-1 rounded-md transition-colors cursor-pointer",
+                                  employeeNameFilter === alloc.employeeName 
+                                    ? "bg-primary text-primary-foreground" 
+                                    : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted"
+                                )}
+                                title={employeeNameFilter === alloc.employeeName ? "Limpar filtro" : "Filtrar por este funcionário"}
+                              >
+                                <Search className="size-3" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedEmployeeId(alloc.employeeId)
+                                  setIsAssistantOpen(true)
+                                }}
+                                className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                title="Abrir Assistente de Pagamentos"
+                              >
+                                <DollarSign className="size-3" />
+                              </button>
                             </div>
-                          )}
+                            {empObj && (
+                              <div className="flex gap-1 mt-0.5">
+                                {(() => {
+                                  const isTerminated = !isEmployeeActiveAtDate(date, empObj.terminationDate)
+                                  const isPreAdmission = isBeforeAdmission(date, empObj.admissionDate)
+                                  
+                                  return (
+                                    <>
+                                      {isTerminated && empObj.terminationDate && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <div className="bg-muted text-muted-foreground text-[9px] font-black px-1 py-0.5 rounded border border-border shadow-sm whitespace-nowrap cursor-help uppercase">
+                                                ENCERRADO
+                                              </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              Contrato encerrado em {new Date(new Date(empObj.terminationDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                      {isPreAdmission && empObj.admissionDate && (
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <div className="bg-pink-100 text-pink-700 text-[9px] font-black px-1 py-0.5 rounded border border-pink-200 shadow-sm whitespace-nowrap cursor-help uppercase">
+                                                PRÉ-ADMISSÃO
+                                              </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              Admissão em {new Date(new Date(empObj.admissionDate).toISOString().split('T')[0] + "T12:00:00").toLocaleDateString("pt-BR")}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      )}
+                                    </>
+                                  )
+                                })()}
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
 
                         {/* Vehicle cell - editable */}
@@ -552,7 +597,7 @@ export function DriverTab({ seasonId, frontId, date, selectedTagIds = [] }: Driv
                       </TableRow>
                     )
                   })
-                )}
+                })()}
               </TableBody>
             </Table>
           </div>

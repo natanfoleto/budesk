@@ -193,8 +193,8 @@ export async function POST(request: NextRequest) {
           await tx.accountInstallmentAttachment.create({
             data: {
               installmentId: firstInst.id,
-              type: "BOLETO",
-              fileName: invoiceUrl.split("/").pop() || "boleto",
+              type: "FATURA",
+              fileName: invoiceUrl.split("/").pop() || "fatura",
               fileUrl: invoiceUrl,
             }
           })

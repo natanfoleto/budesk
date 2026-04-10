@@ -115,7 +115,9 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                     <TableCell>
                       {formatDate(account.nextDueDate || account.installments?.[account.installments.length - 1]?.dueDate || account.createdAt || new Date())}
                     </TableCell>
-                    <TableCell>{account.description}</TableCell>
+                    <TableCell className="max-w-[200px] truncate" title={account.description || ""}>
+                      {account.description}
+                    </TableCell>
                     <TableCell>
                       {(account.paymentMethod in PAYMENT_METHOD_LABELS)
                         ? PAYMENT_METHOD_LABELS[account.paymentMethod as PaymentMethod]
@@ -222,7 +224,7 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                               </div>
                                               
                                               <div className="p-6 space-y-6">
-                                                <div className="space-y-2">
+                                                <div className="grid gap-2">
                                                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipo do Documento</Label>
                                                   <Select 
                                                     value={att.type} 
@@ -296,8 +298,8 @@ export function AccountsPayableTable({ accounts, onEdit, onDelete }: AccountsPay
                                               <DialogTitle>Adicionar Anexo - Parcela {inst.installmentNumber}</DialogTitle>
                                             </DialogHeader>
                                             <div className="space-y-4 py-4">
-                                              <div className="space-y-2">
-                                                <label className="text-sm font-medium">Tipo de Documento</label>
+                                              <div className="grid gap-1">
+                                                <Label className="text-sm font-medium">Tipo de Documento</Label>
                                                 <Select 
                                                   value={newAttachmentType} 
                                                   onValueChange={(val) => setNewAttachmentType(val as AttachmentType)}

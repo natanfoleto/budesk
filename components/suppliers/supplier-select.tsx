@@ -40,12 +40,14 @@ export function SupplierSelect({ value, onChange, disabled }: SupplierSelectProp
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal"
+          className="w-full justify-between font-normal overflow-hidden"
           disabled={disabled}
         >
-          {selectedSupplier 
-            ? (selectedSupplier.tradeName ? `${selectedSupplier.tradeName} (${selectedSupplier.name})` : selectedSupplier.name)
-            : "Selecionar fornecedor"}
+          <span className="truncate">
+            {selectedSupplier 
+              ? (selectedSupplier.tradeName ? `${selectedSupplier.tradeName} (${selectedSupplier.name})` : selectedSupplier.name)
+              : "Selecionar fornecedor"}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -81,11 +83,13 @@ export function SupplierSelect({ value, onChange, disabled }: SupplierSelectProp
                 >
                   <Check
                     className={cn(
-                      "mr-2 h-4 w-4",
+                      "mr-2 h-4 w-4 shrink-0",
                       value === supplier.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {supplier.tradeName ? `${supplier.tradeName} (${supplier.name})` : supplier.name}
+                  <span className="truncate">
+                    {supplier.tradeName ? `${supplier.tradeName} (${supplier.name})` : supplier.name}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>

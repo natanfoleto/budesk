@@ -329,6 +329,8 @@ function AppointmentsContent() {
               seasonId={selectedSeasonId}
               frontId={selectedFrontId}
               date={selectedDate}
+              employeeNameFilter={employeeNameFilter}
+              onEmployeeFilterChange={setEmployeeNameFilter}
               selectedTagIds={selectedTagId ? [selectedTagId] : []}
             />
           </TabsContent>

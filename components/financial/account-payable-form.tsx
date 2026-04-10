@@ -274,11 +274,11 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
 
             <div className="space-y-4 pb-4">
               <FormField
-                name="attachmentUrl"
+                name="invoiceUrl"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Comprovante</FormLabel>
+                    <FormLabel>Fatura</FormLabel>
                     <FormControl>
                       <FileUploader 
                         value={field.value} 
@@ -292,11 +292,11 @@ export function AccountPayableForm({ open, onOpenChange, onSubmit, initialData, 
               />
 
               <FormField
-                name="invoiceUrl"
+                name="attachmentUrl"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Boleto</FormLabel>
+                    <FormLabel>Comprovante</FormLabel>
                     <FormControl>
                       <FileUploader 
                         value={field.value} 
