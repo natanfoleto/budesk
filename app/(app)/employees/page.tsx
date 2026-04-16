@@ -1,8 +1,11 @@
 'use client'
 
-import { FilterX, HelpCircle,Loader2, Plus, Search } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { Download, FilterX, HelpCircle, Loader2, Plus, Search } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo,useState } from 'react'
+import { toast } from 'sonner'
 
 import { EmployeeForm } from '@/components/employees/employee-form'
 import { EmployeesTable } from '@/components/employees/employees-table'
@@ -19,6 +22,14 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -52,12 +63,15 @@ import {
 import { useJobs } from '@/hooks/use-jobs'
 import { Job } from '@/lib/services/jobs'
 import { maskCPF } from '@/lib/utils'
-import { EmployeeFormData } from '@/types/employee'
+import { EmployeeFormData, EmployeeWithDetails } from '@/types/employee'
 
 function EmployeesContent() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+  const [exportSortBy, setExportSortBy] = useState<'name' | 'role' | 'tag'>('name')
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -227,6 +241,72 @@ function EmployeesContent() {
 
   const totalDocFiltersActive = Object.keys(docFiltersObj).length
 
+  const handleDownloadReport = async () => {
+    try {
+      setIsDownloading(true)
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('limit', '10000')
+      params.set('page', '1')
+      
+      const res = await fetch(`/api/employees?${params.toString()}`)
+      if (!res.ok) throw new Error('Erro ao buscar dados do relatório')
+      
+      const result = await res.json()
+      const employees: EmployeeWithDetails[] = result.data || []
+
+      // Apply sorting
+      const sortedEmployees = [...employees].sort((a, b) => {
+        if (exportSortBy === 'name') {
+          return (a.name || '').localeCompare(b.name || '')
+        }
+        if (exportSortBy === 'role') {
+          const roleA = a.role || ''
+          const roleB = b.role || ''
+          return roleA.localeCompare(roleB)
+        }
+        if (exportSortBy === 'tag') {
+          const tagA = a.tags?.[0]?.name || ''
+          const tagB = b.tags?.[0]?.name || ''
+          return tagA.localeCompare(tagB)
+        }
+        return 0
+      })
+
+      const doc = new jsPDF()
+      
+      doc.setFontSize(16)
+      doc.text("Relatório de Funcionários", 14, 15)
+      
+      doc.setFontSize(10)
+      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 22)
+      doc.text(`Ordenado por: ${exportSortBy === 'name' ? 'Nome' : exportSortBy === 'role' ? 'Cargo' : 'Etiqueta'}`, 14, 27)
+
+      const tableData = sortedEmployees.map((emp) => [
+        emp.name,
+        emp.document || '-',
+        emp.role || '-',
+        emp.tags && emp.tags.length > 0 ? emp.tags.map((t) => t.name).join(', ') : '-'
+      ])
+
+      autoTable(doc, {
+        startY: 32,
+        head: [['Nome', 'CPF', 'Cargo', 'Etiquetas']],
+        body: tableData,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [41, 128, 185] }
+      })
+
+      doc.save(`funcionarios_${new Date().getTime()}.pdf`)
+      setIsExportModalOpen(false)
+      
+    } catch (error) {
+      console.error(error)
+      toast.error('Erro ao gerar relatório')
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -237,6 +317,14 @@ function EmployeesContent() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsExportModalOpen(true)}
+            className="cursor-pointer gap-2"
+          >
+            <Download className="size-4" />
+            Baixar
+          </Button>
           <TagManagementModal 
             open={tagModalOpen} 
             onOpenChange={setTagModalOpen}
@@ -252,6 +340,52 @@ function EmployeesContent() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={isExportModalOpen} onOpenChange={setIsExportModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar Relatório</DialogTitle>
+            <DialogDescription>
+              Escolha como deseja ordenar a lista de funcionários no PDF.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Ordenar por</Label>
+              <Select 
+                value={exportSortBy} 
+                onValueChange={(value: 'name' | 'role' | 'tag') => setExportSortBy(value)}
+              >
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue placeholder="Selecione a ordenação" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name" className="cursor-pointer">Nome (Alfabética)</SelectItem>
+                  <SelectItem value="role" className="cursor-pointer">Cargo</SelectItem>
+                  <SelectItem value="tag" className="cursor-pointer">Etiqueta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsExportModalOpen(false)}
+              className="cursor-pointer"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleDownloadReport}
+              disabled={isDownloading}
+              className="cursor-pointer gap-2"
+            >
+              {isDownloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+              Gerar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Card className="relative overflow-visible">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-4">
