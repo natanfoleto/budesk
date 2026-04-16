@@ -25,6 +25,7 @@ export interface GetEmployeesParams {
   status?: string
   jobId?: string
   tagIds?: string[]
+  docFilters?: string
 }
 
 export interface PaginatedResponse<T> {
@@ -46,6 +47,7 @@ export const getEmployees = async (params: GetEmployeesParams = {}): Promise<Pag
   if (params.cpf) query.append("cpf", params.cpf)
   if (params.status) query.append("status", params.status)
   if (params.jobId) query.append("jobId", params.jobId)
+  if (params.docFilters) query.append("docFilters", params.docFilters)
   if (params.tagIds && params.tagIds.length > 0) {
     params.tagIds.forEach(id => query.append("tagIds", id))
   }

@@ -1,8 +1,8 @@
 'use client'
 
-import { FilterX, Loader2, Plus, Search } from 'lucide-react'
+import { FilterX, HelpCircle,Loader2, Plus, Search } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useMemo,useState } from 'react'
 
 import { EmployeeForm } from '@/components/employees/employee-form'
 import { EmployeesTable } from '@/components/employees/employees-table'
@@ -19,6 +19,14 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -65,6 +73,7 @@ function EmployeesContent() {
   const tagId = searchParams.get('tagId') || ''
   const cpf = searchParams.get('cpf') || ''
   const status = searchParams.get('status') || 'all'
+  const docFiltersUrl = searchParams.get('docFilters') || ''
   const page = Number(searchParams.get('page')) || 1
 
   const hasActiveFilters = 
@@ -72,7 +81,8 @@ function EmployeesContent() {
     jobId !== '' || 
     tagId !== '' || 
     cpf !== '' || 
-    status !== 'all'
+    status !== 'all' ||
+    docFiltersUrl !== ''
 
   const [searchTerm, setSearchTerm] = useState(name)
   const [cpfTerm, setCpfTerm] = useState(cpf)
@@ -126,6 +136,7 @@ function EmployeesContent() {
     tagIds: tagId ? [tagId] : undefined,
     cpf,
     status: status === 'all' ? undefined : status,
+    docFilters: docFiltersUrl === '' ? undefined : docFiltersUrl,
     page,
     limit,
   })
@@ -181,6 +192,40 @@ function EmployeesContent() {
     setSearchTerm('')
     setCpfTerm('')
   }
+
+  const DOCUMENT_FILTERS = [
+    { id: 'hasMedicalExam', label: 'Exame Médico' },
+    { id: 'hasSignedRegistration', label: 'Ficha de Registro' },
+    { id: 'hasSignedEpiReceipt', label: 'Ficha de EPI' },
+    { id: 'hasSignedServiceOrder', label: 'Ordem de Serviço' },
+    { id: 'hasSignedExperienceContract', label: 'Contrato Experiência' },
+    { id: 'hasNr316Certificate', label: 'Certif. NR31.6' },
+    { id: 'hasNr317Certificate', label: 'Certif. NR31.7' },
+  ]
+
+  const docFiltersObj = useMemo(() => {
+    const obj: Record<string, boolean> = {}
+    if (docFiltersUrl) {
+      docFiltersUrl.split(',').forEach(f => {
+        const [k, v] = f.split(':')
+        if (k && (v === 'true' || v === 'false')) obj[k] = v === 'true'
+      })
+    }
+    return obj
+  }, [docFiltersUrl])
+
+  const toggleDocFilter = (id: string, value: boolean) => {
+    const newFilters = { ...docFiltersObj }
+    if (newFilters[id] === value) {
+      delete newFilters[id]
+    } else {
+      newFilters[id] = value
+    }
+    const items = Object.entries(newFilters).map(([k, v]) => `${k}:${v}`)
+    updateFilters({ docFilters: items.length > 0 ? items.join(',') : '' })
+  }
+
+  const totalDocFiltersActive = Object.keys(docFiltersObj).length
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -294,6 +339,63 @@ function EmployeesContent() {
                   <SelectItem value="ENCERRADO">Encerrado</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1">
+                Documentação
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-[250px]">
+                        Filtra apenas funcionários com vínculo ativo. Você pode combinar filtros de ter (Com) ou não ter (Sem) a documentação.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between font-normal cursor-pointer">
+                    {totalDocFiltersActive > 0 ? `${totalDocFiltersActive} filtros ativos` : "Não filtrar"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="h-80 w-64 overflow-y-auto" align="end">
+                  <DropdownMenuLabel>Filtrar por Documento</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {DOCUMENT_FILTERS.map((doc) => (
+                    <div key={doc.id} className="py-1">
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{doc.label}</div>
+                      <DropdownMenuCheckboxItem
+                        checked={docFiltersObj[doc.id] === true}
+                        onCheckedChange={() => toggleDocFilter(doc.id, true)}
+                      >
+                        Com (Regular)
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={docFiltersObj[doc.id] === false}
+                        onCheckedChange={() => toggleDocFilter(doc.id, false)}
+                      >
+                        Sem (Pendente)
+                      </DropdownMenuCheckboxItem>
+                    </div>
+                  ))}
+                  {totalDocFiltersActive > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuCheckboxItem
+                        className="text-destructive focus:text-destructive font-medium justify-center"
+                        onSelect={() => updateFilters({ docFilters: '' })}
+                      >
+                        Limpar Filtros
+                      </DropdownMenuCheckboxItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardContent>

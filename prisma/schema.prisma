@@ -193,23 +193,26 @@ model EmployeeAdvance {
 }
 
 model EmploymentRecord {
-  id                    String    @id @default(cuid())
-  employeeId            String
-  admissionDate         DateTime
-  terminationDate       DateTime?
-  jobTitle              String
-  baseSalaryInCents     Int       @map("base_salary_in_cents")
-  contractType          String
-  weeklyWorkload        Int?
-  workRegime            String?
-  isActive              Boolean   @default(true)
-  notes                 String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  hasMedicalExam        Boolean   @default(false)
-  hasSignedEpiReceipt   Boolean   @default(false)
-  hasSignedRegistration Boolean   @default(false)
-  employee              Employee  @relation(fields: [employeeId], references: [id])
+  id                          String    @id @default(cuid())
+  employeeId                  String
+  admissionDate               DateTime
+  terminationDate             DateTime?
+  jobTitle                    String
+  baseSalaryInCents           Int       @map("base_salary_in_cents")
+  contractType                String
+  weeklyWorkload              Int?
+  workRegime                  String?
+  notes                       String?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  hasMedicalExam              Boolean   @default(false)
+  hasSignedEpiReceipt         Boolean   @default(false)
+  hasSignedRegistration       Boolean   @default(false)
+  hasSignedServiceOrder       Boolean   @default(false)
+  hasSignedExperienceContract Boolean   @default(false)
+  hasNr316Certificate         Boolean   @default(false)
+  hasNr317Certificate         Boolean   @default(false)
+  employee                    Employee  @relation(fields: [employeeId], references: [id])
 
   @@map("employment_records")
 }

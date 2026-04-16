@@ -20,8 +20,10 @@ export async function PUT(
     const body = await request.json()
     const { 
       admissionDate, terminationDate, jobTitle, baseSalary,
-      contractType, weeklyWorkload, workRegime, isActive, notes,
-      hasMedicalExam, hasSignedRegistration, hasSignedEpiReceipt
+      contractType, weeklyWorkload, workRegime, notes,
+      hasMedicalExam, hasSignedRegistration, hasSignedEpiReceipt,
+      hasSignedServiceOrder, hasSignedExperienceContract, 
+      hasNr316Certificate, hasNr317Certificate
     } = body
 
     const existingRecord = await prisma.employmentRecord.findUnique({
@@ -38,10 +40,13 @@ export async function PUT(
         contractType,
         weeklyWorkload: weeklyWorkload ? parseInt(weeklyWorkload) : null,
         workRegime,
-        isActive: isActive !== undefined ? isActive : true,
         hasMedicalExam,
         hasSignedRegistration,
         hasSignedEpiReceipt,
+        hasSignedServiceOrder,
+        hasSignedExperienceContract,
+        hasNr316Certificate,
+        hasNr317Certificate,
         notes
       }
     })

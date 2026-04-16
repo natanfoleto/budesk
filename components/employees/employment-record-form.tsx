@@ -33,10 +33,13 @@ const formSchema = z.object({
   contractType: z.string().min(1, "Tipo de contrato obrigatório"),
   weeklyWorkload: z.number().optional(),
   workRegime: z.string().optional(),
-  isActive: z.boolean(),
   hasMedicalExam: z.boolean(),
   hasSignedRegistration: z.boolean(),
   hasSignedEpiReceipt: z.boolean(),
+  hasSignedServiceOrder: z.boolean(),
+  hasSignedExperienceContract: z.boolean(),
+  hasNr316Certificate: z.boolean(),
+  hasNr317Certificate: z.boolean(),
   notes: z.string().optional(),
 })
 
@@ -61,10 +64,13 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
       contractType: "",
       weeklyWorkload: 0,
       workRegime: "",
-      isActive: true,
       hasMedicalExam: false,
       hasSignedRegistration: false,
       hasSignedEpiReceipt: false,
+      hasSignedServiceOrder: false,
+      hasSignedExperienceContract: false,
+      hasNr316Certificate: false,
+      hasNr317Certificate: false,
       notes: "",
     },
   })
@@ -78,6 +84,10 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
         hasMedicalExam: initialData.hasMedicalExam || false,
         hasSignedRegistration: initialData.hasSignedRegistration || false,
         hasSignedEpiReceipt: initialData.hasSignedEpiReceipt || false,
+        hasSignedServiceOrder: initialData.hasSignedServiceOrder || false,
+        hasSignedExperienceContract: initialData.hasSignedExperienceContract || false,
+        hasNr316Certificate: initialData.hasNr316Certificate || false,
+        hasNr317Certificate: initialData.hasNr317Certificate || false,
       })
     } else {
       form.reset({
@@ -87,10 +97,13 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
         contractType: "",
         weeklyWorkload: 0,
         workRegime: "",
-        isActive: true,
         hasMedicalExam: false,
         hasSignedRegistration: false,
         hasSignedEpiReceipt: false,
+        hasSignedServiceOrder: false,
+        hasSignedExperienceContract: false,
+        hasNr316Certificate: false,
+        hasNr317Certificate: false,
         notes: "",
       })
     }
@@ -254,7 +267,7 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>
+                      <FormLabel className="cursor-pointer">
                         Exame Médico
                       </FormLabel>
                     </div>
@@ -273,7 +286,7 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>
+                      <FormLabel className="cursor-pointer">
                         Ficha Registro
                       </FormLabel>
                     </div>
@@ -292,7 +305,7 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>
+                      <FormLabel className="cursor-pointer">
                         Ficha EPI
                       </FormLabel>
                     </div>
@@ -301,9 +314,9 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
               />
             </div>
 
-            <div className="grid grid-cols-1">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
-                name="isActive"
+                name="hasSignedServiceOrder"
                 control={form.control}
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center space-x-1 space-y-0 rounded-md border p-4">
@@ -314,14 +327,72 @@ export function EmploymentRecordForm({ open, onOpenChange, onSubmit, onDelete, i
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Vínculo Ativo
+                      <FormLabel className="cursor-pointer">
+                        Ordem de Serviço
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="hasSignedExperienceContract"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-1 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer">
+                        Contrato Experiência
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="hasNr316Certificate"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-1 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer">
+                        Certif. NR31.6
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="hasNr317Certificate"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-1 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer">
+                        Certif. NR31.7
                       </FormLabel>
                     </div>
                   </FormItem>
                 )}
               />
             </div>
+
 
             <div className="flex gap-2">
               {initialData && onDelete && (

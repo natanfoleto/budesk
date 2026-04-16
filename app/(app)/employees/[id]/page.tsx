@@ -347,7 +347,7 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
                     <CardHeader>
                       <div className="flex justify-between">
                         <CardTitle className="text-base">{record.jobTitle}</CardTitle>
-                        <Badge variant={record.isActive ? "default" : "secondary"}>{record.contractType}</Badge>
+                        <Badge variant={!record.terminationDate ? "default" : "secondary"}>{record.contractType}</Badge>
                       </div>
                       <CardDescription>Admissão: {formatDate(record.admissionDate)}</CardDescription>
                     </CardHeader>
@@ -485,10 +485,13 @@ export default function EmployeeProfilePage({ params }: { params: Promise<{ id: 
           contractType: selectedRecord.contractType,
           weeklyWorkload: selectedRecord.weeklyWorkload || 0,
           workRegime: selectedRecord.workRegime || "",
-          isActive: selectedRecord.isActive,
           hasMedicalExam: selectedRecord.hasMedicalExam,
           hasSignedRegistration: selectedRecord.hasSignedRegistration,
           hasSignedEpiReceipt: selectedRecord.hasSignedEpiReceipt,
+          hasSignedServiceOrder: selectedRecord.hasSignedServiceOrder,
+          hasSignedExperienceContract: selectedRecord.hasSignedExperienceContract,
+          hasNr316Certificate: selectedRecord.hasNr316Certificate,
+          hasNr317Certificate: selectedRecord.hasNr317Certificate,
           notes: selectedRecord.notes || "",
         } : undefined}
         isLoading={createRecordMutation.isPending || updateRecordMutation.isPending || deleteRecordMutation.isPending}

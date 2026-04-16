@@ -44,6 +44,27 @@ export async function GET(request: NextRequest) {
       where.document = { contains: document }
     }
 
+    const docFiltersParam = searchParams.get("docFilters")
+    if (docFiltersParam) {
+      const docConditions: Record<string, boolean> = {}
+      const filters = docFiltersParam.split(",")
+      filters.forEach(f => {
+        const [key, value] = f.split(":")
+        if (key && (value === "true" || value === "false")) {
+          docConditions[key] = value === "true"
+        }
+      })
+      
+      if (Object.keys(docConditions).length > 0) {
+        where.employmentRecords = {
+          some: {
+            terminationDate: null,
+            ...docConditions
+          }
+        }
+      }
+    }
+
     const _ativoConditions = {
       OR: [
         {

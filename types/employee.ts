@@ -49,10 +49,13 @@ export interface EmploymentRecordFormData {
   contractType: string;
   weeklyWorkload?: number;
   workRegime?: string;
-  isActive: boolean;
   hasMedicalExam: boolean;
   hasSignedRegistration: boolean;
   hasSignedEpiReceipt: boolean;
+  hasSignedServiceOrder: boolean;
+  hasSignedExperienceContract: boolean;
+  hasNr316Certificate: boolean;
+  hasNr317Certificate: boolean;
   notes?: string;
 }
 
