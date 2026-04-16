@@ -29,7 +29,7 @@ export class DriverAllocationService {
           }
         },
         front: { select: { id: true, name: true } },
-        vehicle: { select: { id: true, plate: true, model: true, color: true } }
+        vehicle: { select: { id: true, plate: true, model: true, color: true, ownerName: true, description: true } }
       }
     })
   }

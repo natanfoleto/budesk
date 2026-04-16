@@ -63,6 +63,8 @@ type DriverRecord = {
   categoryId?: string
   vehicleNamePlate: string
   vehicleColor?: string | null
+  vehicleOwner?: string | null
+  vehicleDescription?: string | null
   dailyValueInCents: number
   isClosed: boolean
 }
@@ -111,7 +113,7 @@ export function DriverTab({
         employeeId: string;
         vehicleId?: string;
         categoryId?: string;
-        vehicle?: { plate: string; model: string; color: string | null };
+        vehicle?: { plate: string; model: string; color: string | null; ownerName: string | null; description: string | null };
         valueInCents: number;
         isClosed: boolean
       }[]>(`/api/planting/drivers?${params.toString()}`)
@@ -128,6 +130,8 @@ export function DriverTab({
         categoryId: r.categoryId,
         vehicleNamePlate: r.vehicle ? `${r.vehicle.plate}${r.vehicle.model ? ` - ${r.vehicle.model}` : ""}` : "N/A",
         vehicleColor: r.vehicle?.color,
+        vehicleOwner: r.vehicle?.ownerName,
+        vehicleDescription: r.vehicle?.description,
         dailyValueInCents: r.valueInCents,
         isClosed: r.isClosed
       })))
@@ -326,16 +330,24 @@ export function DriverTab({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sem frota</SelectItem>
-                  {vehicles?.data?.map((v: { id: string; plate: string; model: string | null; color?: string | null }) => (
+                  {vehicles?.data?.map((v: { id: string; plate: string; model: string | null; color?: string | null; ownerName?: string | null; description?: string | null }) => (
                     <SelectItem key={v.id} value={v.id}>
-                      <div className="flex items-center gap-2">
-                        {v.color && (
-                          <div 
-                            className="w-2.5 h-2.5 rounded-full border border-muted-foreground/20" 
-                            style={{ backgroundColor: v.color }} 
-                          />
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          {v.color && (
+                            <div 
+                              className="w-2.5 h-2.5 rounded-full border border-muted-foreground/20" 
+                              style={{ backgroundColor: v.color }} 
+                            />
+                          )}
+                          <span className="font-medium text-sm">{v.plate} {v.model ? `- ${v.model}` : ""}</span>
+                        </div>
+                        {(v.ownerName || v.description) && (
+                          <div className="text-[10px] text-muted-foreground leading-tight flex flex-col pl-4.5">
+                            {v.ownerName && <span>{v.ownerName}</span>}
+                            {v.description && <span>{v.description}</span>}
+                          </div>
                         )}
-                        {v.plate} {v.model ? `- ${v.model}` : ""}
                       </div>
                     </SelectItem>
                   ))}
@@ -503,30 +515,53 @@ export function DriverTab({
                               value={editVehicleId || "none"}
                               onValueChange={(v) => setEditVehicleId(v === "none" ? "" : v)}
                             >
-                              <SelectTrigger className="h-8 w-full min-w-[160px]">
+                              <SelectTrigger className="h-9 w-full min-w-[160px]">
                                 <SelectValue placeholder="Sem frota" />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">Sem frota</SelectItem>
-                                {vehicles?.data?.map((v: { id: string; plate: string; model: string | null }) => (
+                                {vehicles?.data?.map((v: { id: string; plate: string; model: string | null; color?: string | null; ownerName?: string | null; description?: string | null }) => (
                                   <SelectItem key={v.id} value={v.id}>
-                                    {v.plate} {v.model ? `- ${v.model}` : ""}
+                                    <div className="flex flex-col gap-0.5 text-left">
+                                      <div className="flex items-center gap-2">
+                                        {v.color && (
+                                          <div 
+                                            className="w-2.5 h-2.5 rounded-full border border-muted-foreground/20" 
+                                            style={{ backgroundColor: v.color }} 
+                                          />
+                                        )}
+                                        <span className="font-medium text-sm">{v.plate} {v.model ? `- ${v.model}` : ""}</span>
+                                      </div>
+                                      {(v.ownerName || v.description) && (
+                                        <div className="text-[10px] text-muted-foreground leading-tight flex flex-col pl-4.5">
+                                          {v.ownerName && <span>{v.ownerName}</span>}
+                                          {v.description && <span>{v.description}</span>}
+                                        </div>
+                                      )}
+                                    </div>
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           ) : (
-                            <div className="flex items-center gap-2">
-                              {alloc.vehicleColor && (
-                                <div 
-                                  className="w-2.5 h-2.5 rounded-full border border-muted-foreground/20" 
-                                  style={{ backgroundColor: alloc.vehicleColor }} 
-                                />
+                            <div className="flex flex-col gap-0.5 min-w-[160px]">
+                              <div className="flex items-center gap-2">
+                                {alloc.vehicleColor && (
+                                  <div 
+                                    className="w-2.5 h-2.5 rounded-full border border-muted-foreground/20" 
+                                    style={{ backgroundColor: alloc.vehicleColor }} 
+                                  />
+                                )}
+                                <span className={cn(alloc.vehicleNamePlate === "N/A" ? "text-muted-foreground text-xs" : "font-medium")}>
+                                  {alloc.vehicleNamePlate !== "N/A" ? alloc.vehicleNamePlate : "Sem Frota"}
+                                </span>
+                              </div>
+                              {(alloc.vehicleOwner || alloc.vehicleDescription) && (
+                                <div className="text-[10px] text-muted-foreground leading-tight flex flex-col pl-4.5">
+                                  {alloc.vehicleOwner && <span>{alloc.vehicleOwner}</span>}
+                                  {alloc.vehicleDescription && <span>{alloc.vehicleDescription}</span>}
+                                </div>
                               )}
-                              {alloc.vehicleNamePlate !== "N/A"
-                                ? alloc.vehicleNamePlate
-                                : <span className="text-muted-foreground text-xs">Sem Frota</span>
-                              }
                             </div>
                           )}
                         </TableCell>
