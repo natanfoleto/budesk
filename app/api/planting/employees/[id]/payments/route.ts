@@ -47,6 +47,7 @@ export async function POST(
       systemNetInCents, 
       holeriteNetInCents,
       isPaid,
+      createAdvance,
       notes 
     } = body
 
@@ -70,6 +71,43 @@ export async function POST(
       }
     })
 
+    if (createAdvance) {
+      const defaultAccount = await prisma.employeeAccount.findFirst({
+        where: { employeeId, isDefault: true }
+      })
+
+      // Encontrar a última frente de trabalho do funcionário para associar o adiantamento (campo obrigatório)
+      let frontId = ""
+      const lastProduction = await prisma.plantingProduction.findFirst({ where: { employeeId, seasonId }, orderBy: { date: 'desc' } })
+      if (lastProduction) frontId = lastProduction.frontId
+      else {
+        const lastWage = await prisma.dailyWage.findFirst({ where: { employeeId, seasonId }, orderBy: { date: 'desc' } })
+        if (lastWage) frontId = lastWage.frontId
+        else {
+          const lastDriver = await prisma.driverAllocation.findFirst({ where: { employeeId, seasonId }, orderBy: { date: 'desc' } })
+          if (lastDriver) frontId = lastDriver.frontId
+          else {
+            const anyFront = await prisma.workFront.findFirst({ where: { seasonId } })
+            if (anyFront) frontId = anyFront.id
+          }
+        }
+      }
+
+      if (frontId) {
+        await prisma.plantingAdvance.create({
+          data: {
+            employeeId,
+            seasonId,
+            frontId,
+            date: new Date(date),
+            valueInCents: Number(holeriteNetInCents),
+            accountId: defaultAccount?.id || null,
+            notes: `Gerado automaticamente pelo fechamento de holerite${notes ? ` - ${notes}` : ''}`
+          }
+        })
+      }
+    }
+
     return NextResponse.json(payment)
   } catch (error) {
     console.error(error)
@@ -90,7 +128,13 @@ export async function PATCH(
       return NextResponse.json({ error: "ID do pagamento não fornecido" }, { status: 400 })
     }
 
-    const updateData: any = {}
+    const updateData: {
+      isPaid?: boolean
+      date?: Date
+      holeriteNetInCents?: number
+      notes?: string
+    } = {}
+    
     if (isPaid !== undefined) updateData.isPaid = Boolean(isPaid)
     if (date) updateData.date = new Date(date)
     if (holeriteNetInCents !== undefined) updateData.holeriteNetInCents = Number(holeriteNetInCents)

@@ -6,11 +6,12 @@ import { PlantingParameterService } from "@/src/modules/planting/services/Planti
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { amount, txid, key, name } = body as {
+    const { amount, txid, key, keyType, name } = body as {
       amount: number
       txid: string
-      key: string   // Chave Pix do funcionário (dinâmica, enviada pelo frontend)
-      name: string  // Nome do funcionário (dinâmico, enviado pelo frontend)
+      key: string   // Chave Pix do funcionário
+      keyType?: string // Tipo da chave (PIX_CPF, PIX_TELEFONE, etc)
+      name: string  // Nome do funcionário
     }
 
     if (!amount || !txid || !key || !name) {
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
 
     const result = await PixService.generate({
       key,
+      keyType,
       name,
       city: pixCity,
       amount,

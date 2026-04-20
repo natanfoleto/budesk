@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const seasonId = searchParams.get("seasonId")
     const startDateStr = searchParams.get("startDate")
     const endDateStr = searchParams.get("endDate")
+    const frontId = searchParams.get("frontId")
 
     if (!seasonId) {
       return NextResponse.json({ error: "Safra não identificada" }, { status: 400 })
@@ -28,7 +29,8 @@ export async function GET(request: NextRequest) {
     const summaries = await PlantingEmployeeService.getAllSummaries(
       seasonId,
       startDate,
-      endDate
+      endDate,
+      frontId || undefined
     )
 
     return NextResponse.json(summaries)

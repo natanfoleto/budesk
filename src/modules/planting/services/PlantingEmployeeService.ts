@@ -112,8 +112,8 @@ export class PlantingEmployeeService {
         orderBy: { date: "asc" }
       }),
       prisma.plantingPayment.findMany({
-        where: { employeeId, seasonId, date: dateFilter },
-        orderBy: { date: "asc" }
+        where: { employeeId, seasonId },
+        orderBy: { date: "desc" }
       })
     ])
 
@@ -294,7 +294,8 @@ export class PlantingEmployeeService {
   static async getAllSummaries(
     seasonId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
+    frontId?: string
   ): Promise<EmployeeSummary[]> {
     const dateFilter = startDate && endDate ? {
       gte: startDate,
@@ -310,11 +311,25 @@ export class PlantingEmployeeService {
       include: {
         accounts: { orderBy: { isDefault: "desc" } },
         employmentRecords: { orderBy: { admissionDate: "desc" }, take: 1 },
-        plantingProductions: { where: { seasonId, date: dateFilter }, orderBy: { date: "asc" } },
-        dailyWages: { where: { seasonId, date: dateFilter }, orderBy: { date: "asc" } },
-        driverAllocations: { where: { seasonId, date: dateFilter }, orderBy: { date: "asc" } },
-        plantingAdvances: { where: { seasonId, date: dateFilter }, include: { account: true }, orderBy: { date: "asc" } },
-        plantingPayments: { where: { seasonId, date: dateFilter }, orderBy: { date: "asc" } }
+        tags: { include: { tag: true } },
+        plantingProductions: { 
+          where: { seasonId, date: dateFilter, ...(frontId ? { frontId } : {}) }, 
+          orderBy: { date: "asc" } 
+        },
+        dailyWages: { 
+          where: { seasonId, date: dateFilter, ...(frontId ? { frontId } : {}) }, 
+          orderBy: { date: "asc" } 
+        },
+        driverAllocations: { 
+          where: { seasonId, date: dateFilter, ...(frontId ? { frontId } : {}) }, 
+          orderBy: { date: "asc" } 
+        },
+        plantingAdvances: { 
+          where: { seasonId, date: dateFilter, ...(frontId ? { frontId } : {}) }, 
+          include: { account: true }, 
+          orderBy: { date: "asc" } 
+        },
+        plantingPayments: { where: { seasonId }, orderBy: { date: "desc" } }
       }
     })
 

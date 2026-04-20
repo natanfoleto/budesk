@@ -1,6 +1,7 @@
 "use client"
 
 import { 
+  ChartColumnBig,
   ChevronRight,
   DollarSign, 
   FileText,
@@ -35,7 +36,7 @@ const menuItems = [
   {
     title: "Dashboard",
     href: "/dashboard",
-    icon: LayoutDashboard,
+    icon: ChartColumnBig,
   },
   {
     title: "Financeiro",

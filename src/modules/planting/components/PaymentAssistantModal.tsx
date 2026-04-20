@@ -94,6 +94,7 @@ export function PaymentAssistantModal({
   const [holeriteValue, setHoleriteValue] = useState<number>(0)
   const [paymentNotes, setPaymentNotes] = useState("")
   const [isPaidNow, setIsPaidNow] = useState(false)
+  const [createAdvance, setCreateAdvance] = useState(false)
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false)
 
   // Pix QR Code state
@@ -188,6 +189,7 @@ export function PaymentAssistantModal({
           amount: pixAmount,
           txid: `pagamento${pixPaymentId}`,
           key: pixKey.trim(),
+          keyType: pixKeyType,
           name: pixEmployeeName,
         }),
       })
@@ -338,6 +340,7 @@ export function PaymentAssistantModal({
     setHoleriteValue(0)
     setPaymentNotes("")
     setIsPaidNow(false)
+    setCreateAdvance(false)
   }
 
   const handleRegisterPayment = async () => {
@@ -377,6 +380,7 @@ export function PaymentAssistantModal({
             systemNetInCents: data.totals.earnedInCents + (applyCompensationRules ? (data.compensation?.netCompensationInCents || 0) : 0) - data.totals.advancesInCents,
             holeriteNetInCents: holeriteValue,
             isPaid: isPaidNow,
+            createAdvance,
             notes: paymentNotes
           })
         })
@@ -387,6 +391,7 @@ export function PaymentAssistantModal({
       setHoleriteValue(0)
       setPaymentNotes("")
       setIsPaidNow(false)
+      setCreateAdvance(false)
       fetchData()
       if (onUpdate) onUpdate()
     } catch (error) {
@@ -690,6 +695,20 @@ export function PaymentAssistantModal({
                           className="data-[state=checked]:bg-primary"
                         />
                       </div>
+
+                      {!editingPaymentId && (
+                        <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 border-dashed border-primary/20">
+                          <div className="space-y-0.5">
+                            <Label className="text-[10px] font-bold uppercase text-primary">Gerar Adiantamento</Label>
+                            <p className="text-[9px] text-muted-foreground">Lançar valor na aba de Adiantamentos?</p>
+                          </div>
+                          <Switch 
+                            checked={createAdvance}
+                            onCheckedChange={setCreateAdvance}
+                            className="data-[state=checked]:bg-primary"
+                          />
+                        </div>
+                      )}
 
                       <div className="flex gap-2 pt-2">
                         {editingPaymentId && (

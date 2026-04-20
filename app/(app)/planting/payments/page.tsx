@@ -1,8 +1,10 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import { endOfMonth, format, startOfMonth } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleSlash, FilterX, Loader2, Scissors, Search, Sprout } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useEmployeeTags } from "@/hooks/use-employee-tags"
-import { usePlantingSeasons } from "@/hooks/use-planting"
+import { usePlantingSeasons, useWorkFronts } from "@/hooks/use-planting"
 import { apiRequest } from "@/lib/api-client"
 import { formatCurrency } from "@/lib/utils"
 import { EmployeeDetailsModal } from "@/src/modules/planting/components/EmployeeDetailsModal"
@@ -25,13 +27,47 @@ export default function PlantingPaymentsPage() {
   const [nameFilter, setNameFilter] = useState<string>("")
   const [tagFilter, setTagFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [frontFilter, setFrontFilter] = useState<string>("all")
+  
+  type FilterType = "GERAL" | "HOJE" | "P_QUINZENAL" | "S_QUINZENAL" | "MES_ATUAL" | "CUSTOM" | string
+  const [filterType, setFilterType] = useState<FilterType>("GERAL")
+  const [startDate, setStartDate] = useState<string>("")
+  const [endDate, setEndDate] = useState<string>("")
+
+  const calculateDateRange = useCallback((type: FilterType) => {
+    const now = new Date()
+    now.setHours(12, 0, 0, 0)
+    
+    switch (type) {
+    case "HOJE":
+      return { start: format(now, "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") }
+    case "P_QUINZENAL": {
+      const start = startOfMonth(now)
+      const end = new Date(start)
+      end.setDate(15)
+      return { start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }
+    }
+    case "S_QUINZENAL": {
+      const start = startOfMonth(now)
+      start.setDate(16)
+      const end = endOfMonth(now)
+      return { start: format(start, "yyyy-MM-dd"), end: format(end, "yyyy-MM-dd") }
+    }
+    case "MES_ATUAL":
+      return { start: format(startOfMonth(now), "yyyy-MM-dd"), end: format(endOfMonth(now), "yyyy-MM-dd") }
+    default:
+      return { start: "", end: "" }
+    }
+  }, [])
 
   const hasActiveFilters = 
     selectedSeasonId !== "all" || 
     categoryFilter !== "all" || 
     nameFilter !== "" || 
     tagFilter !== "all" || 
-    statusFilter !== "all"
+    statusFilter !== "all" ||
+    frontFilter !== "all" ||
+    filterType !== "GERAL"
 
   const clearFilters = () => {
     setSelectedSeasonId("all")
@@ -39,6 +75,10 @@ export default function PlantingPaymentsPage() {
     setNameFilter("")
     setTagFilter("all")
     setStatusFilter("all")
+    setFrontFilter("all")
+    setFilterType("GERAL")
+    setStartDate("")
+    setEndDate("")
     setPage(1)
   }
 
@@ -48,7 +88,7 @@ export default function PlantingPaymentsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [selectedSeasonId, categoryFilter, nameFilter, tagFilter, statusFilter, limit])
+  }, [selectedSeasonId, categoryFilter, nameFilter, tagFilter, statusFilter, frontFilter, filterType, startDate, endDate, limit])
 
   // Modals state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
@@ -57,12 +97,19 @@ export default function PlantingPaymentsPage() {
 
   const { data: seasons } = usePlantingSeasons()
   const { data: tags } = useEmployeeTags()
+  const { data: fronts } = useWorkFronts(selectedSeasonId)
 
   const { data: summaries, isLoading, refetch } = useQuery<EmployeeSummary[]>({
-    queryKey: ["payments-summary", selectedSeasonId],
+    queryKey: ["payments-summary", selectedSeasonId, frontFilter, filterType, startDate, endDate],
     queryFn: () => {
       const params = new URLSearchParams()
       if (selectedSeasonId && selectedSeasonId !== "all") params.set("seasonId", selectedSeasonId)
+      if (frontFilter && frontFilter !== "all") params.set("frontId", frontFilter)
+      if (filterType !== "GERAL") {
+        const range = filterType === "CUSTOM" ? { start: startDate, end: endDate } : calculateDateRange(filterType)
+        if (range.start) params.append("startDate", range.start)
+        if (range.end) params.append("endDate", range.end)
+      }
       return apiRequest<EmployeeSummary[]>(`/api/planting/payments/summary?${params.toString()}`)
     },
     enabled: selectedSeasonId !== "all"
@@ -87,26 +134,16 @@ export default function PlantingPaymentsPage() {
     }
 
     // 4. Status Filter
-    const totalPayments = s.details.payments?.reduce((acc: number, p: { holeriteNetInCents: number }) => acc + p.holeriteNetInCents, 0) || 0
+    const mostRecentPayment = s.details.payments?.[0]
+    const isPaid = mostRecentPayment?.isPaid === true
     
-    // Simple heuristic: If multiple payments reached the net amount (or at least there is one payment) we consider it Paid/Fechado.
-    // Given the user wants Em Aberto / Fechado, let's treat it as Fechado if totalPayments >= netValueToPay and netValueToPay > 0.
-    // Wait, simpler: if they have any payment registered in this period for the Net amount, it's 'closed'.
-    // Let's use `totalPayments > 0` as it indicates that holerite was paid in the period.
-    const isClosed = totalPayments > 0
-    
-    if (statusFilter === "closed" && !isClosed) return false
-    if (statusFilter === "open" && isClosed) return false
+    if (statusFilter === "closed" && !isPaid) return false
+    if (statusFilter === "open" && isPaid) return false
     
     return true
   })
 
-  // To list only the active/working employees or those with values:
-  // Usually we show all that passed the filter, but maybe hide those with 0 earned?
-  // Let's keep them if they have a salary or something, but usually sum earned > 0
-  const displayItems = filteredSummaries?.filter(s => 
-    s.totals.earnedInCents > 0 || (s.compensation && s.compensation.netCompensationInCents > 0) || !!s.details.payments?.length
-  ).sort((a, b) => a.employee.name.localeCompare(b.employee.name)) || []
+  const displayItems = filteredSummaries?.sort((a, b) => a.employee.name.localeCompare(b.employee.name)) || []
 
   const totalItems = displayItems.length
   const totalPages = Math.ceil(totalItems / limit) || 1
@@ -125,7 +162,7 @@ export default function PlantingPaymentsPage() {
 
       <Card className="relative overflow-visible">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Safra</Label>
               <Select value={selectedSeasonId} onValueChange={setSelectedSeasonId}>
@@ -140,6 +177,38 @@ export default function PlantingPaymentsPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label>Frente de Trabalho</Label>
+              <Select value={frontFilter} onValueChange={setFrontFilter} disabled={selectedSeasonId === "all"}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todas as Frentes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as Frentes</SelectItem>
+                  {fronts?.map(f => (
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Período</Label>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione o período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GERAL">Geral (Todo o histórico)</SelectItem>
+                  <SelectItem value="HOJE">Hoje ({format(new Date(), "dd/MM")})</SelectItem>
+                  <SelectItem value="CUSTOM">Personalizado</SelectItem>
+                  <SelectItem value="MES_ATUAL">{format(startOfMonth(new Date()), "MMMM/yy", { locale: ptBR })} (Geral)</SelectItem>
+                  <SelectItem value="P_QUINZENAL">1ª quinzena (01-15)</SelectItem>
+                  <SelectItem value="S_QUINZENAL">2ª quinzena (16-{format(endOfMonth(new Date()), "dd")})</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             
             <div className="space-y-2">
               <Label>Status de Pagamento</Label>
@@ -149,12 +218,25 @@ export default function PlantingPaymentsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="open">Em Aberto (Pendente)</SelectItem>
-                  <SelectItem value="closed">Fechado (Pago)</SelectItem>
+                  <SelectItem value="open">Pendente</SelectItem>
+                  <SelectItem value="closed">Pago</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {filterType === "CUSTOM" && (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 mt-4 items-end bg-muted/30 p-4 rounded-md border">
+              <div className="space-y-2">
+                <Label>Data Inicial</Label>
+                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Data Final</Label>
+                <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-10 mt-4 items-end">
             <div className="space-y-2 lg:col-span-4">
@@ -273,7 +355,8 @@ export default function PlantingPaymentsPage() {
                     const fixed = s.compensation?.netCompensationInCents || 0
                     const advances = s.totals.advancesInCents || 0
                     const netValue = earned + fixed - advances
-                    const isClosed = (s.details.payments?.length || 0) > 0
+                    const mostRecentPayment = s.details.payments?.[0]
+                    const isPaid = mostRecentPayment?.isPaid === true
 
                     return (
                       <TableRow 
@@ -326,13 +409,13 @@ export default function PlantingPaymentsPage() {
                           {formatCurrency(netValue)}
                         </TableCell>
                         <TableCell className="text-center">
-                          {isClosed ? (
+                          {isPaid ? (
                             <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                              Fechado
+                              Pago
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800">
-                              Em Aberto
+                              Pendente
                             </span>
                           )}
                         </TableCell>
