@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query"
 import { endOfMonth, format, startOfMonth } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CircleSlash, FilterX, Loader2, Scissors, Search, Sprout } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useCallback, useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useEmployeeTags } from "@/hooks/use-employee-tags"
+import { useJobs } from "@/hooks/use-jobs"
 import { usePlantingSeasons, useWorkFronts } from "@/hooks/use-planting"
 import { apiRequest } from "@/lib/api-client"
 import { formatCurrency } from "@/lib/utils"
@@ -21,18 +23,22 @@ import { EmployeeDetailsModal } from "@/src/modules/planting/components/Employee
 import { PaymentAssistantModal } from "@/src/modules/planting/components/PaymentAssistantModal"
 import { EmployeeSummary } from "@/src/modules/planting/services/PlantingEmployeeService"
 
-export default function PlantingPaymentsPage() {
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string>("all")
-  const [categoryFilter, setCategoryFilter] = useState<string>("all")
-  const [nameFilter, setNameFilter] = useState<string>("")
-  const [tagFilter, setTagFilter] = useState<string>("all")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [frontFilter, setFrontFilter] = useState<string>("all")
+function PlantingPaymentsContent() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>(searchParams.get("seasonId") || "all")
+  const [categoryFilter, setCategoryFilter] = useState<string>(searchParams.get("category") || "all")
+  const [jobFilter, setJobFilter] = useState<string>(searchParams.get("jobId") || "all")
+  const [nameFilter, setNameFilter] = useState<string>(searchParams.get("name") || "")
+  const [tagFilter, setTagFilter] = useState<string>(searchParams.get("tag") || "all")
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") || "all")
+  const [frontFilter, setFrontFilter] = useState<string>(searchParams.get("frontId") || "all")
   
   type FilterType = "GERAL" | "HOJE" | "P_QUINZENAL" | "S_QUINZENAL" | "MES_ATUAL" | "CUSTOM" | string
-  const [filterType, setFilterType] = useState<FilterType>("GERAL")
-  const [startDate, setStartDate] = useState<string>("")
-  const [endDate, setEndDate] = useState<string>("")
+  const [filterType, setFilterType] = useState<FilterType>((searchParams.get("filterType") as FilterType) || "GERAL")
+  const [startDate, setStartDate] = useState<string>(searchParams.get("startDate") || "")
+  const [endDate, setEndDate] = useState<string>(searchParams.get("endDate") || "")
 
   const calculateDateRange = useCallback((type: FilterType) => {
     const now = new Date()
@@ -67,6 +73,7 @@ export default function PlantingPaymentsPage() {
     tagFilter !== "all" || 
     statusFilter !== "all" ||
     frontFilter !== "all" ||
+    jobFilter !== "all" ||
     filterType !== "GERAL"
 
   const clearFilters = () => {
@@ -76,6 +83,7 @@ export default function PlantingPaymentsPage() {
     setTagFilter("all")
     setStatusFilter("all")
     setFrontFilter("all")
+    setJobFilter("all")
     setFilterType("GERAL")
     setStartDate("")
     setEndDate("")
@@ -83,12 +91,40 @@ export default function PlantingPaymentsPage() {
   }
 
   // Pagination state
-  const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(10)
+  const [page, setPage] = useState(Number(searchParams.get("page")) || 1)
+  const [limit, setLimit] = useState(Number(searchParams.get("limit")) || 10)
+
+  // Sync state to URL
+  const updateUrl = useCallback(() => {
+    const params = new URLSearchParams()
+    if (selectedSeasonId !== "all") params.set("seasonId", selectedSeasonId)
+    if (categoryFilter !== "all") params.set("category", categoryFilter)
+    if (nameFilter) params.set("name", nameFilter)
+    if (tagFilter !== "all") params.set("tag", tagFilter)
+    if (statusFilter !== "all") params.set("status", statusFilter)
+    if (frontFilter !== "all") params.set("frontId", frontFilter)
+    if (jobFilter !== "all") params.set("jobId", jobFilter)
+    if (filterType !== "GERAL") params.set("filterType", filterType)
+    if (startDate) params.set("startDate", startDate)
+    if (endDate) params.set("endDate", endDate)
+    if (page > 1) params.set("page", page.toString())
+    if (limit !== 10) params.set("limit", limit.toString())
+    
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }, [
+    selectedSeasonId, categoryFilter, nameFilter, tagFilter, 
+    statusFilter, frontFilter, jobFilter, filterType, startDate, endDate, 
+    page, limit, pathname, router
+  ])
 
   useEffect(() => {
+    updateUrl()
+  }, [updateUrl])
+
+  useEffect(() => {
+    // Reset page to 1 if filters change (except page/limit)
     setPage(1)
-  }, [selectedSeasonId, categoryFilter, nameFilter, tagFilter, statusFilter, frontFilter, filterType, startDate, endDate, limit])
+  }, [selectedSeasonId, categoryFilter, jobFilter, nameFilter, tagFilter, statusFilter, frontFilter, filterType, startDate, endDate])
 
   // Modals state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
@@ -98,6 +134,7 @@ export default function PlantingPaymentsPage() {
   const { data: seasons } = usePlantingSeasons()
   const { data: tags } = useEmployeeTags()
   const { data: fronts } = useWorkFronts(selectedSeasonId)
+  const { data: jobs } = useJobs()
 
   const { data: summaries, isLoading, refetch } = useQuery<EmployeeSummary[]>({
     queryKey: ["payments-summary", selectedSeasonId, frontFilter, filterType, startDate, endDate],
@@ -124,6 +161,9 @@ export default function PlantingPaymentsPage() {
       if (categoryFilter === "NONE" && s.employee.plantingCategory) return false
       if (categoryFilter !== "NONE" && s.employee.plantingCategory !== categoryFilter) return false
     }
+
+    // 2.1 Job Filter
+    if (jobFilter !== "all" && s.employee.jobName !== jobFilter) return false
     
     // 3. Tag Filter
     if (tagFilter !== "all" && tagFilter !== "Sem Etiqueta") {
@@ -135,10 +175,12 @@ export default function PlantingPaymentsPage() {
 
     // 4. Status Filter
     const mostRecentPayment = s.details.payments?.[0]
+    const hasPayment = !!mostRecentPayment
     const isPaid = mostRecentPayment?.isPaid === true
     
-    if (statusFilter === "closed" && !isPaid) return false
-    if (statusFilter === "open" && isPaid) return false
+    if (statusFilter === "closed" && (!hasPayment || !isPaid)) return false
+    if (statusFilter === "open" && (!hasPayment || isPaid)) return false
+    if (statusFilter === "unrecorded" && hasPayment) return false
     
     return true
   })
@@ -220,6 +262,7 @@ export default function PlantingPaymentsPage() {
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="open">Pendente</SelectItem>
                   <SelectItem value="closed">Pago</SelectItem>
+                  <SelectItem value="unrecorded">Sem Lançamento</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -238,8 +281,8 @@ export default function PlantingPaymentsPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-10 mt-4 items-end">
-            <div className="space-y-2 lg:col-span-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 mt-4 items-end">
+            <div className="space-y-2 lg:col-span-3">
               <Label>Buscar Funcionário</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
@@ -250,6 +293,21 @@ export default function PlantingPaymentsPage() {
                   onChange={(e) => setNameFilter(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="space-y-2 lg:col-span-3">
+              <Label>Cargo</Label>
+              <Select value={jobFilter} onValueChange={setJobFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos os cargos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os cargos</SelectItem>
+                  {jobs?.map((j: { id: string; name: string }) => (
+                    <SelectItem key={j.id} value={j.name}>{j.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2 lg:col-span-3">
@@ -369,10 +427,24 @@ export default function PlantingPaymentsPage() {
                       >
                         <TableCell className="pl-6 font-medium">
                           <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-sm font-medium ${s.employee.isContractTerminated ? "text-muted-foreground" : ""}`}>
                                 {s.employee.name}
                               </span>
+                              {s.employee.isContractTerminated && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 cursor-help">
+                                        Encerrado
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="text-xs">
+                                      Desligado em {s.employee.terminationDate ? format(new Date(s.employee.terminationDate), "dd/MM/yyyy", { locale: ptBR }) : "data não informada"}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                               {s.employee.plantingCategory === "PLANTIO" && <Sprout className="h-3 w-3 text-emerald-600" />}
                               {s.employee.plantingCategory === "CORTE" && <Scissors className="h-3 w-3 text-amber-600" />}
                               {(!s.employee.plantingCategory) && <CircleSlash className="h-3 w-3 text-slate-400" />}
@@ -409,7 +481,11 @@ export default function PlantingPaymentsPage() {
                           {formatCurrency(netValue)}
                         </TableCell>
                         <TableCell className="text-center">
-                          {isPaid ? (
+                          {(!s.details.payments || s.details.payments.length === 0) ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                              Sem Lançamento
+                            </span>
+                          ) : isPaid ? (
                             <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
                               Pago
                             </span>
@@ -524,5 +600,17 @@ export default function PlantingPaymentsPage() {
         onUpdate={() => refetch()}
       />
     </div>
+  )
+}
+
+export default function PlantingPaymentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <PlantingPaymentsContent />
+    </Suspense>
   )
 }

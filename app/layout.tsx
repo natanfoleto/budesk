@@ -19,8 +19,11 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Budesk",
-  description: "Budesk",
+  title: {
+    template: "%s | Budesk",
+    default: "Budesk",
+  },
+  description: "Sistema de Gestão Agrícola e Administrativa",
 }
 
 export default function RootLayout({

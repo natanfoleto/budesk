@@ -1,0 +1,10 @@
+﻿import { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Fornecedores",
+}
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>
+}
+

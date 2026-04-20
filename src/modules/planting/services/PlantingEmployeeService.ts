@@ -1,8 +1,11 @@
 import { 
-  AttendanceType, 
+  AttendanceType,
   DailyWage,
   DriverAllocation,
   EmployeeAccount,
+  EmployeeTag,  EmployeeTagOnEmployee,
+  EmploymentRecord,
+  Job,
   PlantingAdvance,
   PlantingPayment,
   PlantingProduction,
@@ -10,6 +13,24 @@ import {
 import { getDaysInMonth } from "date-fns"
 
 import prisma from "@/lib/prisma"
+
+type EmployeeWithRelations = {
+  id: string
+  name: string
+  document: string | null
+  salaryInCents: number | null
+  plantingCategory: string | null
+  jobId: string | null
+  job: Job | null
+  accounts: EmployeeAccount[]
+  employmentRecords: EmploymentRecord[]
+  tags: (EmployeeTagOnEmployee & { tag: EmployeeTag })[]
+  plantingProductions: PlantingProduction[]
+  dailyWages: DailyWage[]
+  driverAllocations: DriverAllocation[]
+  plantingAdvances: (PlantingAdvance & { account: EmployeeAccount | null })[]
+  plantingPayments: PlantingPayment[]
+}
  
 function toLocalDateStr(date: Date): string {
   const y = date.getUTCFullYear()
@@ -27,6 +48,9 @@ export interface EmployeeSummary {
     accounts: EmployeeAccount[]
     plantingCategory?: string | null
     tags?: { tagId: string; tag: { id: string; name: string; color: string } }[]
+    jobName?: string | null
+    isContractTerminated?: boolean
+    terminationDate?: Date | null
   }
   seasonName: string
   totals: {
@@ -310,7 +334,11 @@ export class PlantingEmployeeService {
     const employees = await prisma.employee.findMany({
       include: {
         accounts: { orderBy: { isDefault: "desc" } },
-        employmentRecords: { orderBy: { admissionDate: "desc" }, take: 1 },
+        employmentRecords: { 
+          orderBy: { admissionDate: "desc" }, 
+          take: 1 
+        },
+        job: true,
         tags: { include: { tag: true } },
         plantingProductions: { 
           where: { seasonId, date: dateFilter, ...(frontId ? { frontId } : {}) }, 
@@ -331,7 +359,7 @@ export class PlantingEmployeeService {
         },
         plantingPayments: { where: { seasonId }, orderBy: { date: "desc" } }
       }
-    })
+    }) as EmployeeWithRelations[]
 
     return employees.map(employee => {
       let totalEarnedInCents = 0
@@ -340,7 +368,7 @@ export class PlantingEmployeeService {
       const workedDates = new Set<string>()
       let totalAbsences = 0
 
-      employee.plantingProductions.forEach(p => {
+      employee.plantingProductions.forEach((p) => {
         if (p.presence === "PRESENCA") {
           totalEarnedInCents += p.totalValueInCents
           workedDates.add(toLocalDateStr(p.date))
@@ -349,14 +377,14 @@ export class PlantingEmployeeService {
         }
       })
 
-      employee.dailyWages.forEach(w => {
+      employee.dailyWages.forEach((w) => {
         totalEarnedInCents += w.valueInCents
         if (w.presence === "PRESENCA") {
           workedDates.add(toLocalDateStr(w.date))
         }
       })
 
-      employee.driverAllocations.forEach(d => {
+      employee.driverAllocations.forEach((d) => {
         totalEarnedInCents += d.valueInCents
         workedDates.add(toLocalDateStr(d.date))
       })
@@ -364,32 +392,32 @@ export class PlantingEmployeeService {
       const totalAdvancesInCents = employee.plantingAdvances.reduce((acc: number, curr) => acc + curr.valueInCents, 0)
 
       const allDatesSet = new Set<string>()
-      employee.plantingProductions.forEach(p => allDatesSet.add(toLocalDateStr(p.date)))
-      employee.dailyWages.forEach(w => allDatesSet.add(toLocalDateStr(w.date)))
-      employee.driverAllocations.forEach(d => allDatesSet.add(toLocalDateStr(d.date)))
+      employee.plantingProductions.forEach((p) => allDatesSet.add(toLocalDateStr(p.date)))
+      employee.dailyWages.forEach((w) => allDatesSet.add(toLocalDateStr(w.date)))
+      employee.driverAllocations.forEach((d) => allDatesSet.add(toLocalDateStr(d.date)))
 
       const sortedDates = Array.from(allDatesSet).sort()
       const presenceDetails: { date: string; status: string }[] = []
 
       sortedDates.forEach((dateStr) => {
-        const dayProds = employee.plantingProductions.filter(p => toLocalDateStr(p.date) === dateStr)
-        const dayWages = employee.dailyWages.filter(w => toLocalDateStr(w.date) === dateStr)
-        const isDriver = employee.driverAllocations.some(d => toLocalDateStr(d.date) === dateStr)
+        const dayProds = employee.plantingProductions.filter((p) => toLocalDateStr(p.date) === dateStr)
+        const dayWages = employee.dailyWages.filter((w) => toLocalDateStr(w.date) === dateStr)
+        const isDriver = employee.driverAllocations.some((d) => toLocalDateStr(d.date) === dateStr)
 
         if (isDriver) {
           presenceDetails.push({ date: dateStr, status: "PRESENCA" })
         } else {
-          const prodPresence = dayProds.find(p => p.presence === "PRESENCA")
-          const wagePresence = dayWages.find(w => w.presence === "PRESENCA")
+          const prodPresence = dayProds.find((p) => p.presence === "PRESENCA")
+          const wagePresence = dayWages.find((w) => w.presence === "PRESENCA")
           if (prodPresence || wagePresence) {
             presenceDetails.push({ date: dateStr, status: "PRESENCA" })
           } else {
-            const folga = dayWages.find(w => w.presence === "FOLGA")
+            const folga = dayWages.find((w) => w.presence === "FOLGA")
             if (folga) {
               presenceDetails.push({ date: dateStr, status: "FOLGA" })
             } else {
-              const otherStatus = dayWages.find(w => w.presence !== "PRESENCA")?.presence ||
-                                 dayProds.find(p => p.presence !== "PRESENCA")?.presence || "FALTA"
+              const otherStatus = dayWages.find((w) => w.presence !== "PRESENCA")?.presence ||
+                                 dayProds.find((p) => p.presence !== "PRESENCA")?.presence || "FALTA"
               presenceDetails.push({ date: dateStr, status: otherStatus })
               if (otherStatus !== "FOLGA") {
                 totalAbsences++
@@ -409,15 +437,15 @@ export class PlantingEmployeeService {
         let dayPlanting = 0
         let dayCutting = 0
 
-        employee.plantingProductions.filter(p => toLocalDateStr(p.date) === dateStr && p.presence === "PRESENCA").forEach(p => {
+        employee.plantingProductions.filter((p) => toLocalDateStr(p.date) === dateStr && p.presence === "PRESENCA").forEach((p) => {
           dayGain += p.totalValueInCents
           if (p.type === "PLANTIO") dayPlanting += Number(p.meters || 0)
           else dayCutting += Number(p.meters || 0)
         })
-        employee.dailyWages.filter(w => toLocalDateStr(w.date) === dateStr && (w.presence === "PRESENCA" || w.presence === "FOLGA")).forEach(w => {
+        employee.dailyWages.filter((w) => toLocalDateStr(w.date) === dateStr && (w.presence === "PRESENCA" || w.presence === "FOLGA")).forEach((w) => {
           dayGain += w.valueInCents
         })
-        employee.driverAllocations.filter(d => toLocalDateStr(d.date) === dateStr).forEach(d => {
+        employee.driverAllocations.filter((d) => toLocalDateStr(d.date) === dateStr).forEach((d) => {
           dayGain += d.valueInCents
         })
 
@@ -459,8 +487,11 @@ export class PlantingEmployeeService {
           document: employee.document,
           salaryInCents: employee.salaryInCents,
           accounts: employee.accounts,
-          plantingCategory: employee.plantingCategory, // Useful for filtering
-          tags: (employee as typeof employee & { tags?: { tagId: string; tag: { id: string; name: string; color: string } }[] }).tags || [] // Useful for filtering
+          plantingCategory: employee.plantingCategory,
+          tags: employee.tags || [],
+          jobName: employee.job?.name || employee.employmentRecords?.[0]?.jobTitle || null,
+          isContractTerminated: !!employee.employmentRecords?.[0]?.terminationDate,
+          terminationDate: employee.employmentRecords?.[0]?.terminationDate || null
         },
         seasonName: season?.name || seasonId,
         totals: {
