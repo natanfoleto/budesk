@@ -53,7 +53,8 @@ export class PlantingProductionService {
       }
     }
 
-    // Validate termination date
+    // Validate termination date (Inativado a pedido do usuário - permitir apontamentos após encerramento)
+    /*
     if (data.employeeId && data.date) {
       const employee = await db.employee.findUnique({
         where: { id: data.employeeId },
@@ -82,6 +83,7 @@ export class PlantingProductionService {
         }
       }
     }
+    */
 
     // Calcular total
     const meters = data.meters ? Number(data.meters) : 0
