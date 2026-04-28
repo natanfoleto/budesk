@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client"
 import JSZip from "jszip"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
     const startDateStr = searchParams.get("startDate")
     const endDateStr = searchParams.get("endDate")
     const shouldCompensate = searchParams.get("shouldCompensate") !== "false"
+    const tagId = searchParams.get("tagId")
 
     if (!seasonId || !startDateStr || !endDateStr) {
       return NextResponse.json({ error: "seasonId, startDate and endDate are required" }, { status: 400 })
@@ -54,7 +56,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (type === "consolidated") {
-      const pdf = await PlantingReportService.generateConsolidatedReport(seasonId, startDate, endDate, isMonthly)
+      const pdf = await PlantingReportService.generateConsolidatedReport(seasonId, startDate, endDate, isMonthly, shouldCompensate, tagId)
       return new NextResponse(pdf, {
         headers: {
           "Content-Type": "application/pdf",
@@ -65,7 +67,14 @@ export async function GET(req: NextRequest) {
 
     if (type === "all-zip") {
       const { shouldShowEmployeeInMonth } = await import("@/lib/utils/planting-utils")
+      
+      const whereClause: Prisma.EmployeeWhereInput = {}
+      if (tagId) {
+        whereClause.tags = { some: { tagId } }
+      }
+      
       const allEmployees = await prisma.employee.findMany({
+        where: whereClause,
         include: {
           employmentRecords: {
             orderBy: { admissionDate: 'desc' },

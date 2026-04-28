@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client"
 import { format, getDay, getDaysInMonth } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { jsPDF } from "jspdf"
@@ -537,8 +538,14 @@ export class PlantingReportService {
     return doc.output("arraybuffer")
   }
 
-  static async generateConsolidatedReport(seasonId: string, startDate: Date, endDate: Date, isMonthly?: boolean, shouldCompensate: boolean = true) {
+  static async generateConsolidatedReport(seasonId: string, startDate: Date, endDate: Date, isMonthly?: boolean, shouldCompensate: boolean = true, tagId?: string | null) {
+    const whereClause: Prisma.EmployeeWhereInput = {}
+    if (tagId) {
+      whereClause.tags = { some: { tagId } }
+    }
+
     const employees = (await prisma.employee.findMany({
+      where: whereClause,
       include: {
         employmentRecords: {
           orderBy: { admissionDate: 'desc' },

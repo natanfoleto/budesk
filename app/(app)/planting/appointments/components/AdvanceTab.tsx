@@ -108,7 +108,7 @@ export function AdvanceTab({
   const [isComboboxOpen, setIsComboboxOpen] = useState(false)
   const [isAssistantOpen, setIsAssistantOpen] = useState(false)
 
-  const { data: employees } = useEmployees({ tagIds: selectedTagIds })
+  const { data: employees } = useEmployees({ tagIds: selectedTagIds, limit: 5000 })
   
   const { data: advances, isLoading } = useQuery<PlantingAdvance[]>({
     queryKey: ["planting-advances", seasonId, frontId, date, selectedTagIds],
@@ -466,7 +466,13 @@ export function AdvanceTab({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-[450px] p-0" align="start">
-                        <Command>
+                        <Command 
+                          filter={(value, search) => {
+                            const normalizedValue = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+                            const normalizedSearch = search.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+                            return normalizedValue.includes(normalizedSearch) ? 1 : 0
+                          }}
+                        >
                           <CommandInput placeholder="Buscar funcionário..." />
                           <CommandList>
                             <CommandEmpty>Nenhum funcionário encontrado.</CommandEmpty>
@@ -474,7 +480,7 @@ export function AdvanceTab({
                               {employees?.data.map((emp) => (
                                 <CommandItem
                                   key={emp.id}
-                                  value={emp.name}
+                                  value={`${emp.name} | ${emp.id}`}
                                   onSelect={() => {
                                     form.setValue("employeeId", emp.id)
                                     setIsComboboxOpen(false)

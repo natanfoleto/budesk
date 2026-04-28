@@ -19,6 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useEmployeeTags } from "@/hooks/use-employee-tags"
 import { cn } from "@/lib/utils"
 
 interface ReportModalProps {
@@ -35,6 +44,8 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
   const [isGenerating, setIsGenerating] = useState<string | null>(null)
   const [isGeneratingMonthly, setIsGeneratingMonthly] = useState(false)
   const [isGeneratingNoComp, setIsGeneratingNoComp] = useState(false)
+  const [selectedTagId, setSelectedTagId] = useState<string>("all")
+  const { data: tags } = useEmployeeTags()
   const isAnyGenerating = !!isGenerating || isGeneratingMonthly || isGeneratingNoComp
 
   const handleDownload = async (
@@ -57,6 +68,7 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
       if (employeeId) params.set("employeeId", employeeId)
       if (isMonthly) params.set("isMonthly", "true")
       if (!shouldCompensate) params.set("shouldCompensate", "false")
+      if (selectedTagId !== "all") params.set("tagId", selectedTagId)
 
       const response = await fetch(`/api/planting/reports?${params.toString()}`)
       
@@ -122,7 +134,27 @@ export function ReportModal({ isOpen, onClose, seasonId, startDate, endDate, isM
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 gap-6 py-4">
+        <div className="space-y-2 py-2">
+          <Label>Filtrar por Etiqueta (opcional)</Label>
+          <Select value={selectedTagId} onValueChange={setSelectedTagId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Todas as etiquetas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as etiquetas</SelectItem>
+              {tags?.map((tag) => (
+                <SelectItem key={tag.id} value={tag.id}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
+                    {tag.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 pb-4">
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Relatório Quinzenal</h4>
             <div className="grid gap-3">
