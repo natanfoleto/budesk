@@ -191,6 +191,13 @@ function PlantingPaymentsContent() {
   const totalPages = Math.ceil(totalItems / limit) || 1
   const paginatedItems = displayItems.slice((page - 1) * limit, page * limit)
 
+  const totalNetValue = displayItems.reduce((acc, s) => {
+    const earned = s.totals.earnedInCents || 0
+    const fixed = s.compensation?.netCompensationInCents || 0
+    const advances = s.totals.advancesInCents || 0
+    return acc + (earned + fixed - advances)
+  }, 0)
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -504,70 +511,77 @@ function PlantingPaymentsContent() {
           </div>
 
           {totalItems > 0 && (
-            <div className="flex items-center justify-between p-4 border-t">
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">Linhas por página</p>
-                  <Select
-                    value={String(limit)}
-                    onValueChange={(v) => setLimit(Number(v))}
-                  >
-                    <SelectTrigger className="h-8 w-[70px]">
-                      <SelectValue placeholder={limit} />
-                    </SelectTrigger>
-                    <SelectContent side="top">
-                      {[10, 20, 30, 40, 50].map((pageSize) => (
-                        <SelectItem key={pageSize} value={String(pageSize)}>
-                          {pageSize}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <div className="flex flex-col p-4 border-t gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">Linhas por página</p>
+                    <Select
+                      value={String(limit)}
+                      onValueChange={(v) => setLimit(Number(v))}
+                    >
+                      <SelectTrigger className="h-8 w-[70px]">
+                        <SelectValue placeholder={limit} />
+                      </SelectTrigger>
+                      <SelectContent side="top">
+                        {[10, 20, 30, 40, 50].map((pageSize) => (
+                          <SelectItem key={pageSize} value={String(pageSize)}>
+                            {pageSize}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Total de registros: {totalItems}
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Total de registros: {totalItems}
+                <div className="flex items-center space-x-2">
+                  <div className="text-sm text-muted-foreground pr-2">
+                  Página {page} de {totalPages}
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => setPage(1)}
+                    disabled={page <= 1}
+                  >
+                    <span className="sr-only">Primeira página</span>
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page <= 1}
+                  >
+                    <span className="sr-only">Página anterior</span>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page >= totalPages}
+                  >
+                    <span className="sr-only">Próxima página</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => setPage(totalPages)}
+                    disabled={page >= totalPages}
+                  >
+                    <span className="sr-only">Última página</span>
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="text-sm text-muted-foreground pr-2">
-                  Página {page} de {totalPages}
+              <div className="flex justify-center border-t pt-4 mt-2">
+                <div className="text-base font-bold text-emerald-800 bg-emerald-50 px-8 py-2.5 rounded-full border border-emerald-200/60 shadow-xs">
+                  Total Líquido (Filtrado): {formatCurrency(totalNetValue)}
                 </div>
-                <Button
-                  variant="outline"
-                  className="hidden h-8 w-8 p-0 lg:flex"
-                  onClick={() => setPage(1)}
-                  disabled={page <= 1}
-                >
-                  <span className="sr-only">Primeira página</span>
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setPage(page - 1)}
-                  disabled={page <= 1}
-                >
-                  <span className="sr-only">Página anterior</span>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setPage(page + 1)}
-                  disabled={page >= totalPages}
-                >
-                  <span className="sr-only">Próxima página</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="hidden h-8 w-8 p-0 lg:flex"
-                  onClick={() => setPage(totalPages)}
-                  disabled={page >= totalPages}
-                >
-                  <span className="sr-only">Última página</span>
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           )}
